@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension point="org.eclipse.ui.commands">
+   
+		<command
+		       id="refactorer.commands.analyzeWorkspace"
+		       name="Analizar el WorkSpace"/>
+		<command
+		    id="refactorer.commands.analyzeProject"
+		    name="Analizar el Proyecto"/>
+		<command
+		    id="refactorer.commands.analyzeSingleFile"
+		    name="Analizar la Clase"/>
+	</extension>
+	
+	<extension point="org.eclipse.ui.handlers">
+	     
+	     <handler
+			class="handler.AnalyzeWorkspaceHandler"
+			commandId="refactorer.commands.analyzeWorkspace"/>
+	     <handler
+	        class="handler.AnalyzeProjectHandler"
+	        commandId="refactorer.commands.analyzeProject"/>
+	    <handler
+	        class="handler.AnalyzeSingleFileHandler"
+	        commandId="refactorer.commands.analyzeSingleFile"/>
+	</extension>
+	
+	<extension point="org.eclipse.ui.menus">
+	     
+	     <menuContribution locationURI="menu:org.eclipse.ui.main.menu">
+	         <menu id="refactorer.menu" label="Refactorer">
+				<command 
+					commandId="refactorer.commands.analyzeWorkspace"
+					label="Analizar Complejidad Cognitiva del WorkSpace"
+					style="push"
+				/>
+	         </menu>
+	     </menuContribution>
+
+		<!-- Opción PopUp sólo para proyectos -->
+	    <menuContribution locationURI="popup:org.eclipse.ui.popup.any">
+		    <command
+		        commandId="refactorer.commands.analyzeProject"
+		        label="Analizar Complejidad del Proyecto"
+		        style="push">
+		        <visibleWhen checkEnabled="true">
+		            <with variable="selection">
+		            	<iterate ifEmpty="false">
+                			<instanceof value="org.eclipse.jdt.core.IJavaProject"/>
+	                    </iterate>
+		            </with>
+		        </visibleWhen>
+		    </command>
+		</menuContribution>
+
+		<!-- Opción PopUp sólo para clases .java -->
+	   <menuContribution locationURI="popup:org.eclipse.ui.popup.any">
+		    <command
+		        commandId="refactorer.commands.analyzeSingleFile"
+		        label="Analizar Complejidad de esta Clase"
+		        style="push">
+		        <visibleWhen checkEnabled="true">
+		            <with variable="selection">
+		                <iterate ifEmpty="false">
+							<instanceof value="org.eclipse.jdt.core.ICompilationUnit"/>
+		                </iterate>
+		            </with>
+		        </visibleWhen>
+		    </command>
+		</menuContribution>
+
+	</extension>
+
+
+</plugin>
