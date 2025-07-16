@@ -1,6 +1,6 @@
-package neo.reducecognitivecomplexity.graphs;
+package neo.graphs;
 
-import neo.reducecognitivecomplexity.algorithms.Pair;
+import neo.algorithms.Pair;
 
 /**
  * This class models a vertex of graphs that contain information about cognitive

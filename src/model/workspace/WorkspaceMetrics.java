@@ -4,6 +4,7 @@ package model.workspace;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import model.project.ProjectMetrics;
 
@@ -101,4 +102,29 @@ public class WorkspaceMetrics {
         	return new WorkspaceMetrics(this);
         }
     }
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(analysisDate, name, projects);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		WorkspaceMetrics other = (WorkspaceMetrics) obj;
+		return Objects.equals(analysisDate, other.analysisDate) && Objects.equals(name, other.name)
+				&& Objects.equals(projects, other.projects);
+	}
+
+	@Override
+	public String toString() {
+		return "WorkspaceMetrics [name=" + name + ", analysisDate=" + analysisDate + ", projects=" + projects + "]";
+	}
+    
+    
 }

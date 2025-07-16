@@ -8,6 +8,7 @@ import org.eclipse.jdt.core.dom.*;
 import org.eclipse.ltk.core.refactoring.Change;
 import model.change.ExtractionPlan;
 import model.method.MethodMetrics;
+import model.method.MethodMetrics.MethodMetricsBuilder;
 import model.common.LocStats;
 import model.common.ComplexityStats;
 import neo.algorithms.Solution;
@@ -19,7 +20,7 @@ import neo.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
 public final class CodeExtractionEngine {
 
     private final EnumerativeSearch search = new EnumerativeSearch();
-    private final RefactoringCache cache  = new RefactoringCache();
+    private final RefactoringCache cache  = new RefactoringCache(); // 	quitar final???
 
     public MethodMetrics analyseAndPlan(ICompilationUnit icu,
                                         CompilationUnit cu,
@@ -61,8 +62,7 @@ public final class CodeExtractionEngine {
         ExtractionPlan plan     = new ExtractionPlan(applyChanges);
         ExtractionPlan undoPlan = new ExtractionPlan(undoChanges);
 
-        /* 4. Construir MethodMetrics (Builder para mayor claridad) */
-        return new MethodMetricsBuilder()
+        return MethodMetrics.builder()
                 .name(method.getName().getIdentifier())
                 .currentCc(currentCc)
                 .refactoredCc(refactoredCc)

@@ -1,4 +1,4 @@
-package neo.reducecognitivecomplexity.algorithms.exhaustivesearch;
+package neo.algorithms.exhaustivesearch;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -8,11 +8,11 @@ import java.util.stream.Collectors;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 
-import neo.reducecognitivecomplexity.algorithms.Sequence;
-import neo.reducecognitivecomplexity.refactoringcache.RefactoringCache;
-import neo.reducecognitivecomplexity.refactoringcache.SentenceSequenceIterator;
-import neo.reducecognitivecomplexity.refactoringcache.SentencesSelectorVisitor;
-import neo.reducecognitivecomplexity.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
+import neo.algorithms.Sequence;
+import neo.refactoringcache.RefactoringCache;
+import neo.refactoringcache.SentenceSequenceIterator;
+import neo.refactoringcache.SentencesSelectorVisitor;
+import neo.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
 
 public class ExhaustiveEnumerationAlgorithm {
 	private ASTNode method;

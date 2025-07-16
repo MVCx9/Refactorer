@@ -2,6 +2,8 @@ package model.project;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+
 import model.clazz.ClassMetrics;
 import model.common.ComplexityStats;
 import model.common.Identifiable;
@@ -93,4 +95,27 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
         	return new ProjectMetrics(this);
         }
     }
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(classes, name);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ProjectMetrics other = (ProjectMetrics) obj;
+		return Objects.equals(classes, other.classes) && Objects.equals(name, other.name);
+	}
+
+	@Override
+	public String toString() {
+		return "ProjectMetrics [name=" + name + ", classes=" + classes + "]";
+	}
+    
 }

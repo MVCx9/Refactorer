@@ -1,4 +1,4 @@
-package neo.reducecognitivecomplexity.algorithms.exhaustivesearch;
+package neo.algorithms.exhaustivesearch;
 
 import java.math.BigInteger;
 import java.util.Iterator;

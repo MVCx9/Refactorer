@@ -2,6 +2,7 @@ package model.method;
 
 
 import java.util.Collections;
+import java.util.Objects;
 
 import model.change.ExtractionPlan;
 import model.common.ComplexityStats;
@@ -109,4 +110,34 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
         	return new MethodMetrics(this);
         }
     }
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(applyPlan, currentCc, currentLoc, extractedMethodCount, name, refactoredCc, refactoredLoc,
+				undoPlan);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		MethodMetrics other = (MethodMetrics) obj;
+		return Objects.equals(applyPlan, other.applyPlan) && currentCc == other.currentCc
+				&& currentLoc == other.currentLoc && extractedMethodCount == other.extractedMethodCount
+				&& Objects.equals(name, other.name) && refactoredCc == other.refactoredCc
+				&& refactoredLoc == other.refactoredLoc && Objects.equals(undoPlan, other.undoPlan);
+	}
+
+	@Override
+	public String toString() {
+		return "MethodMetrics [name=" + name + ", currentLoc=" + currentLoc + ", refactoredLoc=" + refactoredLoc
+				+ ", currentCc=" + currentCc + ", refactoredCc=" + refactoredCc + ", extractedMethodCount="
+				+ extractedMethodCount + ", applyPlan=" + applyPlan + ", undoPlan=" + undoPlan + "]";
+	}
+    
+    
 }

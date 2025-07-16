@@ -8,5 +8,10 @@
 	<classpathentry exported="true" kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="src" path="model"/>
+	<classpathentry kind="lib" path="/Users/Miguel/Desktop/TFG/COMPLEJIDAD COGNITIVA/DOCUMENTACION/JARs/jgrapht-1.5.0/lib/jgrapht-core-1.5.0.jar"/>
+	<classpathentry kind="lib" path="/Users/Miguel/Desktop/TFG/COMPLEJIDAD COGNITIVA/DOCUMENTACION/JARs/jgrapht-1.5.0/lib/jgrapht-ext-1.5.0.jar"/>
+	<classpathentry kind="lib" path="/Users/Miguel/Desktop/TFG/COMPLEJIDAD COGNITIVA/DOCUMENTACION/JARs/jgrapht-1.5.0/lib/jgrapht-io-1.5.0.jar"/>
+	<classpathentry kind="lib" path="/Users/Miguel/Desktop/TFG/COMPLEJIDAD COGNITIVA/DOCUMENTACION/JARs/jgrapht-1.5.0/lib/jgrapht-opt-1.5.0.jar"/>
+	<classpathentry kind="lib" path="/Users/Miguel/Desktop/TFG/COMPLEJIDAD COGNITIVA/DOCUMENTACION/JARs/jheaps-0.14/lib/jheaps-0.14.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

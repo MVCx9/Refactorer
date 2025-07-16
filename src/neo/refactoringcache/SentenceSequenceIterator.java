@@ -12,6 +12,7 @@ import org.eclipse.jdt.core.dom.EmptyStatement;
 import neo.Constants;
 import neo.Utils;
 import neo.algorithms.Sequence;
+import neo.cem.CodeExtractionMetrics;
 import neo.refactoringcache.ConsecutiveSequenceIterator.SentenceSequenceInfo;
 
 public class SentenceSequenceIterator implements Iterable<List<Sequence>> {

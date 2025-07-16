@@ -7,6 +7,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.*;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 
 import analyzer.ComplexityAnalyzer;
 import model.clazz.ClassMetrics;
@@ -43,7 +44,7 @@ public final class ModelAssembler {
         });
 
         // Agregar métricas de clase
-        return new ClassMetricsBuilder()
+        return ClassMetrics.builder()
                 .name(cu.getTypeRoot().getElementName().replace(".java", ""))
                 .currentLoc(sum(methods, LocStats::getCurrentLoc))
                 .refactoredLoc(sum(methods, LocStats::getRefactoredLoc))

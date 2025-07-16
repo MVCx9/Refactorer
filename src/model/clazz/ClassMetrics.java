@@ -2,6 +2,7 @@ package model.clazz;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import model.common.ComplexityStats;
 import model.common.Identifiable;
@@ -78,4 +79,30 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	    	return new ClassMetrics(this);
 	    }
 	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(currentLoc, methods, name, refactoredLoc);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ClassMetrics other = (ClassMetrics) obj;
+		return currentLoc == other.currentLoc && Objects.equals(methods, other.methods)
+				&& Objects.equals(name, other.name) && refactoredLoc == other.refactoredLoc;
+	}
+
+	@Override
+	public String toString() {
+		return "ClassMetrics [name=" + name + ", currentLoc=" + currentLoc + ", refactoredLoc=" + refactoredLoc
+				+ ", methods=" + methods + "]";
+	}
+	
+	
 }

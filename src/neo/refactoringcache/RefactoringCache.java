@@ -22,6 +22,7 @@ import org.jgrapht.graph.SimpleGraph;
 import neo.Utils;
 import neo.algorithms.Pair;
 import neo.algorithms.Sequence;
+import neo.cem.CodeExtractionMetrics;
 import neo.graphs.ExtractionVertex;
 
 /**
@@ -184,8 +185,8 @@ public class RefactoringCache {
 		DefaultWeightedEdge edge;
 		SimpleDirectedWeightedGraph<ExtractionVertex, DefaultWeightedEdge> result;
 
-		neo.reducecognitivecomplexity.graphs.Utils.clear(graphWithoutConflicts);
-		neo.reducecognitivecomplexity.graphs.Utils.clear(conflictsGraph);
+		neo.graphs.Utils.clear(graphWithoutConflicts);
+		neo.graphs.Utils.clear(conflictsGraph);
 
 		feasibleRefactorings = Utils.filterByValue(cache, value -> value.isFeasible());
 		offsetPairs = new ArrayList<Pair>(feasibleRefactorings.keySet());
@@ -252,7 +253,7 @@ public class RefactoringCache {
 		TransitiveReduction.INSTANCE.reduce(result);
 
 		// store the current graph that does not contain conflicts
-		neo.reducecognitivecomplexity.graphs.Utils.copy(result, graphWithoutConflicts);
+		neo.graphs.Utils.copy(result, graphWithoutConflicts);
 
 		// add conflict edges to the graph
 		DefaultWeightedEdge we;
@@ -284,21 +285,21 @@ public class RefactoringCache {
 		SimpleGraph<ExtractionVertex, DefaultEdge> conflictsReducedGraph = new SimpleGraph<>(DefaultEdge.class);
 
 		// store the current graph that does not contain conflicts
-		neo.reducecognitivecomplexity.graphs.Utils.copy(graphWithoutConflicts, result);
+		neo.graphs.Utils.copy(graphWithoutConflicts, result);
 
 		// store the current conflicts graph
-		neo.reducecognitivecomplexity.graphs.Utils.copy(conflictsGraph, conflictsReducedGraph);
+		neo.graphs.Utils.copy(conflictsGraph, conflictsReducedGraph);
 
 		for (ExtractionVertex currentVertex : graphWithoutConflicts.vertexSet()) {
 			if (!currentVertex.equals(vertexForMethod)) {
-				List<ExtractionVertex> children = neo.reducecognitivecomplexity.graphs.Utils
+				List<ExtractionVertex> children = neo.graphs.Utils
 						.immediatePreviousVertices(result, currentVertex);
 				for (ExtractionVertex child : children) {
 					// nodes have the same cognitive complexity (they can be reduced)
 					if (currentVertex.getReductionOfCognitiveComplexity() == child
 							.getReductionOfCognitiveComplexity()) {
 						// remove currentVertex
-						neo.reducecognitivecomplexity.graphs.Utils.remove(result, currentVertex);
+						neo.graphs.Utils.remove(result, currentVertex);
 						conflictsReducedGraph.removeVertex(currentVertex);
 						break;
 					}
@@ -311,12 +312,12 @@ public class RefactoringCache {
 		TransitiveReduction.INSTANCE.reduce(result);
 
 		// clean original graphs
-		neo.reducecognitivecomplexity.graphs.Utils.clear(graphWithoutConflicts);
-		neo.reducecognitivecomplexity.graphs.Utils.clear(conflictsGraph);
+		neo.graphs.Utils.clear(graphWithoutConflicts);
+		neo.graphs.Utils.clear(conflictsGraph);
 
 		// store reduced graphs
-		neo.reducecognitivecomplexity.graphs.Utils.copy(result, graphWithoutConflicts);
-		neo.reducecognitivecomplexity.graphs.Utils.copy(conflictsReducedGraph, conflictsGraph);
+		neo.graphs.Utils.copy(result, graphWithoutConflicts);
+		neo.graphs.Utils.copy(conflictsReducedGraph, conflictsGraph);
 
 		// add conflict edges to the graph
 		DefaultWeightedEdge we;

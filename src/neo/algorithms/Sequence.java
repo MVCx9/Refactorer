@@ -9,10 +9,10 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 
-import neo.reducecognitivecomplexity.Constants;
-import neo.reducecognitivecomplexity.jdt.CodeExtractionMetrics;
-import neo.reducecognitivecomplexity.jdt.Utils;
-import neo.reducecognitivecomplexity.refactoringcache.RefactoringCache;
+import neo.Constants;
+import neo.cem.CodeExtractionMetrics;
+import neo.cem.Utils;
+import neo.refactoringcache.RefactoringCache;
 
 /**
  * A sequence is a list of sibling nodes of the AST (list of statements at the
@@ -87,7 +87,7 @@ public class Sequence {
 			nodeB = nodeB.getParent();
 		}
 		
-		result = neo.reducecognitivecomplexity.jdt.Utils.checkCodeExtractionBetweenTwoNodes(compilationUnit, nodeA,
+		result = neo.cem.Utils.checkCodeExtractionBetweenTwoNodes(compilationUnit, nodeA,
 				nodeB);
 
 		return result;
@@ -286,7 +286,7 @@ public class Sequence {
 			nodeB = nodeB.getParent();
 		}
 		
-		result = neo.reducecognitivecomplexity.jdt.Utils.extractCodeBetweenTwoNodes(compilationUnit, nodeA, nodeB,
+		result = neo.cem.Utils.extractCodeBetweenTwoNodes(compilationUnit, nodeA, nodeB,
 				extractedMethodName, false);
 
 		return result;

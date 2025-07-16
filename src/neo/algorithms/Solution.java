@@ -1,4 +1,4 @@
-package neo.reducecognitivecomplexity.algorithms;
+package neo.algorithms;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -20,12 +20,12 @@ import org.eclipse.jdt.core.dom.NodeFinder;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.ltk.core.refactoring.Change;
 
-import neo.reducecognitivecomplexity.Constants;
-import neo.reducecognitivecomplexity.jdt.CodeExtractionMetrics;
-import neo.reducecognitivecomplexity.jdt.CodeExtractionMetricsStats;
-import neo.reducecognitivecomplexity.jdt.Utils;
-import neo.reducecognitivecomplexity.jdt.Utils.MethodDeclarationFinderVisitor;
-import neo.reducecognitivecomplexity.refactoringcache.RefactoringCache;
+import neo.Constants;
+import neo.cem.CodeExtractionMetrics;
+import neo.cem.CodeExtractionMetricsStats;
+import neo.cem.Utils;
+import neo.cem.Utils.MethodDeclarationFinderVisitor;
+import neo.refactoringcache.RefactoringCache;
 
 /**
  * A Solution is a list of code extractions to reduce the cognitive complexity

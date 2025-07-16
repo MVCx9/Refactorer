@@ -37,8 +37,8 @@ import org.jgrapht.nio.DefaultAttribute;
 import org.jgrapht.nio.ExportException;
 import org.jgrapht.nio.dot.DOTExporter;
 
-import neo.reducecognitivecomplexity.Constants;
-import neo.reducecognitivecomplexity.algorithms.Pair;
+import neo.Constants;
+import neo.algorithms.Pair;
 
 import org.jgrapht.alg.shortestpath.DijkstraShortestPath;
 
