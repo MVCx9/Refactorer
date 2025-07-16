@@ -39,7 +39,6 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
     	return new MethodMetricsBuilder();
     }
 
-	// getters
 	public int getExtractedMethodCount() { return extractedMethodCount; }
 	public ExtractionPlan getApplyPlan() { return applyPlan; }
 	public ExtractionPlan getUndoPlan() { return undoPlan; }

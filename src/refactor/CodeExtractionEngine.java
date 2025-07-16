@@ -1,5 +1,6 @@
 package refactor;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.core.runtime.CoreException;
@@ -20,23 +21,20 @@ import neo.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
 public final class CodeExtractionEngine {
 
     private final EnumerativeSearch search = new EnumerativeSearch();
-    private final RefactoringCache cache  = new RefactoringCache(); // 	quitar final???
+    private RefactoringCache cache;
 
-    public MethodMetrics analyseAndPlan(ICompilationUnit icu,
-                                        CompilationUnit cu,
-                                        MethodDeclaration method,
-                                        int currentCc,
-                                        int currentLoc)
-            throws CoreException {
+    public MethodMetrics analyseAndPlan(ICompilationUnit icu, CompilationUnit cu, MethodDeclaration method, int currentCc, int currentLoc) throws CoreException, IOException {
 
+    	cache = new RefactoringCache(cu);
+    	
         /* 1. Encontrar la mejor solución */
         Solution solution = search.run(
-                APPROACH.PAIRS,
-                /*writer*/ null,
+                APPROACH.LONG_SEQUENCE_FIRST,
+                null,
                 icu.getElementName(),
                 cu,
                 cache,
-                /*runtimeToFillRefactorCache*/ 0L,
+                0L,
                 List.of(),
                 method,
                 currentCc
@@ -47,17 +45,20 @@ public final class CodeExtractionEngine {
         List<Change> undoChanges  = new ArrayList<>();
 
         if (solution != null) {
-            for (Sequence seq : solution.getSequences()) {
-                Change c = ChangeBuilder.buildChangeForSequence(seq, icu, cu);
-                applyChanges.add(c);
-                undoChanges.add(c.getUndoChange(null));
+            for (Sequence seq : solution.getSequenceList()) {
+                Change doChange = ChangeBuilder.buildChangeForSequence(seq, icu, cu);
+                applyChanges.add(doChange);
             }
         }
 
         /* 3. Métricas tras la extracción */
-        int refactoredCc  = solution == null ? currentCc  : solution.getComplexityAfter();
-        int refactoredLoc = solution == null ? currentLoc : solution.getLocAfter();
-        int extractedMethods = solution == null ? 0       : solution.getSequences().size();
+        
+        // complejidad antes de los cambios
+        int refactoredCc  = solution == null ? currentCc  : solution.getInitialComplexity();
+        // complejidad cognitiva despues de los cambios
+        int refactoredLoc = solution == null ? currentLoc : solution.getReducedComplexity();
+        // cuantas extracinoes de código
+        int extractedMethods = solution == null ? 0       : solution.getSequenceList().size();
 
         ExtractionPlan plan     = new ExtractionPlan(applyChanges);
         ExtractionPlan undoPlan = new ExtractionPlan(undoChanges);

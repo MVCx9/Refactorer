@@ -8,6 +8,10 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 
 public class ComplexityAnalyzer {
 
+	/**
+	 * Calcula la complejidad cognitiva de un método (SourceCode toString())
+	 * @param sourceCode
+	 */
     public static void analyze(String sourceCode) {
     	ASTParser parser = ASTParser.newParser(AST.JLS21);
         parser.setSource(sourceCode.toCharArray());
@@ -28,6 +32,19 @@ public class ComplexityAnalyzer {
     private static int calculateCognitiveComplexity(MethodDeclaration method) {
         CognitiveComplexityVisitor visitor = new CognitiveComplexityVisitor();
         method.accept(visitor);
+        return visitor.getComplexity();
+    }
+    
+    /**
+     * Calcula la complejidad cognitiva de un método (SonarQube style).
+     * @param node
+     * @return
+     */
+    public static int compute(MethodDeclaration node) {
+        if (node == null) return 0;
+
+        CognitiveComplexityVisitor visitor = new CognitiveComplexityVisitor();
+        node.accept(visitor);
         return visitor.getComplexity();
     }
 }

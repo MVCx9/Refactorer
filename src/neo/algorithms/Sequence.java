@@ -126,6 +126,10 @@ public class Sequence {
 	public void setSiblingNodes(List<ASTNode> siblingNodes) {
 		this.siblingNodes = siblingNodes;
 	}
+	
+	public CompilationUnit getCompilationUnit() {
+		return compilationUnit;
+	}
 
 	@Override
 	public String toString() {
@@ -317,4 +321,5 @@ public class Sequence {
 		
 		return (MethodDeclaration) result;
 	}
+
 }
