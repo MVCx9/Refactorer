@@ -25,6 +25,7 @@ import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
 import org.jgrapht.GraphTests;
 import org.jgrapht.alg.clique.DegeneracyBronKerboschCliqueFinder;
+import org.jgrapht.alg.shortestpath.DijkstraShortestPath;
 import org.jgrapht.generate.ComplementGraphGenerator;
 import org.jgrapht.graph.AsUndirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
@@ -39,8 +40,6 @@ import org.jgrapht.nio.dot.DOTExporter;
 
 import neo.Constants;
 import neo.algorithms.Pair;
-
-import org.jgrapht.alg.shortestpath.DijkstraShortestPath;
 
 /**
  * This class provides different utilities to process graphs

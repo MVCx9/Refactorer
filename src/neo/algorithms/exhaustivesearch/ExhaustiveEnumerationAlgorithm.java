@@ -9,10 +9,10 @@ import java.util.stream.Collectors;
 import org.eclipse.jdt.core.dom.ASTNode;
 
 import neo.algorithms.Sequence;
+import neo.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
 import neo.refactoringcache.RefactoringCache;
 import neo.refactoringcache.SentenceSequenceIterator;
 import neo.refactoringcache.SentencesSelectorVisitor;
-import neo.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
 
 public class ExhaustiveEnumerationAlgorithm {
 	private ASTNode method;

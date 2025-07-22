@@ -3,14 +3,15 @@ package neo.algorithms.exhaustivesearch;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.List;
+
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 
 import neo.Constants;
 import neo.algorithms.Solution;
-import neo.refactoringcache.RefactoringCache;
 import neo.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
+import neo.refactoringcache.RefactoringCache;
 
 /**
  * Enumerative search for finding solutions ({@link Solution}) to reduce methods

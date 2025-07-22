@@ -3,20 +3,20 @@ package refactor;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.jdt.core.*;
-import org.eclipse.jdt.core.dom.*;
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.ltk.core.refactoring.Change;
+
 import model.change.ExtractionPlan;
 import model.method.MethodMetrics;
-import model.method.MethodMetrics.MethodMetricsBuilder;
-import model.common.LocStats;
-import model.common.ComplexityStats;
-import neo.algorithms.Solution;
 import neo.algorithms.Sequence;
+import neo.algorithms.Solution;
 import neo.algorithms.exhaustivesearch.EnumerativeSearch;
-import neo.refactoringcache.RefactoringCache;
 import neo.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
+import neo.refactoringcache.RefactoringCache;
 
 public final class CodeExtractionEngine {
 
