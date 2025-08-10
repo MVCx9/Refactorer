@@ -17,13 +17,13 @@
 	<extension point="org.eclipse.ui.handlers">
 	     
 	     <handler
-			class="handler.AnalyzeWorkspaceHandler"
+			class="main.handler.AnalyzeWorkspaceHandler"
 			commandId="refactorer.commands.analyzeWorkspace"/>
 	     <handler
-	        class="handler.AnalyzeProjectHandler"
+	        class="main.handler.AnalyzeProjectHandler"
 	        commandId="refactorer.commands.analyzeProject"/>
 	    <handler
-	        class="handler.AnalyzeSingleFileHandler"
+	        class="main.handler.AnalyzeSingleFileHandler"
 	        commandId="refactorer.commands.analyzeSingleFile"/>
 	</extension>
 	
