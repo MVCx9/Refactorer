@@ -6,8 +6,6 @@ import java.util.Objects;
 
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jdt.core.dom.AST;
-import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -31,8 +29,8 @@ public class ComplexityAnalyzer {
 	 * contiene, comparando código actual vs. código refactorizado (si hay una
 	 * extracción viable).
 	 */
-	public List<ClassAnalysis> analyze(ICompilationUnit icu) throws JavaModelException {
-		CompilationUnit cu = parse(icu);
+	public List<ClassAnalysis> analyze(CompilationUnit cu, ICompilationUnit icu) throws JavaModelException {
+		System.out.println("******** POR FIN PASÓ EL PARSE ********");
 		List<ClassAnalysis> results = new ArrayList<>();
 
 		cu.accept(new ASTVisitor() {
@@ -82,15 +80,6 @@ public class ComplexityAnalyzer {
 				.refactoredLoc(comparison.getRefactoredLoc()).bestExtraction(comparison.getBestMetrics())
 				.stats(comparison.getStats()).extractionPlan(comparison.getDoPlan()).undoPlan(comparison.getUndoPlan())
 				.build();
-	}
-
-	private static CompilationUnit parse(ICompilationUnit icu) throws JavaModelException {
-		ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
-		parser.setResolveBindings(true);
-		parser.setKind(ASTParser.K_COMPILATION_UNIT);
-		parser.setBindingsRecovery(true);
-		parser.setSource(icu);
-		return (CompilationUnit) parser.createAST(null);
 	}
 
 }

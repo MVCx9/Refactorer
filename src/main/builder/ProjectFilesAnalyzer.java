@@ -1,5 +1,8 @@
 package main.builder;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -13,6 +16,9 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 
 import main.analyzer.ComplexityAnalyzer;
 import main.refactor.CodeExtractionEngine;
@@ -22,7 +28,7 @@ public class ProjectFilesAnalyzer {
 	private final ComplexityAnalyzer analyzer;
 
 	public ProjectFilesAnalyzer() {
-		// Inyecta el motor una sola vez para reutilizar caches si los usas
+		// Inyecta el motor una sola vez para reutilizar caches
 		CodeExtractionEngine engine = new CodeExtractionEngine();
 		this.analyzer = new ComplexityAnalyzer(engine);
 	}
@@ -34,19 +40,36 @@ public class ProjectFilesAnalyzer {
 	public FileAnalysis analyzeFile(IFile file) throws CoreException {
 		Objects.requireNonNull(file, "file");
 
-		IJavaElement je = JavaCore.create(file);
-		if (!(je instanceof ICompilationUnit)) {
-			return FileAnalysis.empty(file);
-		}
-		
-		ICompilationUnit icu = (ICompilationUnit) je;
 		try {
-			List<ClassAnalysis> classes = analyzer.analyze(icu);
+			char[] sourceCode = extracted(file);
+
+			ICompilationUnit icu = (ICompilationUnit) JavaCore.create(file);
+			CompilationUnit cu = parserAST(sourceCode);
+
+			List<ClassAnalysis> classes = analyzer.analyze(cu, icu);
 			return FileAnalysis.of(file, icu, classes);
-			
+
 		} catch (Exception e) {
 			throw new CoreException(
 					org.eclipse.core.runtime.Status.error("Refactorer: Error analyzing file: " + file.getName(), e));
+		}
+	}
+
+	private char[] extracted(IFile file) throws CoreException {
+		try (InputStream is = file.getContents();
+				BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+
+			StringBuilder sourceCode = new StringBuilder();
+			String line;
+			while ((line = reader.readLine()) != null) {
+				sourceCode.append(line).append("\n");
+			}
+
+			return sourceCode.toString().toCharArray();
+
+		} catch (Exception e) {
+			throw new CoreException(
+					org.eclipse.core.runtime.Status.error("Refactorer: Error extracting file content ", e));
 		}
 	}
 
@@ -79,8 +102,16 @@ public class ProjectFilesAnalyzer {
 				}
 			}
 		}
-		
+
 		return results;
+	}
+
+	private CompilationUnit parserAST(char[] source) {
+		ASTParser parser = ASTParser.newParser(AST.JLS21);
+        parser.setSource(source);
+        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+
+        return (CompilationUnit) parser.createAST(null);
 	}
 
 }
