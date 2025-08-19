@@ -72,13 +72,6 @@ public class WorkspaceMetrics {
 		return projects.stream().mapToInt(ProjectMetrics::getCurrentMethodCount).sum();
 	}
 
-	/**
-	 * Cantidad de métodos tras refactorizar de todos los proyectos
-	 */
-	public int getRefactoredMethodCount() {
-		return projects.stream().mapToInt(ProjectMetrics::getRefactoredMethodCount).sum();
-	}
-
 	// Función para calcular la media dado un mapper
 	private int averageCc(java.util.function.ToIntFunction<ProjectMetrics> mapper) {
 		return (int) Math.round(projects.stream().mapToInt(mapper).average().orElse(0.0));

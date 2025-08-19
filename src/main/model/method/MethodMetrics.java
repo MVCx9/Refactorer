@@ -16,10 +16,9 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 	private final int refactoredLoc;
 	private final int currentCc;
 	private final int refactoredCc;
-	private final int extractedMethodCount;
-	/** cambios que aplicarían las extracciones de código */
+	private final int totalExtractedLinesOfCode;
+	private final int totalReductionOfCc;
 	private final ExtractionPlan applyPlan;
-	/** cambios que desharían las extracciones de código */
 	private final ExtractionPlan undoPlan;
 
 	public MethodMetrics(MethodMetricsBuilder methodMetricsBuilder) {
@@ -29,17 +28,14 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 		this.refactoredLoc = methodMetricsBuilder.refactoredLoc;
 		this.currentCc = methodMetricsBuilder.currentCc;
 		this.refactoredCc = methodMetricsBuilder.refactoredCc;
-		this.extractedMethodCount = methodMetricsBuilder.extractedMethodCount;
+		this.totalExtractedLinesOfCode = methodMetricsBuilder.totalExtractedLinesOfCode;
+		this.totalReductionOfCc = methodMetricsBuilder.totalReductionOfCc;
 		this.applyPlan = methodMetricsBuilder.applyPlan;
 		this.undoPlan = methodMetricsBuilder.undoPlan;
 	}
 
 	public static MethodMetricsBuilder builder() {
 		return new MethodMetricsBuilder();
-	}
-
-	public int getExtractedMethodCount() {
-		return extractedMethodCount;
 	}
 
 	public ExtractionPlan getApplyPlan() {
@@ -86,7 +82,8 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 		private int refactoredLoc = 0;
 		private int currentCc = 0;
 		private int refactoredCc = 0;
-		private int extractedMethodCount = 0;
+		private int totalExtractedLinesOfCode;
+		private int totalReductionOfCc;
 		private ExtractionPlan applyPlan = new ExtractionPlan(Collections.emptyList());
 		private ExtractionPlan undoPlan = new ExtractionPlan(Collections.emptyList());
 
@@ -117,9 +114,14 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 			this.refactoredCc = refactoredCc;
 			return this;
 		}
-
-		public MethodMetricsBuilder extractedMethodCount(int extractedMethodCount) {
-			this.extractedMethodCount = extractedMethodCount;
+		
+		public MethodMetricsBuilder totalExtractedLinesOfCode(int totalExtractedLinesOfCode) {
+			this.totalExtractedLinesOfCode = totalExtractedLinesOfCode;
+			return this;
+		}
+		
+		public MethodMetricsBuilder totalReductionOfCc(int totalReductionOfCc) {
+			this.totalReductionOfCc = totalReductionOfCc;
 			return this;
 		}
 
@@ -140,8 +142,8 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(applyPlan, currentCc, currentLoc, extractedMethodCount, name, refactoredCc, refactoredLoc,
-				undoPlan);
+		return Objects.hash(applyPlan, currentCc, currentLoc, name, refactoredCc, refactoredLoc,
+				totalExtractedLinesOfCode, totalReductionOfCc, undoPlan);
 	}
 
 	@Override
@@ -154,16 +156,18 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 			return false;
 		MethodMetrics other = (MethodMetrics) obj;
 		return Objects.equals(applyPlan, other.applyPlan) && currentCc == other.currentCc
-				&& currentLoc == other.currentLoc && extractedMethodCount == other.extractedMethodCount
-				&& Objects.equals(name, other.name) && refactoredCc == other.refactoredCc
-				&& refactoredLoc == other.refactoredLoc && Objects.equals(undoPlan, other.undoPlan);
+				&& currentLoc == other.currentLoc && Objects.equals(name, other.name)
+				&& refactoredCc == other.refactoredCc && refactoredLoc == other.refactoredLoc
+				&& totalExtractedLinesOfCode == other.totalExtractedLinesOfCode
+				&& totalReductionOfCc == other.totalReductionOfCc && Objects.equals(undoPlan, other.undoPlan);
 	}
 
 	@Override
 	public String toString() {
 		return "MethodMetrics [name=" + name + ", currentLoc=" + currentLoc + ", refactoredLoc=" + refactoredLoc
-				+ ", currentCc=" + currentCc + ", refactoredCc=" + refactoredCc + ", extractedMethodCount="
-				+ extractedMethodCount + ", applyPlan=" + applyPlan + ", undoPlan=" + undoPlan + "]";
+				+ ", currentCc=" + currentCc + ", refactoredCc=" + refactoredCc + ", totalLinesOfRefactoredCode="
+				+ totalExtractedLinesOfCode + ", totalRefactoredCc=" + totalReductionOfCc + ", applyPlan=" + applyPlan
+				+ ", undoPlan=" + undoPlan + "]";
 	}
 
 }

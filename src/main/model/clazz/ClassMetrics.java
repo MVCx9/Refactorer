@@ -59,10 +59,6 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		return methods.size();
 	}
 
-	public int getRefactoredMethodCount() {
-		return methods.stream().mapToInt(m -> 1 + m.getExtractedMethodCount()).sum();
-	}
-
 	private int averageCc(java.util.function.ToIntFunction<MethodMetrics> mapper) {
 		return (int) Math.round(methods.stream().mapToInt(mapper).average().orElse(0.0));
 	}

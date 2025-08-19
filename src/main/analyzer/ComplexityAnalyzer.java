@@ -1,51 +1,96 @@
 package main.analyzer;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
+
+import main.builder.ClassAnalysis;
+import main.builder.MethodAnalysis;
+import main.refactor.CodeExtractionEngine;
+import main.refactor.RefactorComparison;
 
 public class ComplexityAnalyzer {
 
+	private final CodeExtractionEngine extractionEngine;
+
+	public ComplexityAnalyzer(CodeExtractionEngine extractionEngine) {
+		this.extractionEngine = Objects.requireNonNull(extractionEngine, "extractionEngine");
+	}
+
 	/**
-	 * Calcula la complejidad cognitiva de un método (SourceCode toString())
-	 * @param sourceCode
+	 * Analiza un ICompilationUnit y devuelve el análisis de la(s) clase(s) que
+	 * contiene, comparando código actual vs. código refactorizado (si hay una
+	 * extracción viable).
 	 */
-    public static void analyze(String sourceCode) {
-    	ASTParser parser = ASTParser.newParser(AST.JLS21);
-        parser.setSource(sourceCode.toCharArray());
-        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+	public List<ClassAnalysis> analyze(ICompilationUnit icu) throws JavaModelException {
+		CompilationUnit cu = parse(icu);
+		List<ClassAnalysis> results = new ArrayList<>();
 
-        CompilationUnit cu = (CompilationUnit) parser.createAST(null);
-        cu.accept(new ASTVisitor() {
-            @Override
-            public boolean visit(MethodDeclaration node) {
-                String methodName = node.getName().toString();
-                int complexity = calculateCognitiveComplexity(node);
-                System.out.println("///* Método: " + methodName + " | Complejidad: " + complexity);
-                return super.visit(node);
-            }
-        });
-    }
-    
-    private static int calculateCognitiveComplexity(MethodDeclaration method) {
-        CognitiveComplexityVisitor visitor = new CognitiveComplexityVisitor();
-        method.accept(visitor);
-        return visitor.getComplexity();
-    }
-    
-    /**
-     * Calcula la complejidad cognitiva de un método (SonarQube style).
-     * @param node
-     * @return
-     */
-    public static int compute(MethodDeclaration node) {
-        if (node == null) return 0;
+		cu.accept(new ASTVisitor() {
+			@Override
+			public boolean visit(TypeDeclaration node) {
+				String className = node.getName().getIdentifier();
+				List<MethodAnalysis> methods = new ArrayList<>();
 
-        CognitiveComplexityVisitor visitor = new CognitiveComplexityVisitor();
-        node.accept(visitor);
-        return visitor.getComplexity();
-    }
+				for (MethodDeclaration md : node.getMethods()) {
+					MethodAnalysis ma = analyzeMethod(cu, md);
+					if (ma != null)
+						methods.add(ma);
+				}
+
+				if (!methods.isEmpty()) {
+					ClassAnalysis ca = ClassAnalysis.builder().icu(icu).compilationUnit(cu).className(className)
+							.methods(methods).build();
+
+					results.add(ca);
+				}
+				return false; // no descender a tipos anidados aquí; añádelo si lo necesitas
+			}
+		});
+
+		System.out.println(results.toString());
+		return results;
+	}
+
+	private MethodAnalysis analyzeMethod(CompilationUnit cu, MethodDeclaration md) {
+		// 1) Complejidad cognitiva actual
+		CognitiveComplexityVisitor ccVisitor = new CognitiveComplexityVisitor();
+		md.accept(ccVisitor);
+		int currentCc = ccVisitor.getComplexity();
+
+		// 2) LOC actuales (aprox. rango de líneas del método)
+		int startLine = cu.getLineNumber(md.getStartPosition());
+		int endLine = cu.getLineNumber(md.getStartPosition() + md.getLength());
+		int currentLoc = Math.max(0, endLine - startLine + 1);
+
+		// 3) Invocar a CodeExtractionEngine (usa NEO internamente) para
+		// evaluar posibles extracciones y obtener métricas + plan.
+		RefactorComparison comparison = extractionEngine.evaluateMethod(cu, md, currentCc, currentLoc);
+
+		// 4) Mapear al modelo de método
+		return MethodAnalysis.builder().methodName(md.getName().getIdentifier()).declaration(md).currentCc(currentCc)
+				.currentLoc(currentLoc).refactoredCc(comparison.getRefactoredCc())
+				.refactoredLoc(comparison.getRefactoredLoc()).bestExtraction(comparison.getBestMetrics())
+				.stats(comparison.getStats()).extractionPlan(comparison.getDoPlan()).undoPlan(comparison.getUndoPlan())
+				.build();
+	}
+
+	private static CompilationUnit parse(ICompilationUnit icu) throws JavaModelException {
+		ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+		parser.setResolveBindings(true);
+		parser.setKind(ASTParser.K_COMPILATION_UNIT);
+		parser.setBindingsRecovery(true);
+		parser.setSource(icu);
+		return (CompilationUnit) parser.createAST(null);
+	}
+
 }
-

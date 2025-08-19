@@ -9,8 +9,6 @@ import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.PlatformUI;
 
-import main.builder.ProjectFilesAnalyzer;
-
 public class AnalyzeWorkspaceHandler extends AbstractHandler {
 
     @Override
@@ -29,7 +27,7 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
         for(IProject project : projects) {
 			System.out.println("*** Analizando projecto: " + project.getName() + " ***");
 			// Ejecutar el análisis
-			ProjectFilesAnalyzer.analyzeProject(project);
+			//ProjectFilesAnalyzer.analyzeProject(project);
 		}
         
         showMessage("Análisis completado. Revisa la consola.");

@@ -12,8 +12,6 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.handlers.HandlerUtil;
 
-import main.builder.ProjectFilesAnalyzer;
-
 public class AnalyzeProjectHandler extends AbstractHandler {
 
     @Override
@@ -36,7 +34,7 @@ public class AnalyzeProjectHandler extends AbstractHandler {
         // Verificamos que obtuvimos el proyecto correctamente
         if (project != null) {
             System.out.println("***** Analizando proyecto INDEPENDIENTE: " + project.getName() + " *****");
-            ProjectFilesAnalyzer.analyzeProject(project);
+            //ProjectFilesAnalyzer.analyzeProject(project);
             showMessage("Análisis completado. Revisa la consola.");
         } else {
             System.out.println("La selección no es un proyecto Eclipse válido.");

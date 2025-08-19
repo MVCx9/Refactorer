@@ -4,69 +4,52 @@ import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
-import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
-import org.eclipse.swt.widgets.Shell;
-import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.handlers.HandlerUtil;
 
+import main.builder.FileAnalysis;
 import main.builder.ProjectFilesAnalyzer;
-
 
 public class AnalyzeSingleFileHandler extends AbstractHandler {
 
 	@Override
 	public Object execute(ExecutionEvent event) throws ExecutionException {
-	   IStructuredSelection selection = (IStructuredSelection) HandlerUtil.getCurrentSelection(event);
-	   Object classSelected = selection.getFirstElement();
-	   
-	   if (classSelected == null) {
-	       System.out.println("No hay fichero seleccionado para analizar.");
-	       showMessage("No se ha seleccionado un archivo.");
-	       return null;
-	   }
-	   
-	   IFile file = null;
+		ISelection selection = HandlerUtil.getCurrentSelection(event);
 
-       // Si es ICompilationUnit, intentamos adaptarlo a IFile
-       if (classSelected instanceof ICompilationUnit) {
-    	   ICompilationUnit unit = (ICompilationUnit) classSelected;
-           try {
-               file = (IFile) unit.getCorrespondingResource();
-           } catch (JavaModelException e) {
-               e.printStackTrace();
-           }       }
-	   
-       // Si es IAdaptable, intentamos adaptarlo a IFile
-       if (file == null && classSelected instanceof IAdaptable) {
-           file = ((IAdaptable) classSelected).getAdapter(IFile.class);
-       }
-       
-	   if (file != null) {
-	        String extension = file.getFileExtension();
-	        if (extension != null && extension.equals("java")) {
-	            System.out.println("***** Analizando clase INDEPENDIENTE: " + file.getName() + " *****");
-	            ProjectFilesAnalyzer.analyzeFile(file);
-	            showMessage("Análisis completado. Revisa la consola.");
-	        } else {
-	            System.out.println("El archivo seleccionado no es un archivo .java.");
-	            showMessage("El archivo seleccionado no es una clase Java.");
-	        }
-	   } else {
-	       System.out.println("La selección no es un archivo.");
-	       showMessage("Solo se pueden analizar archivos Java.");
-	   }
-
-	    return null;
+		Object first = ((ICompilationUnit) ((IStructuredSelection) selection).getFirstElement()).getResource();
+		if (!(first instanceof IFile)) {
+			return null;
+		}
+			
+		IFile file = (IFile) first;
+		ProjectFilesAnalyzer pfa = new ProjectFilesAnalyzer();
+		try {
+			FileAnalysis analysis = pfa.analyzeFile(file);
+			// TODO: Persistir/mostrar el resultado en tu vista o reporter.
+			// Por ahora, dejamos un log simple al Console view.
+			logToConsole(analysis);
+		} catch (CoreException e) {
+			throw new ExecutionException("Error analyzing file", e);
+		}
+		return null;
 	}
 
-    
-    private void showMessage(String message) {
-        Shell shell = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell();
-        MessageDialog.openInformation(shell, "Análisis de Complejidad", message);
-    }
-}
+	private void logToConsole(FileAnalysis analysis) {
+		StringBuilder sb = new StringBuilder();
+		sb.append("Refactorer — Análisis de fichero: ").append(analysis.file().getName()).append('\n');
+		analysis.classes().forEach(ca -> {
+			sb.append("  Clase ").append(ca.className()).append('\n');
+			ca.methods().forEach(ma -> {
+				sb.append("    ").append(ma.methodName()).append(" | CC ").append(ma.currentCc()).append(" -> ")
+						.append(ma.refactoredCc()).append(" | LOC ").append(ma.currentLoc()).append(" -> ")
+						.append(ma.refactoredLoc()).append(ma.extractionPlan() != null ? " | plan: YES" : " | plan: NO")
+						.append('\n');
+			});
+		});
+		System.out.println(sb.toString());
+	}
 
+}

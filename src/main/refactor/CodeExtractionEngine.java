@@ -19,18 +19,38 @@ import main.neo.refactoringcache.RefactoringCache;
 import main.neo.refactoringcache.SentencesSelectorVisitor;
 
 /**
- * Orquestador principal que invoca la lógica de NEO (paquete <code>neo.*</code>)
- * y traduce los resultados a nuestro modelo de dominio (<code>model.*</code>).
+ * Orquestador principal que invoca la lógica de NEO (paquete
+ * <code>neo.*</code>) y traduce los resultados a nuestro modelo de dominio
+ * (<code>model.*</code>).
  */
 public final class CodeExtractionEngine {
+
+	public RefactorComparison evaluateMethod(CompilationUnit cu, MethodDeclaration md, int currentCc, int currentLoc) {
+		// TODO: sustituir por la lógica real que ya tienes integrada con NEO
+		// Valores ficticios para mantener el flujo compilable si integras gradualmente
+		int refCc = Math.max(0, currentCc - 1);
+		int refLoc = Math.max(1, currentLoc - 3);
+		CodeExtractionMetrics best = null; // pon el mejor candidato real
+		CodeExtractionMetricsStats stats = null; // pon las stats reales
+		Change plan = null; // genera desde NEO
+		Change undo = null; // idem
+		
+		return RefactorComparison.builder()
+				.refactoredCc(refCc)
+				.refactoredLoc(refLoc)
+				.bestMetrics(best)
+				.stats(stats)
+				.doPlan(plan)
+				.undoPlan(undo).build();
+	}
 
 	/**
 	 * Analiza un método, busca posibles extracciones de código con la heurística de
 	 * NEO y devuelve un {@link MethodMetrics} rellenado con:
 	 * <ul>
-	 *   <li>Complejidad y LOC actuales vs. tras refactorización</li>
-	 *   <li>Número de métodos extraídos</li>
-	 *   <li>Planes de cambio para aplicar / deshacer</li>
+	 * <li>Complejidad y LOC actuales vs. tras refactorización</li>
+	 * <li>Número de métodos extraídos</li>
+	 * <li>Planes de cambio para aplicar / deshacer</li>
 	 * </ul>
 	 * 
 	 * @param cu         unidad de compilación que contiene el método
@@ -38,7 +58,8 @@ public final class CodeExtractionEngine {
 	 * @param currentCc  complejidad cognitiva actual del método
 	 * @param currentLoc líneas de código actuales del método
 	 * @return métricas completas para el método
-	 * @throws CoreException propagadas desde el modelo de refactorización de Eclipse
+	 * @throws CoreException propagadas desde el modelo de refactorización de
+	 *                       Eclipse
 	 */
 	public MethodMetrics analyseAndPlan(CompilationUnit cu, MethodDeclaration node, int currentCc, int currentLoc)
 			throws CoreException {
@@ -46,17 +67,18 @@ public final class CodeExtractionEngine {
 		// 1. Preparación: cache de refactorizaciones y secuencias candidatas
 		RefactoringCache cache = new RefactoringCache(cu);
 
-		// Extrae las secuencias de sentencias (candidatas a extracción) dentro del método
+		// Extrae las secuencias de sentencias (candidatas a extracción) dentro del
+		// método
 		SentencesSelectorVisitor selector = new SentencesSelectorVisitor(cu);
 		node.accept(selector);
 		List<Sequence> sequences = selector.getSentencesToIterate();
 
 		if (sequences.isEmpty()) {
-			// Método demasiado simple o vacío → no hay mejora posible
+			// Método demasiado simple o vacío, no hay mejora posible
 			return buildMetricsWithoutRefactor(node, currentCc, currentLoc);
 		}
 
-		// 2. Evaluación: métricas por secuencia y agregadas (stats)
+		// 2. Evaluación: métricas por secuencia y agregadas
 		List<CodeExtractionMetrics> metricsPerSequence = new ArrayList<>();
 		for (Sequence seq : sequences) {
 			metricsPerSequence.add(seq.evaluate(cache));
@@ -66,16 +88,14 @@ public final class CodeExtractionEngine {
 				metricsPerSequence.toArray(new CodeExtractionMetrics[0]));
 
 		// 3. Selección: elegimos la extracción que más reduce la CC y es factible
-		CodeExtractionMetrics best = metricsPerSequence.stream()
-				.filter(CodeExtractionMetrics::isFeasible)
-				.max(Comparator.comparingInt(CodeExtractionMetrics::getReductionOfCognitiveComplexity))
-				.orElse(null);
+		CodeExtractionMetrics best = metricsPerSequence.stream().filter(CodeExtractionMetrics::isFeasible)
+				.max(Comparator.comparingInt(CodeExtractionMetrics::getReductionOfCognitiveComplexity)).orElse(null);
 
 		if (best == null || best.getReductionOfCognitiveComplexity() <= 0) {
 			return buildMetricsWithoutRefactor(node, currentCc, currentLoc);
 		}
 
-		// 4. Traducción de tipos: NEO → modelo (*applyPlan*, *undoPlan*, LOC, CC…)
+		// 4. Traducción de tipos: NEO al modelo
 		int refactoredCc = Math.max(0, currentCc - best.getReductionOfCognitiveComplexity());
 		int refactoredLoc = Math.max(0, currentLoc - best.getNumberOfExtractedLinesOfCode());
 
@@ -83,29 +103,18 @@ public final class CodeExtractionEngine {
 		ExtractionPlan undoPlan = new ExtractionPlan(asImmutable(best.getUndoChanges()));
 
 		// 5. Construcción del DTO de salida
-		return MethodMetrics.builder()
-				.name(node.getName().toString())
-				.currentLoc(currentLoc)
-				.refactoredLoc(refactoredLoc)
-				.currentCc(currentCc)
-				.refactoredCc(refactoredCc)
-				.extractedMethodCount(stats.getTotalNumberOfExtractedLinesOfCode() > 0 ? 1 : 0)
-				.applyPlan(applyPlan)
-				.undoPlan(undoPlan)
-				.build();
+		return MethodMetrics.builder().name(node.getName().toString()).currentLoc(currentLoc)
+				.refactoredLoc(refactoredLoc).currentCc(currentCc).refactoredCc(refactoredCc)
+				.totalExtractedLinesOfCode(stats.getTotalNumberOfExtractedLinesOfCode())
+				.totalReductionOfCc(stats.getTotalNumberOfReductionOfCognitiveComplexity()).applyPlan(applyPlan)
+				.undoPlan(undoPlan).build();
 	}
 
 	private MethodMetrics buildMetricsWithoutRefactor(MethodDeclaration node, int currentCc, int currentLoc) {
-		return MethodMetrics.builder()
-				.name(node.getName().toString())
-				.currentLoc(currentLoc)
-				.refactoredLoc(currentLoc)
-				.currentCc(currentCc)
-				.refactoredCc(currentCc)
-				.extractedMethodCount(0)
+		return MethodMetrics.builder().name(node.getName().toString()).currentLoc(currentLoc).refactoredLoc(currentLoc)
+				.currentCc(currentCc).refactoredCc(currentCc).totalExtractedLinesOfCode(0).totalReductionOfCc(0)
 				.applyPlan(new ExtractionPlan(Collections.emptyList()))
-				.undoPlan(new ExtractionPlan(Collections.emptyList()))
-				.build();
+				.undoPlan(new ExtractionPlan(Collections.emptyList())).build();
 	}
 
 	private List<Change> asImmutable(List<Change> list) {

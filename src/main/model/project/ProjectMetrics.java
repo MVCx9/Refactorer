@@ -70,13 +70,6 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 		return classes.stream().mapToInt(ClassMetrics::getCurrentMethodCount).sum();
 	}
 
-	/**
-	 * Cantidad de métodos tras refactorizar de todas las clases
-	 */
-	public int getRefactoredMethodCount() {
-		return classes.stream().mapToInt(ClassMetrics::getRefactoredMethodCount).sum();
-	}
-
 	// Función para calcular la media dado un mapper
 	private int averageCc(java.util.function.ToIntFunction<ClassMetrics> mapper) {
 		return (int) Math.round(classes.stream().mapToInt(mapper).average().orElse(0.0));
