@@ -1,8 +1,8 @@
 package main.builder;
 
 import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.eclipse.ltk.core.refactoring.Change;
 
+import main.model.change.ExtractionPlan;
 import main.neo.cem.CodeExtractionMetrics;
 import main.neo.cem.CodeExtractionMetricsStats;
 
@@ -16,8 +16,8 @@ public class MethodAnalysis {
 	private final int refactoredLoc;
 	private final CodeExtractionMetrics bestExtraction; // métricas del mejor candidato
 	private final CodeExtractionMetricsStats stats; // métricas agregadas
-	private final Change extractionPlan;
-	private final Change undoPlan;
+	private final ExtractionPlan doPlan;
+	private final ExtractionPlan undoPlan;
 
 	public static Builder builder() {
 		return new Builder();
@@ -32,7 +32,7 @@ public class MethodAnalysis {
 		this.refactoredLoc = b.refactoredLoc;
 		this.bestExtraction = b.bestExtraction;
 		this.stats = b.stats;
-		this.extractionPlan = b.extractionPlan;
+		this.doPlan = b.doPlan;
 		this.undoPlan = b.undoPlan;
 	}
 
@@ -68,11 +68,11 @@ public class MethodAnalysis {
 		return stats;
 	}
 
-	public Change extractionPlan() {
-		return extractionPlan;
+	public ExtractionPlan doPlan() {
+		return doPlan;
 	}
 
-	public Change undoPlan() {
+	public ExtractionPlan undoPlan() {
 		return undoPlan;
 	}
 
@@ -85,8 +85,8 @@ public class MethodAnalysis {
 		private int refactoredLoc;
 		private CodeExtractionMetrics bestExtraction;
 		private CodeExtractionMetricsStats stats;
-		private Change extractionPlan;
-		private Change undoPlan;
+		private ExtractionPlan doPlan;
+		private ExtractionPlan undoPlan;
 
 		public Builder methodName(String v) {
 			this.methodName = v;
@@ -128,12 +128,12 @@ public class MethodAnalysis {
 			return this;
 		}
 
-		public Builder extractionPlan(Change v) {
-			this.extractionPlan = v;
+		public Builder doPlan(ExtractionPlan v) {
+			this.doPlan = v;
 			return this;
 		}
 
-		public Builder undoPlan(Change v) {
+		public Builder undoPlan(ExtractionPlan v) {
 			this.undoPlan = v;
 			return this;
 		}

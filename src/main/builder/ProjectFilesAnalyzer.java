@@ -1,8 +1,5 @@
 package main.builder;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -41,35 +38,19 @@ public class ProjectFilesAnalyzer {
 		Objects.requireNonNull(file, "file");
 
 		try {
-			char[] sourceCode = extracted(file);
-
 			ICompilationUnit icu = (ICompilationUnit) JavaCore.create(file);
-			CompilationUnit cu = parserAST(sourceCode);
+			if (icu == null) {
+				throw new IllegalStateException("Cannot create ICompilationUnit from file: " + file.getName());
+			}
 
-			List<ClassAnalysis> classes = analyzer.analyze(cu, icu);
+			CompilationUnit cu = parserAST(icu);
+
+			ClassAnalysis classes = analyzer.analyze(cu, icu);
 			return FileAnalysis.of(file, icu, classes);
 
 		} catch (Exception e) {
 			throw new CoreException(
 					org.eclipse.core.runtime.Status.error("Refactorer: Error analyzing file: " + file.getName(), e));
-		}
-	}
-
-	private char[] extracted(IFile file) throws CoreException {
-		try (InputStream is = file.getContents();
-				BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
-
-			StringBuilder sourceCode = new StringBuilder();
-			String line;
-			while ((line = reader.readLine()) != null) {
-				sourceCode.append(line).append("\n");
-			}
-
-			return sourceCode.toString().toCharArray();
-
-		} catch (Exception e) {
-			throw new CoreException(
-					org.eclipse.core.runtime.Status.error("Refactorer: Error extracting file content ", e));
 		}
 	}
 
@@ -106,12 +87,27 @@ public class ProjectFilesAnalyzer {
 		return results;
 	}
 
-	private CompilationUnit parserAST(char[] source) {
+	private CompilationUnit parserAST(ICompilationUnit icu) {
 		ASTParser parser = ASTParser.newParser(AST.JLS21);
-        parser.setSource(source);
-        parser.setKind(ASTParser.K_COMPILATION_UNIT);
-
-        return (CompilationUnit) parser.createAST(null);
+		parser.setSource(icu);
+		parser.setKind(ASTParser.K_COMPILATION_UNIT);
+		parser.setResolveBindings(true);
+		parser.setBindingsRecovery(true);
+		IJavaProject jp = icu.getJavaProject();
+		if (jp != null) {
+			parser.setProject(jp);
+		}
+		try {
+			return (CompilationUnit) parser.createAST(null);
+		} catch (IllegalStateException ex) {
+			// Fallback when the project is missing the system library / boot classpath
+			ASTParser fallback = ASTParser.newParser(AST.JLS21);
+			fallback.setSource(icu);
+			fallback.setKind(ASTParser.K_COMPILATION_UNIT);
+			fallback.setResolveBindings(false);
+			fallback.setBindingsRecovery(false);
+			return (CompilationUnit) fallback.createAST(null);
+		}
 	}
 
 }

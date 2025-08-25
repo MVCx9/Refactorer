@@ -1,24 +1,25 @@
 package main.refactor;
 
-import org.eclipse.ltk.core.refactoring.Change;
-
+import main.model.change.ExtractionPlan;
 import main.neo.cem.CodeExtractionMetrics;
 import main.neo.cem.CodeExtractionMetricsStats;
 
 public class RefactorComparison {
 
+	private final String name;
 	private final int refactoredCc;
 	private final int refactoredLoc;
 	private final CodeExtractionMetrics bestMetrics; // del método ganador
 	private final CodeExtractionMetricsStats stats; // agregadas
-	private final Change doPlan; // apply plan (NEO → Eclipse Change)
-	private final Change undoPlan; // undo plan
+	private final ExtractionPlan doPlan;
+	private final ExtractionPlan undoPlan;
 
 	public static Builder builder() {
 		return new Builder();
 	}
 	
 	public RefactorComparison(Builder b) {
+		this.name = b.name;
 		this.refactoredCc = b.refactoredCc;
 		this.refactoredLoc = b.refactoredLoc;
 		this.bestMetrics = b.bestMetrics;
@@ -27,6 +28,10 @@ public class RefactorComparison {
 		this.undoPlan = b.undoPlan;
 	}
 
+	public String getName() {
+		return name;
+	}
+	
 	public int getRefactoredCc() {
 		return refactoredCc;
 	}
@@ -43,21 +48,27 @@ public class RefactorComparison {
 		return stats;
 	}
 
-	public Change getDoPlan() {
+	public ExtractionPlan getDoPlan() {
 		return doPlan;
 	}
 
-	public Change getUndoPlan() {
+	public ExtractionPlan getUndoPlan() {
 		return undoPlan;
 	}
 	
 	public static class Builder {
+		private String name;
 		private int refactoredCc;
 		private int refactoredLoc;
 		private CodeExtractionMetrics bestMetrics;
 		private CodeExtractionMetricsStats stats;
-		private Change doPlan;
-		private Change undoPlan;
+		private ExtractionPlan doPlan;
+		private ExtractionPlan undoPlan;
+		
+		public Builder name(String v) {
+			this.name = v;
+			return this;
+		}
 		
 		public Builder refactoredCc(int v) {
 			this.refactoredCc = v;
@@ -79,12 +90,12 @@ public class RefactorComparison {
 			return this;
 		}
 		
-		public Builder doPlan(Change v) {
+		public Builder doPlan(ExtractionPlan v) {
 			this.doPlan = v;
 			return this;
 		}
 		
-		public Builder undoPlan(Change v) {
+		public Builder undoPlan(ExtractionPlan v) {
 			this.undoPlan = v;
 			return this;
 		}

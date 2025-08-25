@@ -103,7 +103,7 @@ public class CognitiveComplexityVisitor extends ASTVisitor {
     @Override
     public void endVisit(TryStatement node) { nestingLevel--; }
 
-    // Los catch no suman complejidad en SonarQube, ya se cuenta por el try
+    // Los catch no suman complejidad, ya se cuenta por el try
     @Override
     public boolean visit(CatchClause node) {
         return super.visit(node);

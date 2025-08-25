@@ -246,12 +246,21 @@ public class Utils {
 		boolean compilationErrors = false;
 		
 		try {
-			// Create ExtractMethodRefactoring for a compilation unit
-			// For the selectionStart argument, the offset in the compilation unit must be
-			// given.
-			// The same holds for the length
-			ExtractMethodRefactoring refactoring = new ExtractMethodRefactoring(compilationUnit, selectionStart,
-					selectionLength);
+			// Prefer creating the refactoring with an ICompilationUnit to ensure resources exist
+			ICompilationUnit icu = null;
+			if (compilationUnit.getTypeRoot() instanceof ICompilationUnit) {
+				icu = (ICompilationUnit) compilationUnit.getTypeRoot();
+			} else if (compilationUnit.getJavaElement() instanceof ICompilationUnit) {
+				icu = (ICompilationUnit) compilationUnit.getJavaElement();
+			}
+
+			ExtractMethodRefactoring refactoring;
+			if (icu != null) {
+				refactoring = new ExtractMethodRefactoring(icu, selectionStart, selectionLength);
+			} else {
+				// Fallback: use the AST-root based constructor; if it fails, return an unfeasible result
+				refactoring = new ExtractMethodRefactoring(compilationUnit, selectionStart, selectionLength);
+			}
 
 			// Set the name of the extracted method
 			refactoring.setMethodName(extractedMethodName);
@@ -325,6 +334,10 @@ public class Utils {
 		} catch (CoreException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (Exception e) {
+			// Defensive handling in case refactoring infrastructure cannot locate the ICompilationUnit
+			feasible = false;
+			resultOfRefactoring = "Extract Method pre-check failed: " + e.getMessage();
 		}
 
 		result = new CodeExtractionMetrics(feasible, resultOfRefactoring, refactoringApplied,

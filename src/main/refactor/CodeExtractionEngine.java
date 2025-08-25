@@ -25,25 +25,6 @@ import main.neo.refactoringcache.SentencesSelectorVisitor;
  */
 public final class CodeExtractionEngine {
 
-	public RefactorComparison evaluateMethod(CompilationUnit cu, MethodDeclaration md, int currentCc, int currentLoc) {
-		// TODO: sustituir por la lógica real que ya tienes integrada con NEO
-		// Valores ficticios para mantener el flujo compilable si integras gradualmente
-		int refCc = Math.max(0, currentCc - 1);
-		int refLoc = Math.max(1, currentLoc - 3);
-		CodeExtractionMetrics best = null; // pon el mejor candidato real
-		CodeExtractionMetricsStats stats = null; // pon las stats reales
-		Change plan = null; // genera desde NEO
-		Change undo = null; // idem
-		
-		return RefactorComparison.builder()
-				.refactoredCc(refCc)
-				.refactoredLoc(refLoc)
-				.bestMetrics(best)
-				.stats(stats)
-				.doPlan(plan)
-				.undoPlan(undo).build();
-	}
-
 	/**
 	 * Analiza un método, busca posibles extracciones de código con la heurística de
 	 * NEO y devuelve un {@link MethodMetrics} rellenado con:
@@ -61,7 +42,7 @@ public final class CodeExtractionEngine {
 	 * @throws CoreException propagadas desde el modelo de refactorización de
 	 *                       Eclipse
 	 */
-	public MethodMetrics analyseAndPlan(CompilationUnit cu, MethodDeclaration node, int currentCc, int currentLoc)
+	public RefactorComparison analyseAndPlan(CompilationUnit cu, MethodDeclaration node, int currentCc, int currentLoc)
 			throws CoreException {
 
 		// 1. Preparación: cache de refactorizaciones y secuencias candidatas
@@ -103,21 +84,44 @@ public final class CodeExtractionEngine {
 		ExtractionPlan undoPlan = new ExtractionPlan(asImmutable(best.getUndoChanges()));
 
 		// 5. Construcción del DTO de salida
-		return MethodMetrics.builder().name(node.getName().toString()).currentLoc(currentLoc)
-				.refactoredLoc(refactoredLoc).currentCc(currentCc).refactoredCc(refactoredCc)
-				.totalExtractedLinesOfCode(stats.getTotalNumberOfExtractedLinesOfCode())
-				.totalReductionOfCc(stats.getTotalNumberOfReductionOfCognitiveComplexity()).applyPlan(applyPlan)
-				.undoPlan(undoPlan).build();
+		return RefactorComparison.builder()
+				.name(node.getName().toString())
+				.refactoredCc(refactoredCc)
+				.refactoredLoc(refactoredLoc)
+				.bestMetrics(best)
+				.stats(stats)
+				.doPlan(applyPlan)
+				.undoPlan(undoPlan)
+				.build();
 	}
 
-	private MethodMetrics buildMetricsWithoutRefactor(MethodDeclaration node, int currentCc, int currentLoc) {
-		return MethodMetrics.builder().name(node.getName().toString()).currentLoc(currentLoc).refactoredLoc(currentLoc)
-				.currentCc(currentCc).refactoredCc(currentCc).totalExtractedLinesOfCode(0).totalReductionOfCc(0)
-				.applyPlan(new ExtractionPlan(Collections.emptyList()))
-				.undoPlan(new ExtractionPlan(Collections.emptyList())).build();
+	private RefactorComparison buildMetricsWithoutRefactor(MethodDeclaration node, int currentCc, int currentLoc) {
+		return RefactorComparison.builder()
+				.name(node.getName().toString())
+				.refactoredLoc(currentLoc)
+				.refactoredCc(currentCc)
+				.bestMetrics(null)
+				.stats(null)
+				.doPlan(new ExtractionPlan(Collections.emptyList()))
+				.undoPlan(new ExtractionPlan(Collections.emptyList()))
+				.build();
 	}
 
 	private List<Change> asImmutable(List<Change> list) {
 		return list == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(list));
 	}
+	
+	/*
+	 * MethodMetrics.builder()
+				.name(node.getName().toString())
+				.currentLoc(currentLoc)
+				.refactoredLoc(refactoredLoc)
+				.currentCc(currentCc)
+				.refactoredCc(refactoredCc)
+				.totalExtractedLinesOfCode(stats.getTotalNumberOfExtractedLinesOfCode())
+				.totalReductionOfCc(stats.getTotalNumberOfReductionOfCognitiveComplexity())
+				.applyPlan(applyPlan)
+				.undoPlan(undoPlan)
+				.build();
+	 */
 }

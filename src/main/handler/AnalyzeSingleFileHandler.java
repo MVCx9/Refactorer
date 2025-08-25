@@ -54,19 +54,17 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 
 	private void logToConsole(FileAnalysis analysis) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("Refactorer — Análisis de fichero: ").append(analysis.file().getName()).append('\n');
-		analysis.classes().forEach(ca -> {
-			sb.append("  Clase ").append(ca.className()).append('\n');
-			ca.methods().forEach(ma -> {
-				sb.append("    ")
-					.append(ma.methodName())
-					.append(" | CC ").append(ma.currentCc())
-					.append(" -> ").append(ma.refactoredCc())
-					.append(" | LOC ").append(ma.currentLoc())
-					.append(" -> ").append(ma.refactoredLoc())
-					.append(ma.extractionPlan() != null ? " | plan: YES" : " | plan: NO")
-					.append('\n');
-			});
+		sb.append("Refactorer — Análisis de fichero: ").append(analysis.getFile().getName()).append('\n');
+		sb.append("  Clase ").append(analysis.getClasses().getClassName()).append('\n');
+		analysis.getClasses().getMethods().forEach(ma -> {
+			sb.append("    ")
+				.append(ma.methodName())
+				.append(" | CC ").append(ma.currentCc())
+				.append(" -> ").append(ma.refactoredCc())
+				.append(" | LOC ").append(ma.currentLoc())
+				.append(" -> ").append(ma.refactoredLoc())
+				.append(ma.doPlan() != null ? " | plan: YES" : " | plan: NO")
+				.append('\n');
 		});
 		System.out.println(sb.toString());
 	}

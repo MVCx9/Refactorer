@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTVisitor;
@@ -29,9 +30,9 @@ public class ComplexityAnalyzer {
 	 * contiene, comparando código actual vs. código refactorizado (si hay una
 	 * extracción viable).
 	 */
-	public List<ClassAnalysis> analyze(CompilationUnit cu, ICompilationUnit icu) throws JavaModelException {
+	public ClassAnalysis analyze(CompilationUnit cu, ICompilationUnit icu) throws JavaModelException {
 		System.out.println("******** POR FIN PASÓ EL PARSE ********");
-		List<ClassAnalysis> results = new ArrayList<>();
+		final List<ClassAnalysis> resultHolder = new ArrayList<>(1);
 
 		cu.accept(new ASTVisitor() {
 			@Override
@@ -40,26 +41,34 @@ public class ComplexityAnalyzer {
 				List<MethodAnalysis> methods = new ArrayList<>();
 
 				for (MethodDeclaration md : node.getMethods()) {
-					MethodAnalysis ma = analyzeMethod(cu, md);
-					if (ma != null)
-						methods.add(ma);
+					try {
+						MethodAnalysis ma = analyzeMethod(cu, md);
+						if (ma != null) methods.add(ma);
+					} catch (CoreException e) {
+						e.printStackTrace();
+					}
 				}
 
 				if (!methods.isEmpty()) {
-					ClassAnalysis ca = ClassAnalysis.builder().icu(icu).compilationUnit(cu).className(className)
-							.methods(methods).build();
+					ClassAnalysis ca = ClassAnalysis.builder()
+						.icu(icu)
+						.compilationUnit(cu)
+						.className(className)
+						.methods(methods)
+						.build();
 
-					results.add(ca);
+					resultHolder.add(ca);
 				}
-				return false; // no descender a tipos anidados aquí; añádelo si lo necesitas
+				return false; // no descender a tipos anidados
 			}
 		});
 
-		System.out.println(results.toString());
-		return results;
+		ClassAnalysis result = resultHolder.isEmpty() ? ClassAnalysis.builder().build() : resultHolder.get(0);
+		System.out.println(result.toString());
+		return result;
 	}
 
-	private MethodAnalysis analyzeMethod(CompilationUnit cu, MethodDeclaration md) {
+	private MethodAnalysis analyzeMethod(CompilationUnit cu, MethodDeclaration md) throws CoreException {
 		// 1) Complejidad cognitiva actual
 		CognitiveComplexityVisitor ccVisitor = new CognitiveComplexityVisitor();
 		md.accept(ccVisitor);
@@ -72,13 +81,20 @@ public class ComplexityAnalyzer {
 
 		// 3) Invocar a CodeExtractionEngine (usa NEO internamente) para
 		// evaluar posibles extracciones y obtener métricas + plan.
-		RefactorComparison comparison = extractionEngine.evaluateMethod(cu, md, currentCc, currentLoc);
+		RefactorComparison comparison = extractionEngine.analyseAndPlan(cu, md, currentCc, currentLoc);
 
 		// 4) Mapear al modelo de método
-		return MethodAnalysis.builder().methodName(md.getName().getIdentifier()).declaration(md).currentCc(currentCc)
-				.currentLoc(currentLoc).refactoredCc(comparison.getRefactoredCc())
-				.refactoredLoc(comparison.getRefactoredLoc()).bestExtraction(comparison.getBestMetrics())
-				.stats(comparison.getStats()).extractionPlan(comparison.getDoPlan()).undoPlan(comparison.getUndoPlan())
+		return MethodAnalysis.builder()
+				.methodName(md.getName().getIdentifier())
+				.declaration(md)
+				.currentCc(currentCc)
+				.currentLoc(currentLoc)
+				.refactoredCc(comparison.getRefactoredCc())
+				.refactoredLoc(comparison.getRefactoredLoc())
+				.bestExtraction(comparison.getBestMetrics())
+				.stats(comparison.getStats())
+				.doPlan(comparison.getDoPlan())
+				.undoPlan(comparison.getUndoPlan())
 				.build();
 	}
 

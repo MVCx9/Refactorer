@@ -24,19 +24,19 @@ public class ClassAnalysis {
 		this.methods = List.copyOf(b.methods);
 	}
 
-	public ICompilationUnit icu() {
+	public ICompilationUnit getIcu() {
 		return icu;
 	}
 
-	public CompilationUnit compilationUnit() {
+	public CompilationUnit getCompilationUnit() {
 		return cu;
 	}
 
-	public String className() {
+	public String getClassName() {
 		return className;
 	}
 
-	public List<MethodAnalysis> methods() {
+	public List<MethodAnalysis> getMethods() {
 		return Collections.unmodifiableList(methods);
 	}
 
