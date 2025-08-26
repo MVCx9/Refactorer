@@ -31,7 +31,7 @@ public class FileAnalysis {
 		return icu;
 	}
 
-	public ClassAnalysis getClasses() {
+	public ClassAnalysis getClassAnalysis() {
 		return classes;
 	}
 }

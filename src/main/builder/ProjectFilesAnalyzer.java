@@ -25,7 +25,6 @@ public class ProjectFilesAnalyzer {
 	private final ComplexityAnalyzer analyzer;
 
 	public ProjectFilesAnalyzer() {
-		// Inyecta el motor una sola vez para reutilizar caches
 		CodeExtractionEngine engine = new CodeExtractionEngine();
 		this.analyzer = new ComplexityAnalyzer(engine);
 	}
@@ -57,34 +56,38 @@ public class ProjectFilesAnalyzer {
 	/**
 	 * Analiza un proyecto Java completo. Reutiliza analyzeFile para cada unidad.
 	 */
-	public List<FileAnalysis> analyzeProject(IProject project) throws CoreException {
+	public ProjectAnalysis analyzeProject(IProject project) throws CoreException {
 		Objects.requireNonNull(project, "project");
 		if (!project.isOpen())
-			return List.of();
+			return null;
 
-		IJavaProject jp = JavaCore.create(project);
-		if (jp == null)
-			return List.of();
+		IJavaProject javaProject = JavaCore.create(project);
+		if (javaProject == null)
+			return null;
 
-		List<FileAnalysis> results = new ArrayList<>();
+		List<FileAnalysis> analyses = new ArrayList<>();
 
-		for (IPackageFragmentRoot root : jp.getPackageFragmentRoots()) {
+		for (IPackageFragmentRoot root : javaProject.getPackageFragmentRoots()) {
 			if (root.getKind() != IPackageFragmentRoot.K_SOURCE)
 				continue;
-			for (IJavaElement pkgEl : root.getChildren()) {
-				if (!(pkgEl instanceof IPackageFragment))
+			for (IJavaElement element : root.getChildren()) {
+				if (!(element instanceof IPackageFragment))
 					continue;
-				IPackageFragment pkg = (IPackageFragment) pkgEl;
+				IPackageFragment pkg = (IPackageFragment) element;
 				for (ICompilationUnit icu : pkg.getCompilationUnits()) {
 					IFile file = (IFile) icu.getResource();
 					if (file == null)
 						continue;
-					results.add(analyzeFile(file));
+					analyses.add(analyzeFile(file));
 				}
 			}
 		}
 
-		return results;
+		return ProjectAnalysis.builder()
+				.project(project)
+				.name(project.getName())
+				.files(analyses)
+				.build();
 	}
 
 	private CompilationUnit parserAST(ICompilationUnit icu) {

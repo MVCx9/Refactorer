@@ -13,6 +13,9 @@ import org.eclipse.ui.handlers.HandlerUtil;
 
 import main.builder.FileAnalysis;
 import main.builder.ProjectFilesAnalyzer;
+import main.model.clazz.ClassAnalysisMetricsMapper;
+import main.model.clazz.ClassMetrics;
+import main.model.method.MethodMetrics;
 
 public class AnalyzeSingleFileHandler extends AbstractHandler {
 
@@ -44,28 +47,29 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 		ProjectFilesAnalyzer pfa = new ProjectFilesAnalyzer();
 		try {
 			FileAnalysis analysis = pfa.analyzeFile(file);
-			// TODO: Persistir/mostrar el resultado en tu vista. Por ahora, logeamos
-			logToConsole(analysis);
+			ClassMetrics cm = ClassAnalysisMetricsMapper.toClassMetrics(analysis);
+			logToConsole(cm);
 		} catch (CoreException e) {
 			throw new ExecutionException("Error analyzing file", e);
 		}
 		return null;
 	}
 
-	private void logToConsole(FileAnalysis analysis) {
+	private void logToConsole(ClassMetrics cm) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("Refactorer — Análisis de fichero: ").append(analysis.getFile().getName()).append('\n');
-		sb.append("  Clase ").append(analysis.getClasses().getClassName()).append('\n');
-		analysis.getClasses().getMethods().forEach(ma -> {
-			sb.append("    ")
-				.append(ma.methodName())
-				.append(" | CC ").append(ma.currentCc())
-				.append(" -> ").append(ma.refactoredCc())
-				.append(" | LOC ").append(ma.currentLoc())
-				.append(" -> ").append(ma.refactoredLoc())
-				.append(ma.doPlan() != null ? " | plan: YES" : " | plan: NO")
-				.append('\n');
-		});
+		sb.append("Refactorer — Métricas de clase: ").append(cm.getName()).append('\n');
+		sb.append("  LOC ").append(cm.getCurrentLoc()).append(" -> ").append(cm.getRefactoredLoc()).append('\n');
+		sb.append("  CC ").append(cm.getCurrentCc()).append(" -> ").append(cm.getRefactoredCc()).append('\n');
+		sb.append("  Métodos ").append(cm.getCurrentMethodCount()).append('\n');
+		for (MethodMetrics mm : cm.getMethods()) {
+			sb.append("\n   - ")
+			.append(mm.getName())
+			.append(" | LOC: ").append(mm.getCurrentLoc())
+			.append(" -> Refactored LOC: ").append(mm.getRefactoredLoc())
+			.append(" | CC: ").append(mm.getCurrentCc())
+			.append(" -> Refactored CC: ").append(mm.getRefactoredCc());
+		}
+		sb.append('\n');
 		System.out.println(sb.toString());
 	}
 

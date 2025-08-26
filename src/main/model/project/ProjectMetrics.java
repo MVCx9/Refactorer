@@ -24,7 +24,6 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 		return new ProjectMetricsBuilder();
 	}
 
-	// getters …
 	@Override
 	public String getName() {
 		return name;
@@ -32,6 +31,10 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 
 	public int getClassCount() {
 		return classes.size();
+	}
+
+	public List<ClassMetrics> getClasses() {
+		return Collections.unmodifiableList(classes);
 	}
 
 	/**
@@ -70,7 +73,6 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 		return classes.stream().mapToInt(ClassMetrics::getCurrentMethodCount).sum();
 	}
 
-	// Función para calcular la media dado un mapper
 	private int averageCc(java.util.function.ToIntFunction<ClassMetrics> mapper) {
 		return (int) Math.round(classes.stream().mapToInt(mapper).average().orElse(0.0));
 	}

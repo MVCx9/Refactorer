@@ -12,8 +12,6 @@ public interface ComplexityStats {
 	/** Complejidad cognitiva tras aplicar las extracciones propuestas. */
 	int getRefactoredCc();
 
-	/* ------------- Métodos default de conveniencia ------------- */
-
 	/** Diferencia absoluta (negativo = mejora). */
 	default int getDeltaCc() {
 		return getRefactoredCc() - getCurrentCc();

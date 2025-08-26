@@ -8,8 +8,6 @@ public interface Identifiable {
 	/** Nombre lógico del elemento (sin ruta, ni extensión, ni carpetas). */
 	String getName();
 
-	/* ---------- Métodos default opcionales ---------- */
-
 	/**
 	 * Devuelve el nombre en mayúsculas
 	 */

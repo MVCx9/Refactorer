@@ -110,18 +110,4 @@ public final class CodeExtractionEngine {
 	private List<Change> asImmutable(List<Change> list) {
 		return list == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(list));
 	}
-	
-	/*
-	 * MethodMetrics.builder()
-				.name(node.getName().toString())
-				.currentLoc(currentLoc)
-				.refactoredLoc(refactoredLoc)
-				.currentCc(currentCc)
-				.refactoredCc(refactoredCc)
-				.totalExtractedLinesOfCode(stats.getTotalNumberOfExtractedLinesOfCode())
-				.totalReductionOfCc(stats.getTotalNumberOfReductionOfCognitiveComplexity())
-				.applyPlan(applyPlan)
-				.undoPlan(undoPlan)
-				.build();
-	 */
 }

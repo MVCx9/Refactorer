@@ -14,6 +14,7 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 import main.builder.ClassAnalysis;
 import main.builder.MethodAnalysis;
+import main.model.method.MethodAnalysisMetricsMapper;
 import main.refactor.CodeExtractionEngine;
 import main.refactor.RefactorComparison;
 
@@ -31,7 +32,6 @@ public class ComplexityAnalyzer {
 	 * extracción viable).
 	 */
 	public ClassAnalysis analyze(CompilationUnit cu, ICompilationUnit icu) throws JavaModelException {
-		System.out.println("******** POR FIN PASÓ EL PARSE ********");
 		final List<ClassAnalysis> resultHolder = new ArrayList<>(1);
 
 		cu.accept(new ASTVisitor() {
@@ -84,18 +84,9 @@ public class ComplexityAnalyzer {
 		RefactorComparison comparison = extractionEngine.analyseAndPlan(cu, md, currentCc, currentLoc);
 
 		// 4) Mapear al modelo de método
-		return MethodAnalysis.builder()
-				.methodName(md.getName().getIdentifier())
-				.declaration(md)
-				.currentCc(currentCc)
-				.currentLoc(currentLoc)
-				.refactoredCc(comparison.getRefactoredCc())
-				.refactoredLoc(comparison.getRefactoredLoc())
-				.bestExtraction(comparison.getBestMetrics())
-				.stats(comparison.getStats())
-				.doPlan(comparison.getDoPlan())
-				.undoPlan(comparison.getUndoPlan())
-				.build();
+		return MethodAnalysisMetricsMapper.toMethodAnalysis(md, currentCc, currentLoc, comparison);
 	}
+
+	
 
 }

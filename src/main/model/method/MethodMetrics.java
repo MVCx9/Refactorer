@@ -11,14 +11,13 @@ import main.model.common.LocStats;
 public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 
 	private final String name;
-
 	private final int currentLoc;
 	private final int refactoredLoc;
 	private final int currentCc;
 	private final int refactoredCc;
 	private final int totalExtractedLinesOfCode;
 	private final int totalReductionOfCc;
-	private final ExtractionPlan applyPlan;
+	private final ExtractionPlan doPlan;
 	private final ExtractionPlan undoPlan;
 
 	public MethodMetrics(MethodMetricsBuilder methodMetricsBuilder) {
@@ -30,7 +29,7 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 		this.refactoredCc = methodMetricsBuilder.refactoredCc;
 		this.totalExtractedLinesOfCode = methodMetricsBuilder.totalExtractedLinesOfCode;
 		this.totalReductionOfCc = methodMetricsBuilder.totalReductionOfCc;
-		this.applyPlan = methodMetricsBuilder.applyPlan;
+		this.doPlan = methodMetricsBuilder.doPlan;
 		this.undoPlan = methodMetricsBuilder.undoPlan;
 	}
 
@@ -38,8 +37,8 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 		return new MethodMetricsBuilder();
 	}
 
-	public ExtractionPlan getApplyPlan() {
-		return applyPlan;
+	public ExtractionPlan getDoPlan() {
+		return doPlan;
 	}
 
 	public ExtractionPlan getUndoPlan() {
@@ -71,7 +70,6 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 		return refactoredLoc;
 	}
 
-	// conveniencia
 	public boolean isImproved() {
 		return refactoredCc < currentCc;
 	}
@@ -84,7 +82,7 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 		private int refactoredCc = 0;
 		private int totalExtractedLinesOfCode;
 		private int totalReductionOfCc;
-		private ExtractionPlan applyPlan = new ExtractionPlan(Collections.emptyList());
+		private ExtractionPlan doPlan = new ExtractionPlan(Collections.emptyList());
 		private ExtractionPlan undoPlan = new ExtractionPlan(Collections.emptyList());
 
 		public MethodMetricsBuilder() {
@@ -125,8 +123,8 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 			return this;
 		}
 
-		public MethodMetricsBuilder applyPlan(ExtractionPlan applyPlan) {
-			this.applyPlan = applyPlan;
+		public MethodMetricsBuilder doPlan(ExtractionPlan applyPlan) {
+			this.doPlan = applyPlan;
 			return this;
 		}
 
@@ -142,7 +140,7 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(applyPlan, currentCc, currentLoc, name, refactoredCc, refactoredLoc,
+		return Objects.hash(doPlan, currentCc, currentLoc, name, refactoredCc, refactoredLoc,
 				totalExtractedLinesOfCode, totalReductionOfCc, undoPlan);
 	}
 
@@ -155,7 +153,7 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 		if (getClass() != obj.getClass())
 			return false;
 		MethodMetrics other = (MethodMetrics) obj;
-		return Objects.equals(applyPlan, other.applyPlan) && currentCc == other.currentCc
+		return Objects.equals(doPlan, other.doPlan) && currentCc == other.currentCc
 				&& currentLoc == other.currentLoc && Objects.equals(name, other.name)
 				&& refactoredCc == other.refactoredCc && refactoredLoc == other.refactoredLoc
 				&& totalExtractedLinesOfCode == other.totalExtractedLinesOfCode
@@ -166,7 +164,7 @@ public class MethodMetrics implements Identifiable, ComplexityStats, LocStats {
 	public String toString() {
 		return "MethodMetrics [name=" + name + ", currentLoc=" + currentLoc + ", refactoredLoc=" + refactoredLoc
 				+ ", currentCc=" + currentCc + ", refactoredCc=" + refactoredCc + ", totalLinesOfRefactoredCode="
-				+ totalExtractedLinesOfCode + ", totalRefactoredCc=" + totalReductionOfCc + ", applyPlan=" + applyPlan
+				+ totalExtractedLinesOfCode + ", totalRefactoredCc=" + totalReductionOfCc + ", applyPlan=" + doPlan
 				+ ", undoPlan=" + undoPlan + "]";
 	}
 
