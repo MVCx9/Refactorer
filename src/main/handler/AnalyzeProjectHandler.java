@@ -22,6 +22,9 @@ import org.eclipse.ui.handlers.HandlerUtil;
 import main.builder.FileAnalysis;
 import main.builder.ProjectAnalysis;
 import main.builder.ProjectFilesAnalyzer;
+import main.error.AnalyzeException;
+import main.error.ResourceNotFoundException;
+import main.error.ValidationException;
 import main.model.clazz.ClassMetrics;
 import main.model.method.MethodMetrics;
 import main.model.project.ProjectAnalysisMetricsMapper;
@@ -35,8 +38,7 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 		Object selected = ((IStructuredSelection) HandlerUtil.getCurrentSelection(event)).getFirstElement();
 
 		if (selected == null) {
-			System.out.println("No hay proyecto para analizar");
-			return null;
+			throw new ResourceNotFoundException("No hay proyecto para analizar");
 		}
 
 		if (selected instanceof IAdaptable) {
@@ -44,8 +46,7 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 		}
 
 		if (project == null) {
-			System.out.println("La selección no es un proyecto Eclipse válido.");
-			return null;
+			throw new ValidationException("La selección no es un proyecto Eclipse válido.");
 		}
 
 		ProjectFilesAnalyzer analyzer = new ProjectFilesAnalyzer();
@@ -71,7 +72,7 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 				}
 			}
 		} catch (CoreException e) {
-			throw new ExecutionException("Error analyzing project", e);
+			throw new AnalyzeException("Error analyzing project", e);
 		}
 
 		ProjectAnalysis analysis = ProjectAnalysis.builder()

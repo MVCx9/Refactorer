@@ -27,7 +27,7 @@ public class CognitiveComplexityVisitor extends ASTVisitor {
     // Para manejar los case en los switch statements
     private boolean firstCaseInSwitch = false;
 
-    // --- Estructuras de control ---
+    // Estructuras de control
 
     @Override
     public boolean visit(IfStatement node) {
@@ -109,7 +109,7 @@ public class CognitiveComplexityVisitor extends ASTVisitor {
         return super.visit(node);
     }
 
-    // --- Operadores lógicos (&& y ||), cuenta todos los de la expresión ---
+    // Operadores lógicos (&& y ||), cuenta todos los de la expresión
     @Override
     public boolean visit(InfixExpression node) {
         if (node.getOperator() == InfixExpression.Operator.CONDITIONAL_AND ||
@@ -142,7 +142,6 @@ public class CognitiveComplexityVisitor extends ASTVisitor {
         return count;
     }
 
-    // --- Getter ---
     public int getComplexity() {
         return complexity;
     }

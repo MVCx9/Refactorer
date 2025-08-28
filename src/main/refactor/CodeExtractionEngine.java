@@ -20,7 +20,7 @@ import main.neo.refactoringcache.SentencesSelectorVisitor;
 
 /**
  * Orquestador principal que invoca la lógica de NEO (paquete
- * <code>neo.*</code>) y traduce los resultados a nuestro modelo de dominio
+ * <code>neo.*</code>) y traduce los resultados al modelo de dominio
  * (<code>model.*</code>).
  */
 public final class CodeExtractionEngine {
@@ -80,7 +80,7 @@ public final class CodeExtractionEngine {
 		int refactoredCc = Math.max(0, currentCc - best.getReductionOfCognitiveComplexity());
 		int refactoredLoc = Math.max(0, currentLoc - best.getNumberOfExtractedLinesOfCode());
 
-		ExtractionPlan applyPlan = new ExtractionPlan(asImmutable(best.getChanges()));
+		ExtractionPlan doPlan = new ExtractionPlan(asImmutable(best.getChanges()));
 		ExtractionPlan undoPlan = new ExtractionPlan(asImmutable(best.getUndoChanges()));
 
 		// 5. Construcción del DTO de salida
@@ -90,7 +90,7 @@ public final class CodeExtractionEngine {
 				.refactoredLoc(refactoredLoc)
 				.bestMetrics(best)
 				.stats(stats)
-				.doPlan(applyPlan)
+				.doPlan(doPlan)
 				.undoPlan(undoPlan)
 				.build();
 	}

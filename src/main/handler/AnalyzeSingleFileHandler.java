@@ -13,6 +13,8 @@ import org.eclipse.ui.handlers.HandlerUtil;
 
 import main.builder.FileAnalysis;
 import main.builder.ProjectFilesAnalyzer;
+import main.error.AnalyzeException;
+import main.error.ResourceNotFoundException;
 import main.model.clazz.ClassAnalysisMetricsMapper;
 import main.model.clazz.ClassMetrics;
 import main.model.method.MethodMetrics;
@@ -25,8 +27,7 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 		Object classSelected = selection.getFirstElement();
 
 		if (classSelected == null) {
-			System.out.println("No hay fichero seleccionado para analizar.");
-			return null;
+			throw new ResourceNotFoundException("No hay fichero seleccionado para analizar.");
 		}
 
 		IFile file = null;
@@ -50,7 +51,7 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 			ClassMetrics cm = ClassAnalysisMetricsMapper.toClassMetrics(analysis);
 			logToConsole(cm);
 		} catch (CoreException e) {
-			throw new ExecutionException("Error analyzing file", e);
+			throw new AnalyzeException("Error analyzing file", e);
 		}
 		return null;
 	}
