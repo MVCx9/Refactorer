@@ -11,17 +11,14 @@ import main.refactor.RefactorComparison;
 
 public final class MethodAnalysisMetricsMapper {
 
-	private MethodAnalysisMetricsMapper() {
-	}
+	private MethodAnalysisMetricsMapper() {}
 
 	public static MethodMetrics toMethodMetrics(MethodAnalysis ma) {
 		CodeExtractionMetricsStats stats = ma.stats();
 		int totalExtractedLoc = stats != null ? stats.getTotalNumberOfExtractedLinesOfCode() : 0;
 		int totalReductionOfCc = stats != null ? stats.getTotalNumberOfReductionOfCognitiveComplexity() : 0;
-
 		ExtractionPlan applyPlan = ma.doPlan() != null ? ma.doPlan() : new ExtractionPlan(Collections.emptyList());
 		ExtractionPlan undoPlan = ma.undoPlan() != null ? ma.undoPlan() : new ExtractionPlan(Collections.emptyList());
-
 		return MethodMetrics.builder()
 			.name(ma.methodName())
 			.currentLoc(ma.currentLoc())
@@ -30,7 +27,8 @@ public final class MethodAnalysisMetricsMapper {
 			.refactoredCc(ma.refactoredCc())
 			.totalExtractedLinesOfCode(totalExtractedLoc)
 			.totalReductionOfCc(totalReductionOfCc)
-			.doPlan(applyPlan).undoPlan(undoPlan)
+			.doPlan(applyPlan)
+			.undoPlan(undoPlan)
 			.build();
 	}
 
@@ -42,10 +40,13 @@ public final class MethodAnalysisMetricsMapper {
 			.currentLoc(currentLoc)
 			.refactoredCc(comparison.getRefactoredCc())
 			.refactoredLoc(comparison.getRefactoredLoc())
+			.extractionCount(comparison.getExtractionCount())
+			.extractions(comparison.getExtractions())
 			.bestExtraction(comparison.getBestMetrics())
 			.stats(comparison.getStats())
 			.doPlan(comparison.getDoPlan())
 			.undoPlan(comparison.getUndoPlan())
 			.build();
 	}
+
 }

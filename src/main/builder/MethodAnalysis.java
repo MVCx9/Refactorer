@@ -1,5 +1,7 @@
 package main.builder;
 
+import java.util.List;
+
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 
 import main.model.change.ExtractionPlan;
@@ -14,8 +16,10 @@ public class MethodAnalysis {
 	private final int currentLoc;
 	private final int refactoredCc;
 	private final int refactoredLoc;
-	private final CodeExtractionMetrics bestExtraction; // métricas del mejor candidato
-	private final CodeExtractionMetricsStats stats; // métricas agregadas
+	private final int extractionCount;
+	private final List<CodeExtractionMetrics> extractions;
+	private final CodeExtractionMetrics bestExtraction;
+	private final CodeExtractionMetricsStats stats;
 	private final ExtractionPlan doPlan;
 	private final ExtractionPlan undoPlan;
 
@@ -30,6 +34,8 @@ public class MethodAnalysis {
 		this.currentLoc = b.currentLoc;
 		this.refactoredCc = b.refactoredCc;
 		this.refactoredLoc = b.refactoredLoc;
+		this.extractionCount = b.extractionCount;
+		this.extractions = b.extractions;
 		this.bestExtraction = b.bestExtraction;
 		this.stats = b.stats;
 		this.doPlan = b.doPlan;
@@ -60,6 +66,14 @@ public class MethodAnalysis {
 		return refactoredLoc;
 	}
 
+	public int extractionCount() {
+		return extractionCount;
+	}
+
+	public List<CodeExtractionMetrics> extractions() {
+		return extractions;
+	}
+
 	public CodeExtractionMetrics bestExtraction() {
 		return bestExtraction;
 	}
@@ -83,6 +97,8 @@ public class MethodAnalysis {
 		private int currentLoc;
 		private int refactoredCc;
 		private int refactoredLoc;
+		private int extractionCount;
+		private List<CodeExtractionMetrics> extractions;
 		private CodeExtractionMetrics bestExtraction;
 		private CodeExtractionMetricsStats stats;
 		private ExtractionPlan doPlan;
@@ -115,6 +131,16 @@ public class MethodAnalysis {
 
 		public Builder refactoredLoc(int v) {
 			this.refactoredLoc = v;
+			return this;
+		}
+
+		public Builder extractionCount(int v) {
+			this.extractionCount = v;
+			return this;
+		}
+
+		public Builder extractions(List<CodeExtractionMetrics> v) {
+			this.extractions = v;
 			return this;
 		}
 

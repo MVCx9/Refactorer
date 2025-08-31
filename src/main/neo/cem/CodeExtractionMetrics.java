@@ -164,8 +164,8 @@ public class CodeExtractionMetrics {
 		this.applied = metrics.applied;
 		this.numberOfExtractedLinesOfCode = metrics.numberOfExtractedLinesOfCode;
 		this.numberOfParametersInExtractedMethod = metrics.numberOfParametersInExtractedMethod;
-		this.changes = new ArrayList<>(changes);
-		this.undoChanges = new ArrayList<>(undoChanges);
+		this.changes = new ArrayList<>(metrics.changes);
+		this.undoChanges = new ArrayList<>(metrics.undoChanges);
 		this.reductionOfCognitiveComplexity = metrics.reductionOfCognitiveComplexity;
 		this.accumulatedInherentComponent = metrics.accumulatedInherentComponent;
 		this.accumulatedNestingComponent = metrics.accumulatedNestingComponent;
