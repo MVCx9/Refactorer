@@ -12,9 +12,9 @@ public interface ComplexityStats {
 	/** Complejidad cognitiva tras aplicar las extracciones propuestas. */
 	int getRefactoredCc();
 
-	/** Diferencia absoluta (negativo = mejora). */
-	default int getDeltaCc() {
-		return getRefactoredCc() - getCurrentCc();
+	/** Cantidad de complejidad cognitiva reducida. */
+	default int getImprovementCc() {
+		return getCurrentCc() - getRefactoredCc();
 	}
 
 	/** Porcentaje de mejora (> 0 → ha mejorado, < 0 → ha empeorado). */

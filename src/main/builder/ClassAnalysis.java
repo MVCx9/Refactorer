@@ -11,7 +11,8 @@ public class ClassAnalysis {
 	private final ICompilationUnit icu;
 	private final CompilationUnit cu;
 	private final String className;
-	private final List<MethodAnalysis> methods;
+	private final List<MethodAnalysis> currentMethods;
+	private final List<MethodAnalysis> refactoredMethods;
 
 	public static Builder builder() {
 		return new Builder();
@@ -21,7 +22,8 @@ public class ClassAnalysis {
 		this.icu = b.icu;
 		this.cu = b.cu;
 		this.className = b.className;
-		this.methods = List.copyOf(b.methods);
+		this.refactoredMethods = Collections.unmodifiableList(b.currentMethods);
+		this.currentMethods = Collections.unmodifiableList(b.refactoredMethods);
 	}
 
 	public ICompilationUnit getIcu() {
@@ -36,15 +38,20 @@ public class ClassAnalysis {
 		return className;
 	}
 
-	public List<MethodAnalysis> getMethods() {
-		return Collections.unmodifiableList(methods);
+	public List<MethodAnalysis> getCurrentMethods() {
+		return Collections.unmodifiableList(currentMethods);
+	}
+	
+	public List<MethodAnalysis> getRefactoredMethods() {
+		return Collections.unmodifiableList(refactoredMethods);
 	}
 
 	public static class Builder {
 		private ICompilationUnit icu;
 		private CompilationUnit cu;
 		private String className;
-		private List<MethodAnalysis> methods = List.of();
+		private List<MethodAnalysis> currentMethods = List.of();
+		private List<MethodAnalysis> refactoredMethods = List.of();
 
 		public Builder icu(ICompilationUnit v) {
 			this.icu = v;
@@ -61,8 +68,13 @@ public class ClassAnalysis {
 			return this;
 		}
 
-		public Builder methods(List<MethodAnalysis> v) {
-			this.methods = v;
+		public Builder currentMethods(List<MethodAnalysis> v) {
+			this.currentMethods = v;
+			return this;
+		}
+		
+		public Builder refactoredMethods(List<MethodAnalysis> v) {
+			this.refactoredMethods = v;
 			return this;
 		}
 

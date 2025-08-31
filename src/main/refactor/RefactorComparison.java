@@ -1,22 +1,16 @@
 package main.refactor;
 
-import java.util.Collections;
-import java.util.List;
-
 import main.model.change.ExtractionPlan;
 import main.neo.cem.CodeExtractionMetrics;
 import main.neo.cem.CodeExtractionMetricsStats;
 
 public class RefactorComparison {
-
 	private final String name;
 	private final int originalCc;
 	private final int originalLoc;
 	private final int refactoredCc;
 	private final int refactoredLoc;
-	private final int extractionCount;
-	private final List<CodeExtractionMetrics> extractions;
-	private final CodeExtractionMetrics bestMetrics;
+	private final CodeExtractionMetrics extraction;
 	private final CodeExtractionMetricsStats stats;
 	private final ExtractionPlan doPlan;
 	private final ExtractionPlan undoPlan;
@@ -31,9 +25,7 @@ public class RefactorComparison {
 		this.originalLoc = b.originalLoc;
 		this.refactoredCc = b.refactoredCc;
 		this.refactoredLoc = b.refactoredLoc;
-		this.extractionCount = b.extractionCount;
-		this.extractions = b.extractions == null ? Collections.emptyList() : Collections.unmodifiableList(b.extractions);
-		this.bestMetrics = b.bestMetrics;
+		this.extraction = b.extraction;
 		this.stats = b.stats;
 		this.doPlan = b.doPlan;
 		this.undoPlan = b.undoPlan;
@@ -59,16 +51,8 @@ public class RefactorComparison {
 		return refactoredLoc;
 	}
 
-	public int getExtractionCount() {
-		return extractionCount;
-	}
-
-	public List<CodeExtractionMetrics> getExtractions() {
-		return extractions;
-	}
-
-	public CodeExtractionMetrics getBestMetrics() {
-		return bestMetrics;
+	public CodeExtractionMetrics getExtraction() {
+		return extraction;
 	}
 
 	public CodeExtractionMetricsStats getStats() {
@@ -89,9 +73,7 @@ public class RefactorComparison {
 		private int originalLoc;
 		private int refactoredCc;
 		private int refactoredLoc;
-		private int extractionCount;
-		private List<CodeExtractionMetrics> extractions;
-		private CodeExtractionMetrics bestMetrics;
+		private CodeExtractionMetrics extraction;
 		private CodeExtractionMetricsStats stats;
 		private ExtractionPlan doPlan;
 		private ExtractionPlan undoPlan;
@@ -100,7 +82,6 @@ public class RefactorComparison {
 			this.name = v;
 			return this;
 		}
-
 		public Builder originalCc(int v) {
 			this.originalCc = v;
 			return this;
@@ -121,18 +102,8 @@ public class RefactorComparison {
 			return this;
 		}
 
-		public Builder extractionCount(int v) {
-			this.extractionCount = v;
-			return this;
-		}
-
-		public Builder extractions(List<CodeExtractionMetrics> v) {
-			this.extractions = v;
-			return this;
-		}
-
-		public Builder bestMetrics(CodeExtractionMetrics v) {
-			this.bestMetrics = v;
+		public Builder extraction(CodeExtractionMetrics v) {
+			this.extraction = v;
 			return this;
 		}
 

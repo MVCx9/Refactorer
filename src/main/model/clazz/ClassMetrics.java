@@ -2,8 +2,8 @@ package main.model.clazz;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
+import main.model.change.ExtractionPlan;
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
 import main.model.common.LocStats;
@@ -12,62 +12,90 @@ import main.model.method.MethodMetrics;
 public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 
 	private final String name;
-	private final int currentLoc;
-	private final int refactoredLoc;
-	private final List<MethodMetrics> methods;
+	private final List<MethodMetrics> currentMethods;
+	private final List<MethodMetrics> refactoredMethods;
 
 	public ClassMetrics(ClassMetricsBuilder classMetricsBuilder) {
 		super();
 		this.name = classMetricsBuilder.name;
-		this.currentLoc = classMetricsBuilder.currentLoc;
-		this.refactoredLoc = classMetricsBuilder.refactoredLoc;
-		this.methods = classMetricsBuilder.methods;
+		this.currentMethods = classMetricsBuilder.currentMethods == null ? Collections.emptyList() : Collections.unmodifiableList(classMetricsBuilder.currentMethods);
+		this.refactoredMethods = classMetricsBuilder.refactoredMethods == null ? Collections.emptyList() : Collections.unmodifiableList(classMetricsBuilder.refactoredMethods);
 	}
 
 	public static ClassMetricsBuilder builder() {
 		return new ClassMetricsBuilder();
 	}
 
-	public List<MethodMetrics> getMethods() {
-		return methods;
+	public List<MethodMetrics> getRefactoredMethods() {
+		return currentMethods;
 	}
-
-	@Override
-	public int getCurrentLoc() {
-		return currentLoc;
-	}
-
-	@Override
-	public int getRefactoredLoc() {
-		return refactoredLoc;
+	
+	public List<MethodMetrics> getCurrentMethods() {
+		return refactoredMethods;
 	}
 
 	@Override
 	public String getName() {
 		return name;
 	}
-
+	
+	@Override
+	public int getCurrentLoc() {
+		return currentMethods.stream().mapToInt(MethodMetrics::getLoc).sum();
+	}
+	
+	@Override
 	public int getCurrentCc() {
-		return averageCc(MethodMetrics::getCurrentCc);
+		return currentMethods.stream().mapToInt(MethodMetrics::getCc).sum();
+	}
+	
+	@Override
+	public int getRefactoredCc() {
+		return refactoredMethods.stream().mapToInt(MethodMetrics::getCc).sum();
+	}
+	
+	@Override
+	public int getRefactoredLoc() {
+		return refactoredMethods.stream().mapToInt(MethodMetrics::getLoc).sum();
 	}
 
-	public int getRefactoredCc() {
-		return averageCc(MethodMetrics::getRefactoredCc);
+	public int getAverageCurrentCc() {
+		return averageCc(MethodMetrics::getCc);
+	}
+	
+	public int getAverageRefactoredCc() {
+		return averageCc(MethodMetrics::getCc);
+	}
+	
+	public int getTotalExtractedLinesOfCode() {
+		return currentMethods.stream().mapToInt(MethodMetrics::getLoc).sum() -
+		   refactoredMethods.stream().mapToInt(MethodMetrics::getLoc).sum();
 	}
 
 	public int getCurrentMethodCount() {
-		return methods.size();
+		return currentMethods.size();
+	}
+	
+	public int getRefactoredMethodCount() {
+		return refactoredMethods.size();
 	}
 
+	public List<ExtractionPlan> getDoPlan() {
+		return currentMethods.stream().map(MethodMetrics::getDoPlan).toList();
+	}
+	
+	public List<ExtractionPlan> getUndoPlan() {
+		return currentMethods.stream().map(MethodMetrics::getUndoPlan).toList();
+	}
+	
 	private int averageCc(java.util.function.ToIntFunction<MethodMetrics> mapper) {
-		return (int) Math.round(methods.stream().mapToInt(mapper).average().orElse(0.0));
+		return (int) Math.round(currentMethods.stream().mapToInt(mapper).average().orElse(0.0));
 	}
 
 	public static class ClassMetricsBuilder {
 		private String name = "<unnamed>";
-		private int currentLoc = 0;
-		private int refactoredLoc = 0;
-		private List<MethodMetrics> methods = Collections.emptyList();
+		private List<MethodMetrics> currentMethods = Collections.emptyList();
+		private List<MethodMetrics> refactoredMethods = Collections.emptyList();
 
 		public ClassMetricsBuilder() {
 		}
@@ -77,48 +105,19 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 			return this;
 		}
 
-		public ClassMetricsBuilder currentLoc(int currentLoc) {
-			this.currentLoc = currentLoc;
+		public ClassMetricsBuilder currentMethods(List<MethodMetrics> methods) {
+			this.currentMethods = methods;
 			return this;
 		}
-
-		public ClassMetricsBuilder refactoredLoc(int refactoredLoc) {
-			this.refactoredLoc = refactoredLoc;
-			return this;
-		}
-
-		public ClassMetricsBuilder methods(List<MethodMetrics> methods) {
-			this.methods = methods;
+		
+		public ClassMetricsBuilder refactoredMethods(List<MethodMetrics> methods) {
+			this.refactoredMethods = methods;
 			return this;
 		}
 
 		public ClassMetrics build() {
 			return new ClassMetrics(this);
 		}
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(currentLoc, methods, name, refactoredLoc);
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		ClassMetrics other = (ClassMetrics) obj;
-		return currentLoc == other.currentLoc && Objects.equals(methods, other.methods)
-				&& Objects.equals(name, other.name) && refactoredLoc == other.refactoredLoc;
-	}
-
-	@Override
-	public String toString() {
-		return "ClassMetrics [name=" + name + ", currentLoc=" + currentLoc + ", refactoredLoc=" + refactoredLoc
-				+ ", methods=" + methods + "]";
 	}
 
 }

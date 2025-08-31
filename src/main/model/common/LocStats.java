@@ -11,8 +11,8 @@ public interface LocStats {
 	/** LOC previstas tras aplicar las extracciones. */
 	int getRefactoredLoc();
 
-	default int getDeltaLoc() {
-		return getRefactoredLoc() - getCurrentLoc();
+	default int getImprovementLoc() {
+		return getCurrentLoc() - getRefactoredLoc();
 	}
 
 	default double getImprovementPercentLoc() {
