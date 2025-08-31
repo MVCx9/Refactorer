@@ -26,7 +26,6 @@ import main.error.AnalyzeException;
 import main.error.ResourceNotFoundException;
 import main.error.ValidationException;
 import main.model.clazz.ClassMetrics;
-import main.model.method.MethodMetrics;
 import main.model.project.ProjectAnalysisMetricsMapper;
 import main.model.project.ProjectMetrics;
 
@@ -87,26 +86,19 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 
 	private void logToConsole(ProjectMetrics projectMetrics) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("Refactorer — Métricas de proyecto: ").append(projectMetrics.getName()).append('\n');
-		sb.append("  Clases ").append(projectMetrics.getClassCount()).append('\n');
-		sb.append("  Métodos ").append(projectMetrics.getCurrentMethodCount()).append('\n');
-		sb.append("  LOC ").append(projectMetrics.getCurrentLoc()).append(" -> ").append(projectMetrics.getRefactoredLoc()).append('\n');
-		sb.append("  CC ").append(projectMetrics.getCurrentCc()).append(" -> ").append(projectMetrics.getRefactoredCc()).append('\n');
+		sb.append("Refactorer — Métricas de proyecto: ").append(projectMetrics.getName()).append('\n')
+		.append("  Clases ").append(projectMetrics.getClassCount()).append('\n')
+		.append("  Métodos ").append(projectMetrics.getCurrentMethodCount()).append('\n')
+		.append("  Current LOC: ").append(projectMetrics.getCurrentLoc()).append(" -> Refactored LOC: ").append(projectMetrics.getRefactoredLoc()).append('\n')
+		.append("  Current CC: ").append(projectMetrics.getCurrentCc()).append(" -> Refactored CC: ").append(projectMetrics.getRefactoredCc())
+		.append('\n');
 		for (ClassMetrics cm : projectMetrics.getClasses()) {
-			sb.append("    -> Clase ").append(cm.getName()).append('\n');
-			sb.append("      Métodos ").append(cm.getCurrentMethodCount()).append('\n');
-			sb.append("      LOC ").append(cm.getCurrentLoc()).append(" -> ").append(cm.getRefactoredLoc()).append('\n');
-			sb.append("      CC ").append(cm.getCurrentCc()).append(" -> ").append(cm.getRefactoredCc()).append('\n');
-			for (MethodMetrics mm : cm.getMethods()) {
-				sb.append("\n   - ")
-				.append(mm.getName())
-				.append(" | LOC: ").append(mm.getCurrentLoc())
-				.append(" -> Refactored LOC: ").append(mm.getRefactoredLoc())
-				.append(" | CC: ").append(mm.getCurrentCc())
-				.append(" -> Refactored CC: ").append(mm.getRefactoredCc());
-			}
-			sb.append('\n');
+			sb.append("    -> Clase ").append(cm.getName()).append('\n')
+			.append("      Métodos ").append(cm.getCurrentMethodCount()).append('\n')
+			.append("      Current LOC: ").append(cm.getCurrentLoc()).append(" -> Refactored LOC: ").append(cm.getRefactoredLoc()).append('\n')
+			.append("      Current CC: ").append(cm.getCurrentCc()).append(" -> Refactored CC: ").append(cm.getRefactoredCc()).append('\n');
 		}
+		sb.append('\n');
 		System.out.println(sb.toString());
 	}
 }

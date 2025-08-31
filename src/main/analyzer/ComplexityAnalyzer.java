@@ -14,6 +14,7 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 import main.builder.ClassAnalysis;
 import main.builder.MethodAnalysis;
+import main.error.AnalyzeException;
 import main.model.method.MethodAnalysisMetricsMapper;
 import main.refactor.CodeExtractionEngine;
 import main.refactor.RefactorComparison;
@@ -38,23 +39,32 @@ public class ComplexityAnalyzer {
 			@Override
 			public boolean visit(TypeDeclaration node) {
 				String className = node.getName().getIdentifier();
-				List<MethodAnalysis> methods = new ArrayList<>();
+				
+				List<MethodAnalysis> currentMethods = new ArrayList<>();
+				List<MethodAnalysis> refactoredMethods = new ArrayList<>();
 
-				for (MethodDeclaration md : node.getMethods()) {
+				for (MethodDeclaration method : node.getMethods()) {
 					try {
-						MethodAnalysis ma = analyzeMethod(cu, md);
-						if (ma != null) methods.add(ma);
+						MethodAnalysis currentMethodAnalysis = analyzeMethod(cu, method);
+						if (currentMethodAnalysis != null) {
+							currentMethods.add(currentMethodAnalysis);
+						}
+						
+						List<MethodAnalysis> refactoredMethodAnalysis = analyzeAndPlanMethod(cu, method);
+						if (refactoredMethodAnalysis != null) {
+							refactoredMethods.addAll(refactoredMethodAnalysis);
+						}
 					} catch (CoreException e) {
-						e.printStackTrace();
+						throw new AnalyzeException("Error analyzing method " + method.getName().getIdentifier(), e);
 					}
 				}
 
-				if (!methods.isEmpty()) {
+				if (!refactoredMethods.isEmpty()) {
 					ClassAnalysis ca = ClassAnalysis.builder()
 						.icu(icu)
 						.compilationUnit(cu)
 						.className(className)
-						.methods(methods)
+						.refactoredMethods(refactoredMethods)
 						.build();
 
 					resultHolder.add(ca);
@@ -67,26 +77,34 @@ public class ComplexityAnalyzer {
 		System.out.println(result.toString());
 		return result;
 	}
-
-	private MethodAnalysis analyzeMethod(CompilationUnit cu, MethodDeclaration md) throws CoreException {
-		// 1) Complejidad cognitiva actual
+	
+	private MethodAnalysis analyzeMethod(CompilationUnit cu, MethodDeclaration md) {
 		CognitiveComplexityVisitor ccVisitor = new CognitiveComplexityVisitor();
 		md.accept(ccVisitor);
 		int currentCc = ccVisitor.getComplexity();
+		int startLine = cu.getLineNumber(md.getStartPosition());
+		int endLine = cu.getLineNumber(md.getStartPosition() + md.getLength());
+		int currentLoc = Math.max(0, endLine - startLine + 1);
+		
+		return MethodAnalysisMetricsMapper.toMethodAnalysis(md, currentCc, currentLoc);
+	}
+
+	private List<MethodAnalysis> analyzeAndPlanMethod(CompilationUnit cu, MethodDeclaration md) throws CoreException {
+		// 1) Complejidad cognitiva actual
+		CognitiveComplexityVisitor ccVisitor = new CognitiveComplexityVisitor();
+		md.accept(ccVisitor);
 
 		// 2) LOC actuales (aprox. rango de líneas del método)
+		int currentCc = ccVisitor.getComplexity();
 		int startLine = cu.getLineNumber(md.getStartPosition());
 		int endLine = cu.getLineNumber(md.getStartPosition() + md.getLength());
 		int currentLoc = Math.max(0, endLine - startLine + 1);
 
 		// 3) Invocar a CodeExtractionEngine (usa NEO internamente) para
 		// evaluar posibles extracciones y obtener métricas + plan.
-		RefactorComparison comparison = extractionEngine.analyseAndPlan(cu, md, currentCc, currentLoc);
+		List<RefactorComparison> comparison = extractionEngine.analyseAndPlan(cu, md, currentCc, currentLoc);
 
 		// 4) Mapear al modelo de método
-		return MethodAnalysisMetricsMapper.toMethodAnalysis(md, currentCc, currentLoc, comparison);
+		return MethodAnalysisMetricsMapper.toMethodAnalysis(comparison);
 	}
-
-	
-
 }

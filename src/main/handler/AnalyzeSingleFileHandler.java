@@ -17,7 +17,6 @@ import main.error.AnalyzeException;
 import main.error.ResourceNotFoundException;
 import main.model.clazz.ClassAnalysisMetricsMapper;
 import main.model.clazz.ClassMetrics;
-import main.model.method.MethodMetrics;
 
 public class AnalyzeSingleFileHandler extends AbstractHandler {
 
@@ -58,18 +57,13 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 
 	private void logToConsole(ClassMetrics cm) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("Refactorer — Métricas de clase: ").append(cm.getName()).append('\n');
-		sb.append("  LOC ").append(cm.getCurrentLoc()).append(" -> ").append(cm.getRefactoredLoc()).append('\n');
-		sb.append("  CC ").append(cm.getCurrentCc()).append(" -> ").append(cm.getRefactoredCc()).append('\n');
-		sb.append("  Métodos ").append(cm.getCurrentMethodCount()).append('\n');
-		for (MethodMetrics mm : cm.getMethods()) {
-			sb.append("\n   - ")
-			.append(mm.getName())
-			.append(" | LOC: ").append(mm.getCurrentLoc())
-			.append(" -> Refactored LOC: ").append(mm.getRefactoredLoc())
-			.append(" | CC: ").append(mm.getCurrentCc())
-			.append(" -> Refactored CC: ").append(mm.getRefactoredCc());
-		}
+		sb.append("Refactorer — Métricas de clase: ").append(cm.getName()).append('\n')
+		.append("  Current LOC ").append(cm.getCurrentLoc()).append(" -> Refactored LOC: ").append(cm.getRefactoredLoc()).append('\n')
+		.append("  Current CC ").append(cm.getCurrentCc()).append(" -> Refactored CC: ").append(cm.getRefactoredCc()).append('\n')
+		.append("  Current Methods: ").append(cm.getCurrentMethodCount())
+		.append(" | Refactored Methods: ").append(cm.getRefactoredMethodCount()).append('\n')
+		.append('\n');
+		
 		sb.append('\n');
 		System.out.println(sb.toString());
 	}
