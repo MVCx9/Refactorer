@@ -11,7 +11,8 @@ public class RefactorComparison {
 	private final int refactoredCc;
 	private final int refactoredLoc;
 	private final CodeExtractionMetrics extraction;
-	private final CodeExtractionMetricsStats stats;
+	// Make stats mutable to allow post-construction assignment
+	private CodeExtractionMetricsStats stats;
 	private final ExtractionPlan doPlan;
 	private final ExtractionPlan undoPlan;
 
@@ -57,6 +58,11 @@ public class RefactorComparison {
 
 	public CodeExtractionMetricsStats getStats() {
 		return stats;
+	}
+
+	// New setter for stats so it can be assigned later without rebuilding
+	public void setStats(CodeExtractionMetricsStats stats) {
+		this.stats = stats;
 	}
 
 	public ExtractionPlan getDoPlan() {

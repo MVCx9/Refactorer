@@ -38,7 +38,7 @@ public final class MethodAnalysisMetricsMapper {
 			MethodAnalysis m = MethodAnalysis.builder()
 			.methodName(c.getName())
 			.currentCc(c.getOriginalCc())
-			.currentLoc(c.getOriginalCc())
+			.currentLoc(c.getOriginalLoc())
 			.refactoredCc(c.getRefactoredCc())
 			.refactoredLoc(c.getRefactoredLoc())
 			.extraction(c.getExtraction())

@@ -26,11 +26,11 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		return new ClassMetricsBuilder();
 	}
 
-	public List<MethodMetrics> getRefactoredMethods() {
+	public List<MethodMetrics> getCurrentMethods() {
 		return currentMethods;
 	}
 	
-	public List<MethodMetrics> getCurrentMethods() {
+	public List<MethodMetrics> getRefactoredMethods() {
 		return refactoredMethods;
 	}
 

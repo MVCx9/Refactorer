@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import main.builder.FileAnalysis;
+import main.builder.ClassAnalysis;
 import main.model.method.MethodAnalysisMetricsMapper;
 import main.model.method.MethodMetrics;
 
@@ -12,24 +12,20 @@ public final class ClassAnalysisMetricsMapper {
 
 	private ClassAnalysisMetricsMapper() {}
 
-	public static ClassMetrics toClassMetrics(FileAnalysis analysis) {
+	public static ClassMetrics toClassMetrics(ClassAnalysis analysis) {
 		Objects.requireNonNull(analysis, "analysis must not be null");
 
-		String className = "N/A";
-		List<MethodMetrics> methodMetrics = new ArrayList<>();
+		List<MethodMetrics> currentMethodMetrics = new ArrayList<>();
+		List<MethodMetrics> refactoredMethodMetrics = new ArrayList<>();
 
-		if (analysis.getClassAnalysis() != null) {
-			className = analysis.getClassAnalysis().getClassName() != null ? analysis.getClassAnalysis().getClassName() : className;
-			methodMetrics = MethodAnalysisMetricsMapper.toMethodMetrics(analysis.getClassAnalysis().getCurrentMethods());
-					
+		String className = analysis.getClassName() != null ? analysis.getClassName() : "N/A";
+		currentMethodMetrics = MethodAnalysisMetricsMapper.toMethodMetrics(analysis.getCurrentMethods());
+		refactoredMethodMetrics = MethodAnalysisMetricsMapper.toMethodMetrics(analysis.getRefactoredMethods());
 			
-		} else if (analysis.getFile() != null) {
-			className = analysis.getFile().getName();
-		}
-
 		return ClassMetrics.builder()
 				.name(className)
-				.currentMethods(methodMetrics)
+				.currentMethods(currentMethodMetrics)
+				.refactoredMethods(refactoredMethodMetrics)
 				.build();
 	}
 }

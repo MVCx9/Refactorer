@@ -3,6 +3,7 @@ package main.builder;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 
@@ -10,6 +11,7 @@ public class ClassAnalysis {
 
 	private final ICompilationUnit icu;
 	private final CompilationUnit cu;
+	private final IFile file;
 	private final String className;
 	private final List<MethodAnalysis> currentMethods;
 	private final List<MethodAnalysis> refactoredMethods;
@@ -21,9 +23,10 @@ public class ClassAnalysis {
 	private ClassAnalysis(Builder b) {
 		this.icu = b.icu;
 		this.cu = b.cu;
+		this.file = b.file;
 		this.className = b.className;
-		this.refactoredMethods = Collections.unmodifiableList(b.currentMethods);
-		this.currentMethods = Collections.unmodifiableList(b.refactoredMethods);
+		this.currentMethods = Collections.unmodifiableList(b.currentMethods);
+		this.refactoredMethods = Collections.unmodifiableList(b.refactoredMethods);
 	}
 
 	public ICompilationUnit getIcu() {
@@ -32,6 +35,10 @@ public class ClassAnalysis {
 
 	public CompilationUnit getCompilationUnit() {
 		return cu;
+	}
+	
+	public IFile getFile() {
+		return file;
 	}
 
 	public String getClassName() {
@@ -49,6 +56,7 @@ public class ClassAnalysis {
 	public static class Builder {
 		private ICompilationUnit icu;
 		private CompilationUnit cu;
+		private IFile file;
 		private String className;
 		private List<MethodAnalysis> currentMethods = List.of();
 		private List<MethodAnalysis> refactoredMethods = List.of();
@@ -60,6 +68,11 @@ public class ClassAnalysis {
 
 		public Builder compilationUnit(CompilationUnit v) {
 			this.cu = v;
+			return this;
+		}
+		
+		public Builder file(IFile v) {
+			this.file = v;
 			return this;
 		}
 

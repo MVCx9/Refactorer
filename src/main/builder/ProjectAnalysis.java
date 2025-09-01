@@ -9,12 +9,12 @@ public class ProjectAnalysis {
 
     private final IProject project;
     private final String name;
-    private final List<FileAnalysis> files;
+    private final List<ClassAnalysis> classes;
 
     private ProjectAnalysis(Builder builder) {
         this.project = builder.project;
         this.name = builder.name;
-        this.files = List.copyOf(builder.files);
+        this.classes = List.copyOf(builder.classes);
     }
 
     public static Builder builder() {
@@ -29,14 +29,14 @@ public class ProjectAnalysis {
         return name;
     }
 
-    public List<FileAnalysis> getFiles() {
-        return Collections.unmodifiableList(files);
+    public List<ClassAnalysis> getFiles() {
+        return Collections.unmodifiableList(classes);
     }
 
     public static class Builder {
         private IProject project;
         private String name = "<unnamed>";
-        private List<FileAnalysis> files = Collections.emptyList();
+        private List<ClassAnalysis> classes = Collections.emptyList();
 
         public Builder project(IProject project) {
             this.project = project;
@@ -48,8 +48,8 @@ public class ProjectAnalysis {
             return this;
         }
 
-        public Builder files(List<FileAnalysis> files) {
-            this.files = files;
+        public Builder classes(List<ClassAnalysis> files) {
+            this.classes = files;
             return this;
         }
 

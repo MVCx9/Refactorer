@@ -18,6 +18,7 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 
 import main.analyzer.ComplexityAnalyzer;
+import main.error.AnalyzeException;
 import main.refactor.CodeExtractionEngine;
 
 public class ProjectFilesAnalyzer {
@@ -33,23 +34,21 @@ public class ProjectFilesAnalyzer {
 	 * Analiza un fichero .java (IFile) devolviendo un FileAnalysis con las clases y
 	 * sus métodos evaluados (actual vs refactorizado).
 	 */
-	public FileAnalysis analyzeFile(IFile file) throws CoreException {
+	public ClassAnalysis analyzeFile(IFile file) throws CoreException {
 		Objects.requireNonNull(file, "file");
 
 		try {
 			ICompilationUnit icu = (ICompilationUnit) JavaCore.create(file);
 			if (icu == null) {
-				throw new IllegalStateException("Cannot create ICompilationUnit from file: " + file.getName());
+				throw new IllegalStateException("Refactorer: Cannot create ICompilationUnit from file: " + file.getName());
 			}
 
 			CompilationUnit cu = parserAST(icu);
 
-			ClassAnalysis classes = analyzer.analyze(cu, icu);
-			return FileAnalysis.of(file, icu, classes);
+			return analyzer.analyze(cu, icu);
 
 		} catch (Exception e) {
-			throw new CoreException(
-					org.eclipse.core.runtime.Status.error("Refactorer: Error analyzing file: " + file.getName(), e));
+			throw new AnalyzeException("Refactorer: Error analyzing file: " + file.getName(), e);
 		}
 	}
 
@@ -65,7 +64,7 @@ public class ProjectFilesAnalyzer {
 		if (javaProject == null)
 			return null;
 
-		List<FileAnalysis> analyses = new ArrayList<>();
+		List<ClassAnalysis> analyses = new ArrayList<>();
 
 		for (IPackageFragmentRoot root : javaProject.getPackageFragmentRoots()) {
 			if (root.getKind() != IPackageFragmentRoot.K_SOURCE)
@@ -86,7 +85,7 @@ public class ProjectFilesAnalyzer {
 		return ProjectAnalysis.builder()
 				.project(project)
 				.name(project.getName())
-				.files(analyses)
+				.classes(analyses)
 				.build();
 	}
 
