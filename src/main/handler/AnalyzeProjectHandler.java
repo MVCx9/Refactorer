@@ -25,9 +25,11 @@ import main.builder.ProjectFilesAnalyzer;
 import main.error.AnalyzeException;
 import main.error.ResourceNotFoundException;
 import main.error.ValidationException;
-import main.model.clazz.ClassMetrics;
 import main.model.project.ProjectAnalysisMetricsMapper;
 import main.model.project.ProjectMetrics;
+import main.session.ActionType;
+import main.session.SessionAnalysisStore;
+import main.ui.AnalysisMetricsDialog;
 
 public class AnalyzeProjectHandler extends AbstractHandler {
 
@@ -80,25 +82,9 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 				.classes(classesAnalyses).build();
 
 		ProjectMetrics metrics = ProjectAnalysisMetricsMapper.toProjectMetrics(analysis);
-		logToConsole(metrics);
+		SessionAnalysisStore.getInstance().register(ActionType.PROJECT, metrics);
+		new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.PROJECT, metrics).open();
 		return null;
 	}
 
-	private void logToConsole(ProjectMetrics projectMetrics) {
-		StringBuilder sb = new StringBuilder();
-		sb.append("Refactorer — Métricas de proyecto: ").append(projectMetrics.getName()).append('\n')
-		.append("  Clases ").append(projectMetrics.getClassCount()).append('\n')
-		.append("  Métodos ").append(projectMetrics.getCurrentMethodCount()).append('\n')
-		.append("  Current LOC: ").append(projectMetrics.getCurrentLoc()).append(" -> Refactored LOC: ").append(projectMetrics.getRefactoredLoc()).append('\n')
-		.append("  Current CC: ").append(projectMetrics.getCurrentCc()).append(" -> Refactored CC: ").append(projectMetrics.getRefactoredCc())
-		.append('\n');
-		for (ClassMetrics cm : projectMetrics.getClasses()) {
-			sb.append("    -> Clase ").append(cm.getName()).append('\n')
-			.append("      Métodos ").append(cm.getCurrentMethodCount()).append('\n')
-			.append("      Current LOC: ").append(cm.getCurrentLoc()).append(" -> Refactored LOC: ").append(cm.getRefactoredLoc()).append('\n')
-			.append("      Current CC: ").append(cm.getCurrentCc()).append(" -> Refactored CC: ").append(cm.getRefactoredCc()).append('\n');
-		}
-		sb.append('\n');
-		System.out.println(sb.toString());
-	}
 }
