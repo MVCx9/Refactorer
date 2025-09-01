@@ -83,11 +83,6 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		return averageRefactored(MethodMetrics::getLoc);
 	}
 	
-	public int getTotalExtractedLinesOfCode() {
-		return currentMethods.stream().mapToInt(MethodMetrics::getLoc).sum() -
-		   refactoredMethods.stream().mapToInt(MethodMetrics::getLoc).sum();
-	}
-
 	public int getCurrentMethodCount() {
 		return currentMethods.size();
 	}
