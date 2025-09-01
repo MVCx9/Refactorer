@@ -1,5 +1,6 @@
 package main.neo;
 
+/*
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -26,8 +27,9 @@ import main.neo.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
 import main.neo.sonar.cognitivecomplexity.CognitiveComplexMethod;
 import main.neo.sonar.cognitivecomplexity.ProjectIssues;
 
-
+*/
 public class Application {
+	/*
 	private static final Logger LOGGER = Logger.getLogger(Application.class.getName());
 
 	public void start(IApplicationContext arg) throws Exception {
@@ -223,4 +225,5 @@ public class Application {
 		}
 	}
 
+	*/
 }

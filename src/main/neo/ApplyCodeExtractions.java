@@ -10,10 +10,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.logging.Logger;
-import org.eclipse.equinox.app.IApplication;
+
 import org.eclipse.equinox.app.IApplicationContext;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.swt.widgets.Display;
+
+import main.neo.algorithms.Sequence;
 import main.neo.algorithms.Solution;
 import main.neo.cem.Utils;
 
