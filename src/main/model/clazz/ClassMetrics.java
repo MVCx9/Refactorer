@@ -1,5 +1,6 @@
 package main.model.clazz;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -8,16 +9,19 @@ import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
 import main.model.common.LocStats;
 import main.model.method.MethodMetrics;
+import main.refactor.Utils;
 
 public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 
 	private final String name;
+	private final LocalDateTime analysisDate;
 	private final List<MethodMetrics> currentMethods;
 	private final List<MethodMetrics> refactoredMethods;
 
 	public ClassMetrics(ClassMetricsBuilder classMetricsBuilder) {
 		super();
 		this.name = classMetricsBuilder.name;
+		this.analysisDate = classMetricsBuilder.analysisDate;
 		this.currentMethods = classMetricsBuilder.currentMethods == null ? Collections.emptyList() : Collections.unmodifiableList(classMetricsBuilder.currentMethods);
 		this.refactoredMethods = classMetricsBuilder.refactoredMethods == null ? Collections.emptyList() : Collections.unmodifiableList(classMetricsBuilder.refactoredMethods);
 	}
@@ -37,6 +41,10 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	@Override
 	public String getName() {
 		return name;
+	}
+	
+	public LocalDateTime getAnalysisDate() {
+		return analysisDate;
 	}
 	
 	@Override
@@ -59,12 +67,20 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		return refactoredMethods.stream().mapToInt(MethodMetrics::getLoc).sum();
 	}
 
+	public int getAverageCurrentLoc() {
+		return averageCurrent(MethodMetrics::getLoc);
+	}
+
 	public int getAverageCurrentCc() {
-		return averageCc(MethodMetrics::getCc);
+		return averageCurrent(MethodMetrics::getCc);
 	}
 	
 	public int getAverageRefactoredCc() {
-		return averageCc(MethodMetrics::getCc);
+		return averageRefactored(MethodMetrics::getCc);
+	}
+	
+	public int getAverageRefactoredLoc() {
+		return averageRefactored(MethodMetrics::getLoc);
 	}
 	
 	public int getTotalExtractedLinesOfCode() {
@@ -81,19 +97,24 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	}
 
 	public List<ExtractionPlan> getDoPlan() {
-		return currentMethods.stream().map(MethodMetrics::getDoPlan).toList();
+		return refactoredMethods.stream().map(MethodMetrics::getDoPlan).toList();
 	}
 	
 	public List<ExtractionPlan> getUndoPlan() {
-		return currentMethods.stream().map(MethodMetrics::getUndoPlan).toList();
+		return Utils.reverse(refactoredMethods.stream().map(MethodMetrics::getUndoPlan).toList());
 	}
 	
-	private int averageCc(java.util.function.ToIntFunction<MethodMetrics> mapper) {
+	private int averageCurrent(java.util.function.ToIntFunction<MethodMetrics> mapper) {
 		return (int) Math.round(currentMethods.stream().mapToInt(mapper).average().orElse(0.0));
+	}
+	
+	private int averageRefactored(java.util.function.ToIntFunction<MethodMetrics> mapper) {
+		return (int) Math.round(refactoredMethods.stream().mapToInt(mapper).average().orElse(0.0));
 	}
 
 	public static class ClassMetricsBuilder {
 		private String name = "<unnamed>";
+		private LocalDateTime analysisDate = LocalDateTime.now();
 		private List<MethodMetrics> currentMethods = Collections.emptyList();
 		private List<MethodMetrics> refactoredMethods = Collections.emptyList();
 
@@ -102,6 +123,11 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 
 		public ClassMetricsBuilder name(String name) {
 			this.name = name;
+			return this;
+		}
+		
+		public ClassMetricsBuilder analysisDate(LocalDateTime analysisDate) {
+			this.analysisDate = analysisDate;
 			return this;
 		}
 

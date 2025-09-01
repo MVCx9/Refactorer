@@ -1,5 +1,6 @@
 package main.builder;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -13,6 +14,7 @@ public class ClassAnalysis {
 	private final CompilationUnit cu;
 	private final IFile file;
 	private final String className;
+	private final LocalDateTime analysisDate;
 	private final List<MethodAnalysis> currentMethods;
 	private final List<MethodAnalysis> refactoredMethods;
 
@@ -25,6 +27,7 @@ public class ClassAnalysis {
 		this.cu = b.cu;
 		this.file = b.file;
 		this.className = b.className;
+		this.analysisDate = b.analysisDate;
 		this.currentMethods = Collections.unmodifiableList(b.currentMethods);
 		this.refactoredMethods = Collections.unmodifiableList(b.refactoredMethods);
 	}
@@ -44,6 +47,10 @@ public class ClassAnalysis {
 	public String getClassName() {
 		return className;
 	}
+	
+	public LocalDateTime getAnalysisDate() {
+		return analysisDate;
+	}
 
 	public List<MethodAnalysis> getCurrentMethods() {
 		return Collections.unmodifiableList(currentMethods);
@@ -58,6 +65,7 @@ public class ClassAnalysis {
 		private CompilationUnit cu;
 		private IFile file;
 		private String className;
+		private LocalDateTime analysisDate = LocalDateTime.now();
 		private List<MethodAnalysis> currentMethods = List.of();
 		private List<MethodAnalysis> refactoredMethods = List.of();
 
@@ -78,6 +86,11 @@ public class ClassAnalysis {
 
 		public Builder className(String v) {
 			this.className = v;
+			return this;
+		}
+		
+		public Builder analysisDate(LocalDateTime v) {
+			this.analysisDate = v;
 			return this;
 		}
 

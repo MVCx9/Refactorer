@@ -1,16 +1,19 @@
 package main.model.workspace;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import main.model.common.ComplexityStats;
+import main.model.common.Identifiable;
+import main.model.common.LocStats;
 import main.model.project.ProjectMetrics;
 
-public class WorkspaceMetrics {
+public class WorkspaceMetrics implements Identifiable, ComplexityStats, LocStats{
 
 	private final String name;
-	private final LocalDate analysisDate;
+	private final LocalDateTime analysisDate;
 	private final List<ProjectMetrics> projects;
 
 	public WorkspaceMetrics(WorkspaceMetricsBuilder workSpaceMetricsBuilder) {
@@ -24,11 +27,12 @@ public class WorkspaceMetrics {
 		return new WorkspaceMetricsBuilder();
 	}
 
+	@Override
 	public String getName() {
 		return name;
 	}
 
-	public LocalDate getTimestamp() {
+	public LocalDateTime getAnalysisDate() {
 		return analysisDate;
 	}
 
@@ -36,50 +40,65 @@ public class WorkspaceMetrics {
 		return projects;
 	}
 
-	/**
-	 * Suma de la complejidad cognitiva actual de todos los proyectos
-	 */
+	@Override
 	public int getCurrentLoc() {
 		return projects.stream().mapToInt(ProjectMetrics::getCurrentLoc).sum();
 	}
 
-	/**
-	 * Suma de la complejidad cognitiva tras refactorizar de todos los proyectos
-	 */
+	@Override
 	public int getRefactoredLoc() {
 		return projects.stream().mapToInt(ProjectMetrics::getRefactoredLoc).sum();
 	}
 
-	/**
-	 * Media de la suma de la complejidad cognitiva actual de todos los proyectos
-	 */
+	@Override
 	public int getCurrentCc() {
-		return averageCc(ProjectMetrics::getCurrentCc);
+		return average(ProjectMetrics::getCurrentCc);
 	}
 
-	/**
-	 * Media de la suma de la complejidad cognitiva tras refactorizar de todos los
-	 * proyectos
-	 */
+	@Override
 	public int getRefactoredCc() {
-		return averageCc(ProjectMetrics::getRefactoredCc);
+		return average(ProjectMetrics::getRefactoredCc);
 	}
 
-	/**
-	 * Cantidad de métodos actuales de todos los proyectos
-	 */
 	public int getCurrentMethodCount() {
 		return projects.stream().mapToInt(ProjectMetrics::getCurrentMethodCount).sum();
 	}
+	
+	public int getRefactoredMethodCount() {
+		return projects.stream().mapToInt(ProjectMetrics::getRefactoredMethodCount).sum();
+	}
+	
+	public int getAverageCurrentLoc() {
+		return average(ProjectMetrics::getAverageCurrentLoc);
+	}
+	
+	public int getAverageRefactoredLoc() {
+		return average(ProjectMetrics::getAverageRefactoredLoc);
+	}
+	
+	public int getAverageCurrentCc() {
+		return average(ProjectMetrics::getAverageCurrentCc);
+	}
+	
+	public int getAverageRefactoredCc() {
+		return average(ProjectMetrics::getAverageRefactoredCc);
+	}
+	
+	public int getAverageCurrentMethodCount() {
+		return average(ProjectMetrics::getAverageCurrentMethodCount);
+	}
+	
+	public int getAverageRefactoredMethodCount() {
+		return average(ProjectMetrics::getAverageRefactoredMethodCount);
+	}
 
-	// Función para calcular la media dado un mapper
-	private int averageCc(java.util.function.ToIntFunction<ProjectMetrics> mapper) {
+	private int average(java.util.function.ToIntFunction<ProjectMetrics> mapper) {
 		return (int) Math.round(projects.stream().mapToInt(mapper).average().orElse(0.0));
 	}
 
 	public static class WorkspaceMetricsBuilder {
 		private String name = "<unnamed>";
-		private LocalDate analysisDate = LocalDate.EPOCH;
+		private LocalDateTime analysisDate = LocalDateTime.now();
 		private List<ProjectMetrics> projects = Collections.emptyList();
 
 		public WorkspaceMetricsBuilder() {
@@ -90,7 +109,7 @@ public class WorkspaceMetrics {
 			return this;
 		}
 
-		public WorkspaceMetricsBuilder analysisDate(LocalDate analysisDate) {
+		public WorkspaceMetricsBuilder analysisDate(LocalDateTime analysisDate) {
 			this.analysisDate = analysisDate;
 			return this;
 		}

@@ -1,5 +1,6 @@
 package main.builder;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -85,6 +86,7 @@ public class ProjectFilesAnalyzer {
 		return ProjectAnalysis.builder()
 				.project(project)
 				.name(project.getName())
+				.analysisDate(LocalDateTime.now())
 				.classes(analyses)
 				.build();
 	}

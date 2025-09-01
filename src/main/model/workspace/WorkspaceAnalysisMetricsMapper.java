@@ -20,9 +20,9 @@ public final class WorkspaceAnalysisMetricsMapper {
                 .collect(Collectors.toList());
 
         return WorkspaceMetrics.builder()
-                .name(analysis.getName())
-                .analysisDate(analysis.getAnalysisDate())
-                .projects(projectMetrics)
-                .build();
+            .name(analysis.getName())
+            .analysisDate(analysis.getAnalysisDate())
+            .projects(projectMetrics)
+            .build();
     }
 }

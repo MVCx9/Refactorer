@@ -58,9 +58,9 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 
 	private void logToConsole(ClassMetrics cm) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("Refactorer — Métricas de clase: ").append(cm.getName()).append('\n')
-		.append("  Current LOC ").append(cm.getCurrentLoc()).append(" -> Refactored LOC: ").append(cm.getRefactoredLoc()).append('\n')
-		.append("  Current CC ").append(cm.getCurrentCc()).append(" -> Refactored CC: ").append(cm.getRefactoredCc()).append('\n')
+		sb.append("Refactorer — Métricas de clase: ").append(cm.getName()).append(" tomadas en ").append(cm.getAnalysisDate()).append('\n')
+		.append("  Current LOC ").append(cm.getAverageCurrentLoc()).append(" -> Refactored LOC: ").append(cm.getAverageRefactoredLoc()).append('\n')
+		.append("  Current CC ").append(cm.getAverageCurrentCc()).append(" -> Refactored CC: ").append(cm.getAverageRefactoredCc()).append('\n')
 		.append("  Current Methods: ").append(cm.getCurrentMethodCount())
 		.append(" | Refactored Methods: ").append(cm.getRefactoredMethodCount()).append('\n')
 		.append('\n');

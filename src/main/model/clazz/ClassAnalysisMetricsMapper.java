@@ -23,9 +23,10 @@ public final class ClassAnalysisMetricsMapper {
 		refactoredMethodMetrics = MethodAnalysisMetricsMapper.toMethodMetrics(analysis.getRefactoredMethods());
 			
 		return ClassMetrics.builder()
-				.name(className)
-				.currentMethods(currentMethodMetrics)
-				.refactoredMethods(refactoredMethodMetrics)
-				.build();
+			.name(className)
+			.analysisDate(analysis.getAnalysisDate())
+			.currentMethods(currentMethodMetrics)
+			.refactoredMethods(refactoredMethodMetrics)
+			.build();
 	}
 }

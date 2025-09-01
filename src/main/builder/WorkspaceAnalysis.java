@@ -1,13 +1,13 @@
 package main.builder;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
 public class WorkspaceAnalysis {
 
     private final String name;
-    private final LocalDate analysisDate;
+    private final LocalDateTime analysisDate;
     private final List<ProjectAnalysis> projects;
 
     private WorkspaceAnalysis(Builder b) {
@@ -24,7 +24,7 @@ public class WorkspaceAnalysis {
         return name;
     }
 
-    public LocalDate getAnalysisDate() {
+    public LocalDateTime getAnalysisDate() {
         return analysisDate;
     }
 
@@ -34,7 +34,7 @@ public class WorkspaceAnalysis {
 
     public static class Builder {
         private String name = "<unnamed>";
-        private LocalDate analysisDate = LocalDate.EPOCH;
+        private LocalDateTime analysisDate = LocalDateTime.now();
         private List<ProjectAnalysis> projects = Collections.emptyList();
 
         public Builder name(String v) {
@@ -42,7 +42,7 @@ public class WorkspaceAnalysis {
             return this;
         }
 
-        public Builder analysisDate(LocalDate v) {
+        public Builder analysisDate(LocalDateTime v) {
             this.analysisDate = v;
             return this;
         }

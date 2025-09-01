@@ -21,6 +21,7 @@ public final class ProjectAnalysisMetricsMapper {
 
 		return ProjectMetrics.builder()
 			.name(analysis.getName())
+			.analysisDate(analysis.getAnalysisDate())
 			.classes(classMetrics)
 			.build();
 	}

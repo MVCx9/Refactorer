@@ -1,5 +1,6 @@
 package main.analyzer;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -64,6 +65,7 @@ public class ComplexityAnalyzer {
 						.icu(icu)
 						.compilationUnit(cu)
 						.className(className)
+						.analysisDate(LocalDateTime.now())
 						.currentMethods(currentMethods)
 						.refactoredMethods(refactoredMethods)
 						.build();
