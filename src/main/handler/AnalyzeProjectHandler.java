@@ -19,7 +19,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.ui.handlers.HandlerUtil;
 
-import main.builder.FileAnalysis;
+import main.builder.ClassAnalysis;
 import main.builder.ProjectAnalysis;
 import main.builder.ProjectFilesAnalyzer;
 import main.error.AnalyzeException;
@@ -49,7 +49,7 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 		}
 
 		ProjectFilesAnalyzer analyzer = new ProjectFilesAnalyzer();
-		List<FileAnalysis> fileAnalyses = new ArrayList<>();
+		List<ClassAnalysis> classesAnalyses = new ArrayList<>();
 
 		try {
 			IJavaProject javaProject = JavaCore.create(project);
@@ -65,7 +65,7 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 							IFile file = (IFile) icu.getResource();
 							if (file == null)
 								continue;
-							fileAnalyses.add(analyzer.analyzeFile(file));
+							classesAnalyses.add(analyzer.analyzeFile(file));
 						}
 					}
 				}
@@ -77,7 +77,7 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 		ProjectAnalysis analysis = ProjectAnalysis.builder()
 				.project(project)
 				.name(project.getName())
-				.files(fileAnalyses).build();
+				.classes(classesAnalyses).build();
 
 		ProjectMetrics metrics = ProjectAnalysisMetricsMapper.toProjectMetrics(analysis);
 		logToConsole(metrics);

@@ -11,12 +11,13 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.ui.handlers.HandlerUtil;
 
-import main.builder.FileAnalysis;
+import main.builder.ClassAnalysis;
 import main.builder.ProjectFilesAnalyzer;
 import main.error.AnalyzeException;
 import main.error.ResourceNotFoundException;
 import main.model.clazz.ClassAnalysisMetricsMapper;
 import main.model.clazz.ClassMetrics;
+import main.model.method.MethodMetrics;
 
 public class AnalyzeSingleFileHandler extends AbstractHandler {
 
@@ -46,7 +47,7 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 
 		ProjectFilesAnalyzer pfa = new ProjectFilesAnalyzer();
 		try {
-			FileAnalysis analysis = pfa.analyzeFile(file);
+			ClassAnalysis analysis = pfa.analyzeFile(file);
 			ClassMetrics cm = ClassAnalysisMetricsMapper.toClassMetrics(analysis);
 			logToConsole(cm);
 		} catch (CoreException e) {
@@ -63,6 +64,22 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 		.append("  Current Methods: ").append(cm.getCurrentMethodCount())
 		.append(" | Refactored Methods: ").append(cm.getRefactoredMethodCount()).append('\n')
 		.append('\n');
+		
+		for(MethodMetrics mm : cm.getCurrentMethods()) {
+			sb.append("    [Current] Method: ").append(mm.getName())
+			.append(" | LOC: ").append(mm.getLoc())
+			.append(" | CC: ").append(mm.getCc())
+			.append('\n');
+		}
+		
+		sb.append('\n');
+		
+		for(MethodMetrics mm : cm.getRefactoredMethods()) {
+			sb.append("    [Refactored] Method: ").append(mm.getName())
+			.append(" | LOC: ").append(mm.getLoc())
+			.append(" | CC: ").append(mm.getCc())
+			.append('\n');
+		}
 		
 		sb.append('\n');
 		System.out.println(sb.toString());

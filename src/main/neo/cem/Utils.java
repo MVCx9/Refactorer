@@ -3,7 +3,9 @@ package main.neo.cem;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
@@ -27,12 +29,17 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.ConditionalExpression;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
+import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.NodeFinder;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
+import org.eclipse.jdt.core.dom.SwitchCase;
+import org.eclipse.jdt.core.dom.SwitchStatement;
+import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.internal.corext.refactoring.code.ExtractMethodRefactoring;
 import org.eclipse.jdt.internal.corext.refactoring.structure.ChangeSignatureProcessor;
 import org.eclipse.ltk.core.refactoring.Change;
@@ -482,40 +489,6 @@ public class Utils {
 	}
 
 	/**
-	 * Get siblings of a given node including the node
-	 * 
-	 * @param node
-	 * @return List of siblings (including itself)
-	 */
-	public static List<ASTNode> getAllSiblings(ASTNode node) {
-		List<ASTNode> siblings = new ArrayList<ASTNode>();
-		ASTNode parent = node.getParent();
-
-		if (parent != null) {
-			List<?> list = parent.structuralPropertiesForType();
-			for (int i = 0; i < list.size(); i++) {
-				Object sibling = parent.getStructuralProperty((StructuralPropertyDescriptor) list.get(i));
-				if (sibling instanceof ASTNode) {
-
-					siblings.add((ASTNode) sibling);
-
-				}
-				// If node is not an ASTNode (it is a Block, for example), sibling can contain a
-				// List of ASTNodes (for instance, a List of Statement in a Block)
-				else if (sibling instanceof List<?>) {
-					for (Object s : (List<?>) sibling) {
-
-						siblings.add((ASTNode) s);
-
-					}
-				}
-			}
-		}
-
-		return siblings;
-	}
-
-	/**
 	 * Get the integer value of the given property of a given node
 	 * 
 	 * @param node
@@ -756,11 +729,134 @@ public class Utils {
 		ast.setProperty(Constants.CONTRIBUTION_TO_COMPLEXITY, 0);
 		ast.setProperty(Constants.CONTRIBUTION_TO_COMPLEXITY_BY_NESTING, 0);
 
+		// Pre-pass: annotate base contributions on nodes
+		annotateBaseCognitiveComplexityContributions(ast);
+
 		computeAllComponentsOfCognitiveComplexity(ast);
 
 		result = (int) ast.getProperty(Constants.ACCUMULATED_COMPLEXITY);
 
 		return result;
+	}
+
+	/**
+	 * Annotate per-node base contributions to cognitive complexity so they can be
+	 * accumulated afterwards. This sets:
+	 * - Constants.CONTRIBUTION_TO_COMPLEXITY: inherent + logical operators
+	 * - Constants.CONTRIBUTION_TO_COMPLEXITY_BY_NESTING: current nesting for control structures
+	 */
+	private static void annotateBaseCognitiveComplexityContributions(MethodDeclaration ast) {
+		ast.accept(new ASTVisitor() {
+			private final Deque<Boolean> switchFirstCase = new ArrayDeque<>();
+
+			@Override
+			public boolean visit(IfStatement node) {
+				addContribution(node, 1, true);
+				return true;
+			}
+
+			@Override
+			public boolean visit(SwitchStatement node) {
+				addContribution(node, 1, true);
+				switchFirstCase.push(Boolean.TRUE);
+				return true;
+			}
+
+			@Override
+			public void endVisit(SwitchStatement node) {
+				if (!switchFirstCase.isEmpty()) switchFirstCase.pop();
+			}
+
+			@Override
+			public boolean visit(SwitchCase node) {
+				boolean first = !switchFirstCase.isEmpty() && switchFirstCase.peek();
+				if (first) {
+					// mark that the first case for this switch has been seen
+					switchFirstCase.pop();
+					switchFirstCase.push(Boolean.FALSE);
+					// first case does not contribute
+				} else {
+					addContribution(node, 1, false);
+				}
+				return true;
+			}
+
+			@Override
+			public boolean visit(org.eclipse.jdt.core.dom.ForStatement node) {
+				addContribution(node, 1, true);
+				return true;
+			}
+
+			@Override
+			public boolean visit(org.eclipse.jdt.core.dom.EnhancedForStatement node) {
+				addContribution(node, 1, true);
+				return true;
+			}
+
+			@Override
+			public boolean visit(org.eclipse.jdt.core.dom.WhileStatement node) {
+				addContribution(node, 1, true);
+				return true;
+			}
+
+			@Override
+			public boolean visit(org.eclipse.jdt.core.dom.DoStatement node) {
+				addContribution(node, 1, true);
+				return true;
+			}
+
+			@Override
+			public boolean visit(TryStatement node) {
+				addContribution(node, 1, true);
+				return true;
+			}
+
+			@Override
+			public boolean visit(ConditionalExpression node) {
+				addContribution(node, 1, true);
+				return true;
+			}
+
+			@Override
+			public boolean visit(InfixExpression node) {
+				int logicalOps = countLogicalOperators(node);
+				if (logicalOps > 0) {
+					addContribution(node, logicalOps, false);
+					return false; // avoid double counting on sub-nodes
+				}
+				return true;
+			}
+
+			private int countLogicalOperators(InfixExpression node) {
+				int count = 0;
+				if (node.getOperator() == InfixExpression.Operator.CONDITIONAL_AND ||
+					node.getOperator() == InfixExpression.Operator.CONDITIONAL_OR) {
+					count++;
+				}
+				if (node.getLeftOperand() instanceof InfixExpression) {
+					count += countLogicalOperators((InfixExpression) node.getLeftOperand());
+				}
+				if (node.getRightOperand() instanceof InfixExpression) {
+					count += countLogicalOperators((InfixExpression) node.getRightOperand());
+				}
+				for (Object extended : node.extendedOperands()) {
+					if (extended instanceof InfixExpression) {
+						count += countLogicalOperators((InfixExpression) extended);
+					}
+				}
+				return count;
+			}
+
+			private void addContribution(ASTNode node, int delta, boolean addNesting) {
+				int current = Utils.getIntegerPropertyOfNode(node, Constants.CONTRIBUTION_TO_COMPLEXITY);
+				node.setProperty(Constants.CONTRIBUTION_TO_COMPLEXITY, current + delta);
+				if (addNesting) {
+					int nesting = Utils.computeNesting(node);
+					int curNest = Utils.getIntegerPropertyOfNode(node, Constants.CONTRIBUTION_TO_COMPLEXITY_BY_NESTING);
+					node.setProperty(Constants.CONTRIBUTION_TO_COMPLEXITY_BY_NESTING, curNest + nesting);
+				}
+			}
+		});
 	}
 
 	/**

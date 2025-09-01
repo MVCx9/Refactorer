@@ -3,7 +3,9 @@ package main.refactor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -11,10 +13,12 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.ltk.core.refactoring.Change;
 
 import main.model.change.ExtractionPlan;
-import main.model.method.MethodMetrics;
+import main.neo.Constants;
+import main.neo.algorithms.Pair;
 import main.neo.algorithms.Sequence;
 import main.neo.cem.CodeExtractionMetrics;
 import main.neo.cem.CodeExtractionMetricsStats;
+import main.neo.cem.Utils;
 import main.neo.refactoringcache.RefactoringCache;
 import main.neo.refactoringcache.SentencesSelectorVisitor;
 
@@ -42,72 +46,141 @@ public final class CodeExtractionEngine {
 	 * @throws CoreException propagadas desde el modelo de refactorización de
 	 *                       Eclipse
 	 */
-	public RefactorComparison analyseAndPlan(CompilationUnit cu, MethodDeclaration node, int currentCc, int currentLoc)
+	public List<RefactorComparison> analyseAndPlan(CompilationUnit cu, MethodDeclaration node, int currentCc, int currentLoc)
 			throws CoreException {
+		if (node == null || cu == null) return List.of();
 
-		// 1. Preparación: cache de refactorizaciones y secuencias candidatas
+		int maxCc = Constants.MAX_COMPLEXITY;
+		if (currentCc <= maxCc) {
+			return List.of(buildNoRefactor(node, currentCc, currentLoc));
+		}
+
+		// Anotar propiedades de complejidad en el AST del método antes de generar secuencias
+		Utils.computeAndAnnotateAccumulativeCognitiveComplexity(node);
+
 		RefactoringCache cache = new RefactoringCache(cu);
-
-		// Extrae las secuencias de sentencias (candidatas a extracción) dentro del
-		// método
 		SentencesSelectorVisitor selector = new SentencesSelectorVisitor(cu);
 		node.accept(selector);
-		List<Sequence> sequences = selector.getSentencesToIterate();
-
-		if (sequences.isEmpty()) {
-			// Método demasiado simple o vacío, no hay mejora posible
-			return buildMetricsWithoutRefactor(node, currentCc, currentLoc);
+		List<Sequence> allSequences = selector.getSentencesToIterate();
+		if (allSequences.isEmpty()) {
+			return List.of(buildNoRefactor(node, currentCc, currentLoc));
 		}
 
-		// 2. Evaluación: métricas por secuencia y agregadas
-		List<CodeExtractionMetrics> metricsPerSequence = new ArrayList<>();
-		for (Sequence seq : sequences) {
-			metricsPerSequence.add(seq.evaluate(cache));
+		List<Candidate> candidates = new ArrayList<>();
+		for (Sequence seq : allSequences) {
+			CodeExtractionMetrics m = cache.getMetrics(seq);
+			if (m == null) continue;
+			if (!m.isFeasible()) continue;
+			int reduction = Math.max(0, m.getReductionOfCognitiveComplexity());
+			if (reduction <= 0) continue;
+			Pair offsets = seq.getOffsetAsPair();
+			candidates.add(new Candidate(seq, offsets, m));
 		}
 
-		CodeExtractionMetricsStats stats = new CodeExtractionMetricsStats(
-				metricsPerSequence.toArray(new CodeExtractionMetrics[0]));
-
-		// 3. Selección: elegimos la extracción que más reduce la CC y es factible
-		CodeExtractionMetrics best = metricsPerSequence.stream().filter(CodeExtractionMetrics::isFeasible)
-				.max(Comparator.comparingInt(CodeExtractionMetrics::getReductionOfCognitiveComplexity)).orElse(null);
-
-		if (best == null || best.getReductionOfCognitiveComplexity() <= 0) {
-			return buildMetricsWithoutRefactor(node, currentCc, currentLoc);
+		if (candidates.isEmpty()) {
+			return List.of(buildNoRefactor(node, currentCc, currentLoc));
 		}
 
-		// 4. Traducción de tipos: NEO al modelo
-		int refactoredCc = Math.max(0, currentCc - best.getReductionOfCognitiveComplexity());
-		int refactoredLoc = Math.max(0, currentLoc - best.getNumberOfExtractedLinesOfCode());
+		candidates.sort(new CandidateComparator());
 
-		ExtractionPlan doPlan = new ExtractionPlan(asImmutable(best.getChanges()));
-		ExtractionPlan undoPlan = new ExtractionPlan(asImmutable(best.getUndoChanges()));
+		List<Candidate> selected = new ArrayList<>();
+		Set<Pair> used = new HashSet<>();
+		int remainingReduction = Math.max(0, currentCc - maxCc);
+		for (Candidate c : candidates) {
+			boolean overlaps = used.stream().anyMatch(p -> !Pair.disjoint(p, c.offsets));
+			if (overlaps) continue;
+			selected.add(c);
+			used.add(c.offsets);
+			remainingReduction -= c.metrics.getReductionOfCognitiveComplexity();
+			if (remainingReduction <= 0) break;
+		}
 
-		// 5. Construcción del DTO de salida
-		return RefactorComparison.builder()
-				.name(node.getName().toString())
-				.refactoredCc(refactoredCc)
-				.refactoredLoc(refactoredLoc)
-				.bestMetrics(best)
-				.stats(stats)
-				.doPlan(doPlan)
-				.undoPlan(undoPlan)
-				.build();
-	}
+		if (selected.isEmpty()) {
+			return List.of(buildNoRefactor(node, currentCc, currentLoc));
+		}
 
-	private RefactorComparison buildMetricsWithoutRefactor(MethodDeclaration node, int currentCc, int currentLoc) {
-		return RefactorComparison.builder()
-				.name(node.getName().toString())
-				.refactoredLoc(currentLoc)
-				.refactoredCc(currentCc)
-				.bestMetrics(null)
+		List<CodeExtractionMetrics> plannedPerExtraction = new ArrayList<>();
+		List<RefactorComparison> results = new ArrayList<>();
+
+		int finalCc = currentCc;
+		int finalLoc = currentLoc;
+
+		int extractionIndex = 1;
+		for (Candidate c : selected) {
+			String extractedName = node.getName().getIdentifier();
+			if(!results.isEmpty()) {
+				extractedName = node.getName().getIdentifier() + "_extraction_" + extractionIndex++;				
+			}
+			int selectionStart = c.offsets.getA();
+			int selectionLength = c.offsets.getB() - c.offsets.getA();
+
+			CodeExtractionMetrics planned = Utils.extractCode(cu, selectionStart, selectionLength, extractedName, true);
+			planned.setReductionOfCognitiveComplexity(c.metrics.getReductionOfCognitiveComplexity());
+			planned.setAccumulatedInherentComponent(c.metrics.getAccumulatedInherentComponent());
+			planned.setAccumulatedNestingComponent(c.metrics.getAccumulatedNestingComponent());
+			planned.setNumberNestingContributors(c.metrics.getNumberNestingContributors());
+			planned.setNesting(c.metrics.getNesting());
+
+			plannedPerExtraction.add(planned);
+
+			finalCc = Math.max(0, finalCc - c.metrics.getReductionOfCognitiveComplexity());
+			finalLoc = Math.max(0, finalLoc - planned.getNumberOfExtractedLinesOfCode());
+
+			results.add(RefactorComparison.builder()
+				.name(extractedName)
+				.originalCc(planned.getCognitiveComplexityOfNewExtractedMethod())
+				.originalLoc(planned.getNumberOfExtractedLinesOfCode())
+				.refactoredCc(planned.getCognitiveComplexityOfNewExtractedMethod())
+				.refactoredLoc(planned.getNumberOfExtractedLinesOfCode())
+				.extraction(planned)
 				.stats(null)
-				.doPlan(new ExtractionPlan(Collections.emptyList()))
-				.undoPlan(new ExtractionPlan(Collections.emptyList()))
-				.build();
+				.doPlan(new ExtractionPlan(asImmutable(planned.getChanges())))
+				.undoPlan(new ExtractionPlan(asImmutable(planned.getUndoChanges())))
+				.build());
+		}
+
+		CodeExtractionMetricsStats stats = new CodeExtractionMetricsStats(plannedPerExtraction.toArray(new CodeExtractionMetrics[0]));
+
+		// Asignar estadísticas a cada resultado ya creado
+		results.forEach(r -> r.setStats(stats));
+
+		return Collections.unmodifiableList(results);
+    }
+
+    private RefactorComparison buildNoRefactor(MethodDeclaration node, int currentCc, int currentLoc) {
+		return RefactorComparison.builder()
+			.name(node.getName().getIdentifier())
+			.originalCc(currentCc)
+			.originalLoc(currentLoc)
+			.refactoredCc(currentCc)
+			.refactoredLoc(currentLoc)
+			.stats(null)
+			.doPlan(new ExtractionPlan(Collections.emptyList()))
+			.undoPlan(new ExtractionPlan(Collections.emptyList()))
+			.build();
 	}
 
-	private List<Change> asImmutable(List<Change> list) {
+    private List<Change> asImmutable(List<Change> list) {
 		return list == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(list));
+	}
+
+	private static class Candidate {
+		final Sequence sequence;
+		final Pair offsets;
+		final CodeExtractionMetrics metrics;
+		Candidate(Sequence s, Pair p, CodeExtractionMetrics m) { this.sequence = s; this.offsets = p; this.metrics = m; }
+	}
+
+	private static class CandidateComparator implements Comparator<Candidate> {
+		@Override public int compare(Candidate a, Candidate b) {
+			boolean aOk = a.metrics.getCognitiveComplexityOfNewExtractedMethod() <= Constants.MAX_COMPLEXITY;
+			boolean bOk = b.metrics.getCognitiveComplexityOfNewExtractedMethod() <= Constants.MAX_COMPLEXITY;
+			if (aOk != bOk) return aOk ? -1 : 1;
+			int byReduction = Integer.compare(b.metrics.getReductionOfCognitiveComplexity(), a.metrics.getReductionOfCognitiveComplexity());
+			if (byReduction != 0) return byReduction;
+			int byParams = Integer.compare(a.metrics.getNumberOfParametersInExtractedMethod(), b.metrics.getNumberOfParametersInExtractedMethod());
+			if (byParams != 0) return byParams;
+			return Integer.compare(a.metrics.getNumberOfExtractedLinesOfCode(), b.metrics.getNumberOfExtractedLinesOfCode());
+		}
 	}
 }

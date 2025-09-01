@@ -45,9 +45,9 @@ public class ComplexityAnalyzer {
 
 				for (MethodDeclaration method : node.getMethods()) {
 					try {
-						MethodAnalysis currentMethodAnalysis = analyzeMethod(cu, method);
-						if (currentMethodAnalysis != null) {
-							currentMethods.add(currentMethodAnalysis);
+						List<MethodAnalysis> currentMethodAnalysis = analyzeMethod(cu, method);
+						if (currentMethodAnalysis != null && !currentMethodAnalysis.isEmpty()) {
+							currentMethods.addAll(currentMethodAnalysis);
 						}
 						
 						List<MethodAnalysis> refactoredMethodAnalysis = analyzeAndPlanMethod(cu, method);
@@ -64,6 +64,7 @@ public class ComplexityAnalyzer {
 						.icu(icu)
 						.compilationUnit(cu)
 						.className(className)
+						.currentMethods(currentMethods)
 						.refactoredMethods(refactoredMethods)
 						.build();
 
@@ -78,7 +79,7 @@ public class ComplexityAnalyzer {
 		return result;
 	}
 	
-	private MethodAnalysis analyzeMethod(CompilationUnit cu, MethodDeclaration md) {
+	private List<MethodAnalysis> analyzeMethod(CompilationUnit cu, MethodDeclaration md) {
 		CognitiveComplexityVisitor ccVisitor = new CognitiveComplexityVisitor();
 		md.accept(ccVisitor);
 		int currentCc = ccVisitor.getComplexity();
@@ -86,7 +87,8 @@ public class ComplexityAnalyzer {
 		int endLine = cu.getLineNumber(md.getStartPosition() + md.getLength());
 		int currentLoc = Math.max(0, endLine - startLine + 1);
 		
-		return MethodAnalysisMetricsMapper.toMethodAnalysis(md, currentCc, currentLoc);
+		MethodAnalysis m = MethodAnalysisMetricsMapper.toMethodAnalysis(md, currentCc, currentLoc);
+		return List.of(m);
 	}
 
 	private List<MethodAnalysis> analyzeAndPlanMethod(CompilationUnit cu, MethodDeclaration md) throws CoreException {
