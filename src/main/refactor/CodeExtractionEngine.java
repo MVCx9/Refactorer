@@ -26,7 +26,7 @@ import main.neo.refactoringcache.SentencesSelectorVisitor;
  * <code>neo.*</code>) y traduce los resultados al modelo de dominio
  * (<code>model.*</code>).
  */
-public final class CodeExtractionEngine {
+public class CodeExtractionEngine {
 
 	/**
 	 * Analiza un método, busca posibles extracciones de código con la heurística de
