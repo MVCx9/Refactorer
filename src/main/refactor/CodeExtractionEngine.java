@@ -11,13 +11,13 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 
+import main.common.utils.Utils;
 import main.model.change.ExtractionPlan;
 import main.model.method.MethodMetrics;
 import main.neo.Constants;
 import main.neo.algorithms.Pair;
 import main.neo.algorithms.Sequence;
 import main.neo.cem.CodeExtractionMetrics;
-import main.neo.cem.CodeExtractionMetricsStats;
 import main.neo.refactoringcache.RefactoringCache;
 import main.neo.refactoringcache.SentencesSelectorVisitor;
 
@@ -45,8 +45,7 @@ public final class CodeExtractionEngine {
 	 * @throws CoreException propagadas desde el modelo de refactorización de
 	 *                       Eclipse
 	 */
-	public List<RefactorComparison> analyseAndPlan(CompilationUnit cu, MethodDeclaration node, int currentCc,
-			int currentLoc) throws CoreException {
+	public List<RefactorComparison> analyseAndPlan(CompilationUnit cu, MethodDeclaration node, int currentCc, int currentLoc) throws CoreException {
 		if (node == null || cu == null)
 			return List.of();
 
@@ -112,7 +111,7 @@ public final class CodeExtractionEngine {
 
 		int extractionIndex = 1;
 		for (Candidate selectedCandidate : selected) {
-			String extractedName = node.getName().getIdentifier() + "_extracted_" + extractionIndex++;
+			String extractedName = node.getName().getIdentifier() + "_ext_" + extractionIndex++;
 			int selectionStart = selectedCandidate.offsets.getA();
 			int selectionLength = selectedCandidate.offsets.getB() - selectedCandidate.offsets.getA();
 
@@ -122,42 +121,47 @@ public final class CodeExtractionEngine {
 			planned.setAccumulatedNestingComponent(selectedCandidate.metrics.getAccumulatedNestingComponent());
 			planned.setNumberNestingContributors(selectedCandidate.metrics.getNumberNestingContributors());
 			planned.setNesting(selectedCandidate.metrics.getNesting());
-
+			planned.setExtractedMethodName(extractedName);
+			
 			plannedPerExtraction.add(planned);
 
 			finalCc = Math.max(0, finalCc - selectedCandidate.metrics.getReductionOfCognitiveComplexity());
 			finalLoc = Math.max(0, finalLoc - planned.getNumberOfExtractedLinesOfCode());
+		}
+		
+		// Selecciona el mejor resultado: mayor reducción, más LOC extraídos y mayor CC del nuevo método
+		CodeExtractionMetrics planned = plannedPerExtraction.stream()
+			.max(Comparator
+					.comparingInt(CodeExtractionMetrics::getReductionOfCognitiveComplexity)
+					.thenComparingInt(CodeExtractionMetrics::getNumberOfExtractedLinesOfCode)
+					.thenComparingInt(CodeExtractionMetrics::getCognitiveComplexityOfNewExtractedMethod))
+			.orElse(plannedPerExtraction.get(0));
 
-			results.add(RefactorComparison.builder().name(extractedName)
+		results.add(RefactorComparison.builder()
+				.name(planned.getExtractedMethodName())
 				.originalCc(planned.getCognitiveComplexityOfNewExtractedMethod())
 				.originalLoc(planned.getNumberOfExtractedLinesOfCode())
 				.refactoredCc(planned.getCognitiveComplexityOfNewExtractedMethod())
-				.refactoredLoc(planned.getNumberOfExtractedLinesOfCode()).extraction(planned).stats(null)
+				.refactoredLoc(planned.getNumberOfExtractedLinesOfCode())
+				.extraction(planned)
+				.stats(null)
 				.doPlan(new ExtractionPlan(Utils.asImmutable(planned.getChanges())))
 				.undoPlan(new ExtractionPlan(Utils.asImmutable(planned.getUndoChanges())))
-				.build());
-		}
-
-		CodeExtractionMetricsStats stats = new CodeExtractionMetricsStats(
-				plannedPerExtraction.toArray(new CodeExtractionMetrics[0]));
-
+				.build()
+		);
+		
 		// place original method first in the list
-		if (!plannedPerExtraction.isEmpty()) {
-			results.add(0, RefactorComparison.builder()
-				.name(node.getName().getIdentifier())
-				.originalCc(currentCc)
-				.originalLoc(currentLoc)
-				.refactoredCc(finalCc)
-				.refactoredLoc(finalLoc)
-				.extraction(null)
-				.stats(null)
-				.doPlan(null)
-				.undoPlan(null)
-				.build());
-		}
-
-		// set stats for all results
-		results.forEach(r -> r.setStats(stats));
+		results.add(0, RefactorComparison.builder()
+			.name(node.getName().getIdentifier())
+			.originalCc(currentCc)
+			.originalLoc(currentLoc)
+			.refactoredCc(finalCc)
+			.refactoredLoc(finalLoc)
+			.extraction(null)
+			.stats(null)
+			.doPlan(null)
+			.undoPlan(null)
+			.build());
 
 		return Collections.unmodifiableList(results);
 	}
@@ -168,7 +172,10 @@ public final class CodeExtractionEngine {
 			.originalCc(currentCc)
 			.originalLoc(currentLoc)
 			.refactoredCc(currentCc)
-			.refactoredLoc(currentLoc).stats(null)
+			.refactoredLoc(currentLoc)
+			.stats(null)
+			.extraction(null)
+			.stats(null)
 			.doPlan(new ExtractionPlan(Collections.emptyList()))
 			.undoPlan(new ExtractionPlan(Collections.emptyList()))
 			.build();
