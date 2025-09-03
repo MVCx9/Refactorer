@@ -3,11 +3,14 @@ package main.model.method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 
 import main.builder.MethodAnalysis;
 import main.model.change.ExtractionPlan;
+import main.neo.cem.CodeExtractionMetrics;
+import main.neo.cem.CodeExtractionMetricsStats;
 import main.refactor.RefactorComparison;
 
 public final class MethodAnalysisMetricsMapper {
@@ -19,13 +22,13 @@ public final class MethodAnalysisMetricsMapper {
 	}
 	
 	private static MethodMetrics toMethodMetrics(MethodAnalysis ma) {
-		ExtractionPlan applyPlan = ma.doPlan() != null ? ma.doPlan() : new ExtractionPlan(Collections.emptyList());
-		ExtractionPlan undoPlan = ma.undoPlan() != null ? ma.undoPlan() : new ExtractionPlan(Collections.emptyList());
+		ExtractionPlan applyPlan = ma.getDoPlan() != null ? ma.getDoPlan() : new ExtractionPlan(Collections.emptyList());
+		ExtractionPlan undoPlan = ma.getUndoPlan() != null ? ma.getUndoPlan() : new ExtractionPlan(Collections.emptyList());
 		
 		return MethodMetrics.builder()
-			.name(ma.methodName())
-			.loc(ma.refactoredLoc())
-			.cc(ma.refactoredCc())
+			.name(ma.getMethodName())
+			.loc(ma.getRefactoredLoc())
+			.cc(ma.getRefactoredCc())
 			.doPlan(applyPlan)
 			.undoPlan(undoPlan)
 			.build();
@@ -34,6 +37,17 @@ public final class MethodAnalysisMetricsMapper {
 	public static List<MethodAnalysis> toMethodAnalysis(List<RefactorComparison> comparison) {
 		List<MethodAnalysis> result = new ArrayList<>();
 		
+		List<CodeExtractionMetrics> metricsList = comparison.stream()
+			.map(RefactorComparison::getExtraction)
+			.filter(Objects::nonNull)
+			.toList();
+		
+		CodeExtractionMetricsStats stats = null;
+		
+		if(!metricsList.isEmpty()) {
+			stats = new CodeExtractionMetricsStats(metricsList.toArray(new CodeExtractionMetrics[0]));
+		}
+
 		for (RefactorComparison c : comparison) {
 			MethodAnalysis m = MethodAnalysis.builder()
 			.methodName(c.getName())
@@ -42,7 +56,7 @@ public final class MethodAnalysisMetricsMapper {
 			.refactoredCc(c.getRefactoredCc())
 			.refactoredLoc(c.getRefactoredLoc())
 			.extraction(c.getExtraction())
-			.stats(c.getStats())
+			.stats(stats)
 			.doPlan(c.getDoPlan())
 			.undoPlan(c.getUndoPlan())
 			.build();

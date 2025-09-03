@@ -33,50 +33,50 @@ public class MethodAnalysis {
 		this.undoPlan = b.undoPlan;
 	}
 
-	public String methodName() {
+	public String getMethodName() {
 		return methodName;
 	}
 
-	public int currentCc() {
+	public int getCurrentCc() {
 		return currentCc;
 	}
 
-	public int currentLoc() {
+	public int getCurrentLoc() {
 		return currentLoc;
 	}
 
-	public int refactoredCc() {
+	public int getRefactoredCc() {
 		return refactoredCc;
 	}
 
-	public int refactoredLoc() {
+	public int getRefactoredLoc() {
 		return refactoredLoc;
 	}
 
-	public CodeExtractionMetrics extraction() {
+	public CodeExtractionMetrics getExtraction() {
 		return extraction;
 	}
 
-	public CodeExtractionMetricsStats stats() {
+	public CodeExtractionMetricsStats getStats() {
 		return stats;
 	}
 
-	public ExtractionPlan doPlan() {
+	public ExtractionPlan getDoPlan() {
 		return doPlan;
 	}
 
-	public ExtractionPlan undoPlan() {
+	public ExtractionPlan getUndoPlan() {
 		return undoPlan;
 	}
-
+	
 	public static class Builder {
 		private String methodName;
 		private int currentCc;
 		private int currentLoc;
 		private int refactoredCc;
 		private int refactoredLoc;
-		private CodeExtractionMetrics extraction;
-		private CodeExtractionMetricsStats stats;
+		private CodeExtractionMetrics extraction = null;
+		private CodeExtractionMetricsStats stats = null;
 		private ExtractionPlan doPlan = new ExtractionPlan(List.of());
 		private ExtractionPlan undoPlan = new ExtractionPlan(List.of());
 
@@ -124,7 +124,7 @@ public class MethodAnalysis {
 			this.undoPlan = v;
 			return this;
 		}
-
+		
 		public MethodAnalysis build() {
 			return new MethodAnalysis(this);
 		}

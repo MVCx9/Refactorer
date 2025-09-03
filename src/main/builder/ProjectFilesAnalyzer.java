@@ -14,12 +14,11 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.dom.AST;
-import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 
 import main.analyzer.ComplexityAnalyzer;
-import main.error.AnalyzeException;
+import main.common.error.AnalyzeException;
+import main.common.utils.Utils;
 import main.refactor.CodeExtractionEngine;
 
 public class ProjectFilesAnalyzer {
@@ -44,7 +43,7 @@ public class ProjectFilesAnalyzer {
 				throw new IllegalStateException("Refactorer: Cannot create ICompilationUnit from file: " + file.getName());
 			}
 
-			CompilationUnit cu = parserAST(icu);
+			CompilationUnit cu = Utils.parserAST(icu);
 
 			return analyzer.analyze(cu, icu);
 
@@ -89,29 +88,6 @@ public class ProjectFilesAnalyzer {
 				.analysisDate(LocalDateTime.now())
 				.classes(analyses)
 				.build();
-	}
-
-	private CompilationUnit parserAST(ICompilationUnit icu) {
-		ASTParser parser = ASTParser.newParser(AST.JLS21);
-		parser.setSource(icu);
-		parser.setKind(ASTParser.K_COMPILATION_UNIT);
-		parser.setResolveBindings(true);
-		parser.setBindingsRecovery(true);
-		IJavaProject jp = icu.getJavaProject();
-		if (jp != null) {
-			parser.setProject(jp);
-		}
-		try {
-			return (CompilationUnit) parser.createAST(null);
-		} catch (IllegalStateException ex) {
-			// Fallback when the project is missing the system library / boot classpath
-			ASTParser fallback = ASTParser.newParser(AST.JLS21);
-			fallback.setSource(icu);
-			fallback.setKind(ASTParser.K_COMPILATION_UNIT);
-			fallback.setResolveBindings(false);
-			fallback.setBindingsRecovery(false);
-			return (CompilationUnit) fallback.createAST(null);
-		}
 	}
 
 }

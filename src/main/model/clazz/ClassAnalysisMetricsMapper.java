@@ -27,6 +27,7 @@ public final class ClassAnalysisMetricsMapper {
 			.analysisDate(analysis.getAnalysisDate())
 			.currentMethods(currentMethodMetrics)
 			.refactoredMethods(refactoredMethodMetrics)
+			.refactoredSource(analysis.getRefactoredSource())
 			.build();
 	}
 }
