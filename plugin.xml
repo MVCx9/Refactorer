@@ -7,14 +7,14 @@
 		       id="refactorer.commands.analyzeWorkspace"
 		       name="Analizar el WorkSpace"/>
 		<command
-		    id="refactorer.commands.analyzeProject"
-		    name="Analizar el Proyecto"/>
+			    id="refactorer.commands.analyzeProject"
+			    name="Analizar el Proyecto"/>
 		<command
-		    id="refactorer.commands.analyzeSingleFile"
-		    name="Analizar la Clase"/>
+			    id="refactorer.commands.analyzeSingleFile"
+			    name="Analizar la Clase"/>
 		<command
-			id="refactorer.commands.getHistory"
-			name="Consultar historico"/>
+				id="refactorer.commands.getHistory"
+				name="Consultar historico"/>
 	</extension>
 	
 	<extension point="org.eclipse.ui.handlers">
@@ -25,11 +25,11 @@
 	     <handler
 	        class="main.handler.AnalyzeProjectHandler"
 	        commandId="refactorer.commands.analyzeProject"/>
-	    <handler
+	     <handler
 	        class="main.handler.AnalyzeSingleFileHandler"
 	        commandId="refactorer.commands.analyzeSingleFile"/>
-	    <handler
-	        class="main.handler.GetAnalysisHiistory"
+	     <handler
+	        class="main.handler.GetAnalysisHistory"
 	        commandId="refactorer.commands.getHistory"/>  
 	</extension>
 	
