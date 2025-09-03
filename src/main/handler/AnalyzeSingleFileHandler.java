@@ -14,7 +14,6 @@ import main.builder.ClassAnalysis;
 import main.builder.ProjectFilesAnalyzer;
 import main.common.error.AnalyzeException;
 import main.common.error.ResourceNotFoundException;
-import main.common.utils.Utils;
 import main.model.clazz.ClassAnalysisMetricsMapper;
 import main.model.clazz.ClassMetrics;
 import main.session.ActionType;
@@ -33,13 +32,10 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 		}
 
 		IFile file = null;
-		ICompilationUnit icu = null;
-
 		if (classSelected instanceof ICompilationUnit) {
 			ICompilationUnit unit = (ICompilationUnit) classSelected;
 			try {
 				file = (IFile) unit.getCorrespondingResource();
-				icu = unit;
 			} catch (JavaModelException e) {
 				e.printStackTrace();
 			}
