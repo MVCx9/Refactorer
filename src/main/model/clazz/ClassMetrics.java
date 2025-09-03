@@ -4,12 +4,12 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
+import main.common.utils.Utils;
 import main.model.change.ExtractionPlan;
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
 import main.model.common.LocStats;
 import main.model.method.MethodMetrics;
-import main.refactor.Utils;
 
 public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 
@@ -17,6 +17,8 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	private final LocalDateTime analysisDate;
 	private final List<MethodMetrics> currentMethods;
 	private final List<MethodMetrics> refactoredMethods;
+	private final String currentSource;
+	private final String refactoredSource;
 
 	public ClassMetrics(ClassMetricsBuilder classMetricsBuilder) {
 		super();
@@ -24,6 +26,8 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		this.analysisDate = classMetricsBuilder.analysisDate;
 		this.currentMethods = classMetricsBuilder.currentMethods == null ? Collections.emptyList() : Collections.unmodifiableList(classMetricsBuilder.currentMethods);
 		this.refactoredMethods = classMetricsBuilder.refactoredMethods == null ? Collections.emptyList() : Collections.unmodifiableList(classMetricsBuilder.refactoredMethods);
+		this.refactoredSource = classMetricsBuilder.refactoredSource;
+		this.currentSource = classMetricsBuilder.currentSource;
 	}
 
 	public static ClassMetricsBuilder builder() {
@@ -83,11 +87,6 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		return averageRefactored(MethodMetrics::getLoc);
 	}
 	
-	public int getTotalExtractedLinesOfCode() {
-		return currentMethods.stream().mapToInt(MethodMetrics::getLoc).sum() -
-		   refactoredMethods.stream().mapToInt(MethodMetrics::getLoc).sum();
-	}
-
 	public int getCurrentMethodCount() {
 		return currentMethods.size();
 	}
@@ -111,12 +110,22 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	private int averageRefactored(java.util.function.ToIntFunction<MethodMetrics> mapper) {
 		return (int) Math.round(refactoredMethods.stream().mapToInt(mapper).average().orElse(0.0));
 	}
+	
+	public String getRefactoredSource() {
+		return refactoredSource;
+	}
+	
+	public String getCurrentSource() {
+		return currentSource;
+	}
 
 	public static class ClassMetricsBuilder {
 		private String name = "<unnamed>";
 		private LocalDateTime analysisDate = LocalDateTime.now();
 		private List<MethodMetrics> currentMethods = Collections.emptyList();
 		private List<MethodMetrics> refactoredMethods = Collections.emptyList();
+		private String currentSource = "";
+		private String refactoredSource = "";
 
 		public ClassMetricsBuilder() {
 		}
@@ -138,6 +147,16 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		
 		public ClassMetricsBuilder refactoredMethods(List<MethodMetrics> methods) {
 			this.refactoredMethods = methods;
+			return this;
+		}
+		
+		public ClassMetricsBuilder currentSource(String source) {
+			this.currentSource = source;
+			return this;
+		}
+		
+		public ClassMetricsBuilder refactoredSource(String source) {
+			this.refactoredSource = source;
 			return this;
 		}
 

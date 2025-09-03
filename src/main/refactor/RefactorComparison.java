@@ -1,18 +1,20 @@
 package main.refactor;
 
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+
 import main.model.change.ExtractionPlan;
 import main.neo.cem.CodeExtractionMetrics;
 import main.neo.cem.CodeExtractionMetricsStats;
 
 public class RefactorComparison {
 	private final String name;
+	private final MethodDeclaration methodDeclaration;
 	private final int originalCc;
 	private final int originalLoc;
 	private final int refactoredCc;
 	private final int refactoredLoc;
 	private final CodeExtractionMetrics extraction;
-	// Make stats mutable to allow post-construction assignment
-	private CodeExtractionMetricsStats stats;
+	private final CodeExtractionMetricsStats stats;
 	private final ExtractionPlan doPlan;
 	private final ExtractionPlan undoPlan;
 
@@ -22,6 +24,7 @@ public class RefactorComparison {
 
 	public RefactorComparison(Builder b) {
 		this.name = b.name;
+		this.methodDeclaration = b.methodDeclaration;
 		this.originalCc = b.originalCc;
 		this.originalLoc = b.originalLoc;
 		this.refactoredCc = b.refactoredCc;
@@ -34,6 +37,10 @@ public class RefactorComparison {
 
 	public String getName() {
 		return name;
+	}
+	
+	public MethodDeclaration getMethodDeclaration() {
+		return methodDeclaration;
 	}
 
 	public int getOriginalCc() {
@@ -60,11 +67,6 @@ public class RefactorComparison {
 		return stats;
 	}
 
-	// New setter for stats so it can be assigned later without rebuilding
-	public void setStats(CodeExtractionMetricsStats stats) {
-		this.stats = stats;
-	}
-
 	public ExtractionPlan getDoPlan() {
 		return doPlan;
 	}
@@ -75,6 +77,7 @@ public class RefactorComparison {
 
 	public static class Builder {
 		private String name;
+		private MethodDeclaration methodDeclaration;
 		private int originalCc;
 		private int originalLoc;
 		private int refactoredCc;
@@ -88,6 +91,12 @@ public class RefactorComparison {
 			this.name = v;
 			return this;
 		}
+		
+		public Builder methodDeclaration(MethodDeclaration v) {
+			this.methodDeclaration = v;
+			return this;
+		}
+		
 		public Builder originalCc(int v) {
 			this.originalCc = v;
 			return this;

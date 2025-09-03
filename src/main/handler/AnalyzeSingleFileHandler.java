@@ -4,7 +4,6 @@ import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaModelException;
@@ -13,11 +12,14 @@ import org.eclipse.ui.handlers.HandlerUtil;
 
 import main.builder.ClassAnalysis;
 import main.builder.ProjectFilesAnalyzer;
-import main.error.AnalyzeException;
-import main.error.ResourceNotFoundException;
+import main.common.error.AnalyzeException;
+import main.common.error.ResourceNotFoundException;
+import main.common.utils.Utils;
 import main.model.clazz.ClassAnalysisMetricsMapper;
 import main.model.clazz.ClassMetrics;
-import main.model.method.MethodMetrics;
+import main.session.ActionType;
+import main.session.SessionAnalysisStore;
+import main.ui.AnalysisMetricsDialog;
 
 public class AnalyzeSingleFileHandler extends AbstractHandler {
 
@@ -31,11 +33,13 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 		}
 
 		IFile file = null;
+		ICompilationUnit icu = null;
 
 		if (classSelected instanceof ICompilationUnit) {
 			ICompilationUnit unit = (ICompilationUnit) classSelected;
 			try {
 				file = (IFile) unit.getCorrespondingResource();
+				icu = unit;
 			} catch (JavaModelException e) {
 				e.printStackTrace();
 			}
@@ -49,40 +53,20 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 		try {
 			ClassAnalysis analysis = pfa.analyzeFile(file);
 			ClassMetrics cm = ClassAnalysisMetricsMapper.toClassMetrics(analysis);
-			logToConsole(cm);
-		} catch (CoreException e) {
-			throw new AnalyzeException("Error analyzing file", e);
-		}
-		return null;
-	}
+			SessionAnalysisStore.getInstance().register(ActionType.CLASS, cm);
 
-	private void logToConsole(ClassMetrics cm) {
-		StringBuilder sb = new StringBuilder();
-		sb.append("Refactorer — Métricas de clase: ").append(cm.getName()).append(" tomadas en ").append(cm.getAnalysisDate()).append('\n')
-		.append("  Current LOC ").append(cm.getAverageCurrentLoc()).append(" -> Refactored LOC: ").append(cm.getAverageRefactoredLoc()).append('\n')
-		.append("  Current CC ").append(cm.getAverageCurrentCc()).append(" -> Refactored CC: ").append(cm.getAverageRefactoredCc()).append('\n')
-		.append("  Current Methods: ").append(cm.getCurrentMethodCount())
-		.append(" | Refactored Methods: ").append(cm.getRefactoredMethodCount()).append('\n')
-		.append('\n');
-		
-		for(MethodMetrics mm : cm.getCurrentMethods()) {
-			sb.append("    [Current] Method: ").append(mm.getName())
-			.append(" | LOC: ").append(mm.getLoc())
-			.append(" | CC: ").append(mm.getCc())
-			.append('\n');
+			new AnalysisMetricsDialog(
+					HandlerUtil.getActiveShell(event), 
+					ActionType.CLASS, 
+					cm, 
+					cm.getCurrentSource(), 
+					cm.getRefactoredSource() != null ? cm.getRefactoredSource() : cm.getCurrentSource())
+				.open();
+			
+			return null;
+		} catch (Exception e) {
+			throw new AnalyzeException("Error analyzing class", e);
 		}
-		
-		sb.append('\n');
-		
-		for(MethodMetrics mm : cm.getRefactoredMethods()) {
-			sb.append("    [Refactored] Method: ").append(mm.getName())
-			.append(" | LOC: ").append(mm.getLoc())
-			.append(" | CC: ").append(mm.getCc())
-			.append('\n');
-		}
-		
-		sb.append('\n');
-		System.out.println(sb.toString());
 	}
 
 }

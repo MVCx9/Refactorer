@@ -251,6 +251,7 @@ public class Utils {
 		IProgressMonitor npm = new NullProgressMonitor();
 		String resultOfRefactoring = new String("");
 		boolean compilationErrors = false;
+		CompilationUnit refactoredCompilationUnit = null;
 		
 		try {
 			// Prefer creating the refactoring with an ICompilationUnit to ensure resources exist
@@ -307,7 +308,12 @@ public class Utils {
 					// reflected in the current compilation unit)
 					CompilationUnit compilationUnitAfterRefactoring = createCompilationUnitFromFileInWorkspace(
 							compilationUnit.getJavaElement().getPath().toOSString());
-
+					
+					/**
+					 * MVCx9: apply changes to actual CompilationUnit, so it accumulates old and the future changes
+					 */
+					refactoredCompilationUnit = compilationUnitAfterRefactoring;
+					
 					// Check if the compilation unit can be compiled
 					compilationErrors = builtWithCompilationErrors(compilationUnitAfterRefactoring);
 					if (compilationErrors) {
@@ -348,7 +354,7 @@ public class Utils {
 		}
 
 		result = new CodeExtractionMetrics(feasible, resultOfRefactoring, refactoringApplied,
-				numberOfExtractedLinesOfCode, numberOfParametersInExtractedMethod, changes, undoChanges);
+				numberOfExtractedLinesOfCode, numberOfParametersInExtractedMethod, changes, undoChanges, refactoredCompilationUnit);
 
 		return result;
 	}
