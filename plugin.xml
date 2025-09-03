@@ -12,6 +12,9 @@
 		<command
 		    id="refactorer.commands.analyzeSingleFile"
 		    name="Analizar la Clase"/>
+		<command
+			id="refactorer.commands.getHistory"
+			name="Consultar historico"/>
 	</extension>
 	
 	<extension point="org.eclipse.ui.handlers">
@@ -25,6 +28,9 @@
 	    <handler
 	        class="main.handler.AnalyzeSingleFileHandler"
 	        commandId="refactorer.commands.analyzeSingleFile"/>
+	    <handler
+	        class="main.handler.GetAnalysisHiistory"
+	        commandId="refactorer.commands.getHistory"/>  
 	</extension>
 	
 	<extension point="org.eclipse.ui.menus">
@@ -34,6 +40,11 @@
 				<command 
 					commandId="refactorer.commands.analyzeWorkspace"
 					label="Analizar Complejidad Cognitiva del WorkSpace"
+					style="push"
+				/>
+				<command 
+					commandId="refactorer.commands.getHistory"
+					label="Ver histórico de Análisis de Complejidad"
 					style="push"
 				/>
 	         </menu>
