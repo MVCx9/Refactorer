@@ -1,7 +1,15 @@
 package main.ui;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IResourceVisitor;
+import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.swt.SWT;
@@ -15,6 +23,8 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 
+import main.common.error.ModifyFilesException;
+import main.common.utils.Utils;
 import main.model.clazz.ClassMetrics;
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
@@ -24,6 +34,9 @@ import main.model.workspace.WorkspaceMetrics;
 import main.session.ActionType;
 
 public class AnalysisMetricsDialog extends TitleAreaDialog {
+
+    private static final int APPLY_EXTRACT_ID = 1001;
+    private static final int BREAK_EXTRACT_ID = 1002;
 
     private final ActionType actionType;
     private final Object metrics; // ClassMetrics | ProjectMetrics | WorkspaceMetrics
@@ -98,7 +111,6 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
 
             codeSash.setWeights(new int[] { 1, 1 });
 
-            // Metrics section below
             Composite metricsContainer = new Composite(root, SWT.NONE);
             metricsContainer.setLayout(new GridLayout(1, false));
             SashForm metricsSash = new SashForm(metricsContainer, SWT.HORIZONTAL);
@@ -218,6 +230,102 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
     @Override
     protected void createButtonsForButtonBar(Composite parent) {
         createButton(parent, OK, "Cerrar", true);
+        createButton(parent, BREAK_EXTRACT_ID, "Deshacer extracciones de código", false);
+        createButton(parent, APPLY_EXTRACT_ID, "Aplicar extracciones de código", false);
+    }
+
+    @Override
+    protected void buttonPressed(int buttonId) {
+        if (buttonId == APPLY_EXTRACT_ID) {
+            applyCodeExtractions();
+            return; // keep dialog open after applying
+        }
+        
+        if(buttonId == BREAK_EXTRACT_ID) {
+        	breackCodeExtractions();
+        	return;
+        }
+        
+        super.buttonPressed(buttonId);
+    }
+
+    private void breackCodeExtractions() {
+    	try {
+            if (metrics instanceof ClassMetrics cm) {
+                applyForClass(cm, cm.getCurrentSource());
+            } else if (metrics instanceof ProjectMetrics pm) {
+                for (ClassMetrics cm : pm.getClasses()) {
+                    applyForClass(cm, cm.getCurrentSource());
+                }
+            } else if (metrics instanceof WorkspaceMetrics wm) {
+                for (ProjectMetrics pm : wm.getProjects()) {
+                    for (ClassMetrics cm : pm.getClasses()) {
+                        applyForClass(cm, cm.getCurrentSource());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new ModifyFilesException("Error reverting code extractions", e);
+        }
+	}
+
+	private void applyCodeExtractions() {
+        try {
+            if (metrics instanceof ClassMetrics cm) {
+                applyForClass(cm, cm.getRefactoredSource());
+            } else if (metrics instanceof ProjectMetrics pm) {
+                for (ClassMetrics cm : pm.getClasses()) {
+                    applyForClass(cm, cm.getRefactoredSource());
+                }
+            } else if (metrics instanceof WorkspaceMetrics wm) {
+                for (ProjectMetrics pm : wm.getProjects()) {
+                    for (ClassMetrics cm : pm.getClasses()) {
+                        applyForClass(cm, cm.getRefactoredSource());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new ModifyFilesException("Error applying code extractions", e);
+        }
+    }
+
+    private void applyForClass(ClassMetrics cm, String ref) {
+        if (ref == null || ref.isEmpty()) return;
+        String fileName = cm.getName();
+        if (fileName == null || fileName.isBlank()) return;
+        if (!fileName.endsWith(".java")) fileName = fileName + ".java";
+
+        List<ICompilationUnit> units = findCompilationUnitsByFileName(fileName);
+        String formatted = Utils.formatJava(ref);
+        for (ICompilationUnit icu : units) {
+            try {
+                icu.becomeWorkingCopy(null);
+                icu.getBuffer().setContents(formatted);
+                icu.commitWorkingCopy(true, null);
+            } catch (Exception ignore) {
+            } finally {
+                try { icu.discardWorkingCopy(); } catch (Exception ex) { }
+            }
+        }
+    }
+
+    private List<ICompilationUnit> findCompilationUnitsByFileName(String fileName) {
+        List<ICompilationUnit> result = new ArrayList<>();
+        try {
+            ResourcesPlugin.getWorkspace().getRoot().accept((IResourceVisitor) res -> {
+                if (res.getType() == IResource.FILE && fileName.equals(res.getName())) {
+                    IFile file = (IFile) res;
+                    var el = JavaCore.create(file);
+                    if (el instanceof ICompilationUnit icu) {
+                        result.add(icu);
+                    }
+                }
+                return true;
+            });
+        } catch (Exception e) {
+            // ignore
+        }
+        return result;
     }
 
     private void metric(Composite parent, String label, String value) {
