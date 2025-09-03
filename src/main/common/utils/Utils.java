@@ -9,12 +9,16 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.ToolFactory;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.formatter.CodeFormatter;
 import org.eclipse.jdt.core.refactoring.IJavaRefactorings;
 import org.eclipse.jdt.core.refactoring.descriptors.InlineMethodDescriptor;
+import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.ltk.core.refactoring.Change;
 import org.eclipse.ltk.core.refactoring.CompositeChange;
@@ -142,4 +146,18 @@ public class Utils {
 			return "";
 		}
 	}
+    
+    public static String formatJava(String source) {
+        if (source == null || source.isEmpty()) return source;
+        CodeFormatter formatter = ToolFactory.createCodeFormatter(JavaCore.getOptions());
+        TextEdit edit = formatter.format(CodeFormatter.K_COMPILATION_UNIT, source, 0, source.length(), 0, System.lineSeparator());
+        if (edit == null) return source; // probablemente hay errores de sintaxis; deja como está
+        Document doc = new Document(source);
+        try {
+            edit.apply(doc);
+            return doc.get();
+        } catch (Exception e) {
+            return source;
+        }
+    }
 }

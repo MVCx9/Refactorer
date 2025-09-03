@@ -45,7 +45,6 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 			}
 		}
 
-		String leftSource = Utils.safeGetSource(icu);
 		if (file == null && classSelected instanceof IAdaptable) {
 			file = ((IAdaptable) classSelected).getAdapter(IFile.class);
 		}
@@ -60,8 +59,8 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 					HandlerUtil.getActiveShell(event), 
 					ActionType.CLASS, 
 					cm, 
-					leftSource, 
-					cm.getRefactoredSource() != null ? cm.getRefactoredSource() : leftSource)
+					cm.getCurrentSource(), 
+					cm.getRefactoredSource() != null ? cm.getRefactoredSource() : cm.getCurrentSource())
 				.open();
 			
 			return null;
