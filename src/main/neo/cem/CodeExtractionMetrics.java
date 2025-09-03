@@ -3,6 +3,7 @@ package main.neo.cem;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.ltk.core.refactoring.Change;
 
 /**
@@ -108,7 +109,19 @@ public class CodeExtractionMetrics {
 	 * Code complexity nesting.
 	 */
 	int nesting;
-
+	
+	/**
+	 * Compilation unit with changes applied (if the extraction was applied).
+	 * Author: Miguel Valadez Cano
+	 */
+	CompilationUnit compilationUnitWithChanges;
+	
+	/**
+	 * Name of the extracted method (if the extraction was applied).
+	 * Author: Miguel Valadez Cano
+	 */
+	String extractedMethodName;
+	
 	/**
 	 * Changes to apply (or applied) to extract code. The list stores changes in the
 	 * order they would be/were applied. Usually, a code extraction involves just
@@ -125,6 +138,23 @@ public class CodeExtractionMetrics {
 	List<Change> undoChanges = new ArrayList<Change>();
 
 	public CodeExtractionMetrics(boolean feasible, String reason, boolean applied, int numberOfExtractedLinesOfCode,
+			int numberOfParametersInExtractedMethod, List<Change> changes, List<Change> undoChanges, CompilationUnit cu) {
+		this.feasible = feasible;
+		this.reason = reason;
+		this.applied = applied;
+		this.numberOfExtractedLinesOfCode = numberOfExtractedLinesOfCode;
+		this.numberOfParametersInExtractedMethod = numberOfParametersInExtractedMethod;
+		this.changes = changes;
+		this.undoChanges = undoChanges;
+		this.reductionOfCognitiveComplexity = 0;
+		this.accumulatedInherentComponent = 0;
+		this.accumulatedNestingComponent = 0;
+		this.numberNestingContributors = 0;
+		this.nesting = 0;
+		this.compilationUnitWithChanges = cu;
+	}
+	
+	public CodeExtractionMetrics(boolean feasible, String reason, boolean applied, int numberOfExtractedLinesOfCode,
 			int numberOfParametersInExtractedMethod, List<Change> changes, List<Change> undoChanges) {
 		this.feasible = feasible;
 		this.reason = reason;
@@ -139,7 +169,7 @@ public class CodeExtractionMetrics {
 		this.numberNestingContributors = 0;
 		this.nesting = 0;
 	}
-
+	
 	public CodeExtractionMetrics(boolean feasible, String reason, boolean applied, int numberOfExtractedLinesOfCode,
 			int numberOfParametersInExtractedMethod, List<Change> changes, List<Change> undoChanges,
 			int reductionOfCognitiveComplexity, int accumulatedInherentComponent, int accumulatedNestingComponent,
@@ -278,6 +308,22 @@ public class CodeExtractionMetrics {
 
 	public void setUndoChanges(List<Change> undoChanges) {
 		this.undoChanges = undoChanges;
+	}
+	
+	public CompilationUnit getCompilationUnitWithChanges() {
+		return compilationUnitWithChanges;
+	}
+	
+	public void setCompilationUnitWithChanges(CompilationUnit compilationUnitWithChanges) {
+		this.compilationUnitWithChanges = compilationUnitWithChanges;
+	}
+	
+	public String getExtractedMethodName() {
+		return extractedMethodName;
+	}
+	
+	public void setExtractedMethodName(String extractedMethodName) {
+		this.extractedMethodName = extractedMethodName;
 	}
 
 	@Override

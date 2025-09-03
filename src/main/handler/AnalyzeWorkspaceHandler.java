@@ -8,25 +8,25 @@ import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 
 import main.builder.ProjectAnalysis;
 import main.builder.ProjectFilesAnalyzer;
 import main.builder.WorkspaceAnalysis;
-import main.error.AnalyzeException;
-import main.error.ResourceNotFoundException;
-import main.model.project.ProjectMetrics;
+import main.common.error.AnalyzeException;
+import main.common.error.ResourceNotFoundException;
 import main.model.workspace.WorkspaceAnalysisMetricsMapper;
 import main.model.workspace.WorkspaceMetrics;
+import main.session.ActionType;
+import main.session.SessionAnalysisStore;
+import main.ui.AnalysisMetricsDialog;
 
 public class AnalyzeWorkspaceHandler extends AbstractHandler {
 
     @Override
     public Object execute(ExecutionEvent event) throws ExecutionException {
-    	IWorkspaceRoot workspaceWork = ResourcesPlugin.getWorkspace().getRoot();
-        IProject[] eclipseProjects = workspaceWork.getProjects();
+        IProject[] eclipseProjects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
         if (eclipseProjects.length == 0) {
             throw new ResourceNotFoundException("No hay proyectos abiertos en el workspace.");
         }
@@ -47,30 +47,15 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
         }
 
         WorkspaceAnalysis workspaceAnalysis = WorkspaceAnalysis.builder()
-                .name(workspaceWork.getName())
+                .name("My Workspace")
                 .analysisDate(LocalDateTime.now())
                 .projects(projectAnalyses)
                 .build();
 
         WorkspaceMetrics workspaceMetrics = WorkspaceAnalysisMetricsMapper.toWorkspaceMetrics(workspaceAnalysis);
-        logToConsole(workspaceMetrics);
+        SessionAnalysisStore.getInstance().register(ActionType.WORKSPACE, workspaceMetrics);
+        new AnalysisMetricsDialog(org.eclipse.ui.handlers.HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
         return null;
     }
 
-    private void logToConsole(WorkspaceMetrics workspaceMetrics) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Refactorer — Métricas del workspace: ").append(workspaceMetrics.getName()).append('\n');
-        sb.append("  Proyectos ").append(workspaceMetrics.getProjects().size()).append('\n');
-        sb.append("  Métodos ").append(workspaceMetrics.getCurrentMethodCount()).append('\n');
-        sb.append("  LOC ").append(workspaceMetrics.getCurrentLoc()).append(" -> ").append(workspaceMetrics.getRefactoredLoc()).append('\n');
-        sb.append("  CC ").append(workspaceMetrics.getCurrentCc()).append(" -> ").append(workspaceMetrics.getRefactoredCc()).append('\n');
-        for (ProjectMetrics pm : workspaceMetrics.getProjects()) {
-            sb.append("    -> Proyecto ").append(pm.getName()).append('\n');
-            sb.append("       Clases ").append(pm.getClassCount()).append('\n');
-            sb.append("       Métodos ").append(pm.getCurrentMethodCount()).append('\n');
-            sb.append("       LOC ").append(pm.getCurrentLoc()).append(" -> ").append(pm.getRefactoredLoc()).append('\n');
-            sb.append("       CC ").append(pm.getCurrentCc()).append(" -> ").append(pm.getRefactoredCc()).append('\n');
-        }
-        System.out.println(sb.toString());
-    }
 }

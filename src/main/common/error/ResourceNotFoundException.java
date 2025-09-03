@@ -1,4 +1,4 @@
-package main.error;
+package main.common.error;
 
 public class ResourceNotFoundException extends PluginException {
 

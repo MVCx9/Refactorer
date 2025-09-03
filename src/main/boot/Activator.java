@@ -3,6 +3,8 @@ package main.boot;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
+import main.session.SessionAnalysisStore;
+
 public class Activator extends AbstractUIPlugin {
 
     // El ID del plugin, debe coincidir con el declarado en MANIFEST.MF
@@ -19,6 +21,7 @@ public class Activator extends AbstractUIPlugin {
     	System.out.println("### Plugin Refactorer cargado");
         super.start(context);
         plugin = this;
+        SessionAnalysisStore.getInstance().clear();
         System.out.println(">> Plugin Refactorer ACTIVADO correctamente");
     }
 

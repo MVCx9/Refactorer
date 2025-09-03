@@ -2,12 +2,15 @@ package main.builder;
 
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+
 import main.model.change.ExtractionPlan;
 import main.neo.cem.CodeExtractionMetrics;
 import main.neo.cem.CodeExtractionMetricsStats;
 
 public class MethodAnalysis {
 	private final String methodName;
+	private final MethodDeclaration methodDeclaration;
 	private final int currentCc;
 	private final int currentLoc;
 	private final int refactoredCc;
@@ -23,6 +26,7 @@ public class MethodAnalysis {
 
 	private MethodAnalysis(Builder b) {
 		this.methodName = b.methodName;
+		this.methodDeclaration = b.methodDeclaration;
 		this.currentCc = b.currentCc;
 		this.currentLoc = b.currentLoc;
 		this.refactoredCc = b.refactoredCc;
@@ -33,55 +37,65 @@ public class MethodAnalysis {
 		this.undoPlan = b.undoPlan;
 	}
 
-	public String methodName() {
+	public String getMethodName() {
 		return methodName;
 	}
+	
+	public MethodDeclaration getMethodDeclaration() {
+		return methodDeclaration;
+	}
 
-	public int currentCc() {
+	public int getCurrentCc() {
 		return currentCc;
 	}
 
-	public int currentLoc() {
+	public int getCurrentLoc() {
 		return currentLoc;
 	}
 
-	public int refactoredCc() {
+	public int getRefactoredCc() {
 		return refactoredCc;
 	}
 
-	public int refactoredLoc() {
+	public int getRefactoredLoc() {
 		return refactoredLoc;
 	}
 
-	public CodeExtractionMetrics extraction() {
+	public CodeExtractionMetrics getExtraction() {
 		return extraction;
 	}
 
-	public CodeExtractionMetricsStats stats() {
+	public CodeExtractionMetricsStats getStats() {
 		return stats;
 	}
 
-	public ExtractionPlan doPlan() {
+	public ExtractionPlan getDoPlan() {
 		return doPlan;
 	}
 
-	public ExtractionPlan undoPlan() {
+	public ExtractionPlan getUndoPlan() {
 		return undoPlan;
 	}
-
+	
 	public static class Builder {
 		private String methodName;
+		private MethodDeclaration methodDeclaration = null;
 		private int currentCc;
 		private int currentLoc;
 		private int refactoredCc;
 		private int refactoredLoc;
-		private CodeExtractionMetrics extraction;
-		private CodeExtractionMetricsStats stats;
+		private CodeExtractionMetrics extraction = null;
+		private CodeExtractionMetricsStats stats = null;
 		private ExtractionPlan doPlan = new ExtractionPlan(List.of());
 		private ExtractionPlan undoPlan = new ExtractionPlan(List.of());
 
 		public Builder methodName(String v) {
 			this.methodName = v;
+			return this;
+		}
+		
+		public Builder methodDeclaration(MethodDeclaration v) {
+			this.methodDeclaration = v;
 			return this;
 		}
 
@@ -124,7 +138,7 @@ public class MethodAnalysis {
 			this.undoPlan = v;
 			return this;
 		}
-
+		
 		public MethodAnalysis build() {
 			return new MethodAnalysis(this);
 		}
