@@ -71,7 +71,7 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
 
         TableColumn colNombre = new TableColumn(table, SWT.LEFT);
         colNombre.setText("Nombre");
-        colNombre.setWidth(520);
+        colNombre.setWidth(400);
         colNombre.setResizable(false);
 
         TableColumn colAcciones = new TableColumn(table, SWT.CENTER);
