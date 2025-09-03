@@ -8,7 +8,6 @@ import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 
@@ -27,8 +26,7 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
 
     @Override
     public Object execute(ExecutionEvent event) throws ExecutionException {
-    	IWorkspaceRoot workspaceWork = ResourcesPlugin.getWorkspace().getRoot();
-        IProject[] eclipseProjects = workspaceWork.getProjects();
+        IProject[] eclipseProjects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
         if (eclipseProjects.length == 0) {
             throw new ResourceNotFoundException("No hay proyectos abiertos en el workspace.");
         }
@@ -49,7 +47,7 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
         }
 
         WorkspaceAnalysis workspaceAnalysis = WorkspaceAnalysis.builder()
-                .name(workspaceWork.getName())
+                .name("My Workspace")
                 .analysisDate(LocalDateTime.now())
                 .projects(projectAnalyses)
                 .build();
