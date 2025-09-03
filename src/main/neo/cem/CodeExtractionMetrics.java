@@ -117,7 +117,8 @@ public class CodeExtractionMetrics {
 	CompilationUnit compilationUnitWithChanges;
 	
 	/**
-	 * 
+	 * Name of the extracted method (if the extraction was applied).
+	 * Author: Miguel Valadez Cano
 	 */
 	String extractedMethodName;
 	

@@ -1,7 +1,7 @@
 package main.model.method;
 
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
@@ -35,22 +35,23 @@ public final class MethodAnalysisMetricsMapper {
 	}
 
 	public static List<MethodAnalysis> toMethodAnalysis(List<RefactorComparison> comparison) {
-		List<MethodAnalysis> result = new ArrayList<>();
+		
+		List<MethodAnalysis> result = new LinkedList<>();
 		
 		List<CodeExtractionMetrics> metricsList = comparison.stream()
 			.map(RefactorComparison::getExtraction)
 			.filter(Objects::nonNull)
 			.toList();
-		
 		CodeExtractionMetricsStats stats = null;
 		
 		if(!metricsList.isEmpty()) {
 			stats = new CodeExtractionMetricsStats(metricsList.toArray(new CodeExtractionMetrics[0]));
 		}
-
+		
 		for (RefactorComparison c : comparison) {
 			MethodAnalysis m = MethodAnalysis.builder()
 			.methodName(c.getName())
+			.methodDeclaration(c.getMethodDeclaration())
 			.currentCc(c.getOriginalCc())
 			.currentLoc(c.getOriginalLoc())
 			.refactoredCc(c.getRefactoredCc())
@@ -70,6 +71,7 @@ public final class MethodAnalysisMetricsMapper {
 	public static MethodAnalysis toMethodAnalysis(MethodDeclaration md, int currentCc, int currentLoc) {
 		return MethodAnalysis.builder()
 			.methodName(md.getName().getIdentifier())
+			.methodDeclaration(md)
 			.currentCc(currentCc)
 			.currentLoc(currentLoc)
 			.refactoredCc(currentCc)

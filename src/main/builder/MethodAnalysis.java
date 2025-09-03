@@ -2,12 +2,15 @@ package main.builder;
 
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+
 import main.model.change.ExtractionPlan;
 import main.neo.cem.CodeExtractionMetrics;
 import main.neo.cem.CodeExtractionMetricsStats;
 
 public class MethodAnalysis {
 	private final String methodName;
+	private final MethodDeclaration methodDeclaration;
 	private final int currentCc;
 	private final int currentLoc;
 	private final int refactoredCc;
@@ -23,6 +26,7 @@ public class MethodAnalysis {
 
 	private MethodAnalysis(Builder b) {
 		this.methodName = b.methodName;
+		this.methodDeclaration = b.methodDeclaration;
 		this.currentCc = b.currentCc;
 		this.currentLoc = b.currentLoc;
 		this.refactoredCc = b.refactoredCc;
@@ -35,6 +39,10 @@ public class MethodAnalysis {
 
 	public String getMethodName() {
 		return methodName;
+	}
+	
+	public MethodDeclaration getMethodDeclaration() {
+		return methodDeclaration;
 	}
 
 	public int getCurrentCc() {
@@ -71,6 +79,7 @@ public class MethodAnalysis {
 	
 	public static class Builder {
 		private String methodName;
+		private MethodDeclaration methodDeclaration = null;
 		private int currentCc;
 		private int currentLoc;
 		private int refactoredCc;
@@ -82,6 +91,11 @@ public class MethodAnalysis {
 
 		public Builder methodName(String v) {
 			this.methodName = v;
+			return this;
+		}
+		
+		public Builder methodDeclaration(MethodDeclaration v) {
+			this.methodDeclaration = v;
 			return this;
 		}
 

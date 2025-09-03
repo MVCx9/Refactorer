@@ -309,7 +309,9 @@ public class Utils {
 					CompilationUnit compilationUnitAfterRefactoring = createCompilationUnitFromFileInWorkspace(
 							compilationUnit.getJavaElement().getPath().toOSString());
 					
-					//MVCx9: apply changes to actual CompilationUnit, so it accumulates old and the future changes
+					/**
+					 * MVCx9: apply changes to actual CompilationUnit, so it accumulates old and the future changes
+					 */
 					refactoredCompilationUnit = compilationUnitAfterRefactoring;
 					
 					// Check if the compilation unit can be compiled
