@@ -40,15 +40,12 @@ public class ComplexityAnalyzer {
 	public ClassAnalysis analyze(CompilationUnit cu, ICompilationUnit icu) throws JavaModelException {
 		final List<ClassAnalysis> resultHolder = new ArrayList<>(1);
 
-		IProgressMonitor pm = new NullProgressMonitor();
-
 		MethodDeclaration targetMethod = null;
 		Set<String> processedMethods = new LinkedHashSet<>();
 
 		List<MethodAnalysis> currentMethods = new ArrayList<>();
 	    List<MethodAnalysis> refactoredMethods = new ArrayList<>();
 		try {
-			icu.becomeWorkingCopy(pm);
 			while(true) {
 				try {
 					targetMethod = findNextMethodNeedingRefactor(cu, processedMethods);
@@ -99,6 +96,7 @@ public class ComplexityAnalyzer {
 					.analysisDate(LocalDateTime.now())
 					.currentMethods(currentMethods)
 					.refactoredMethods(refactoredMethods)
+					.currentSource(icu.getSource())
 					.refactoredSource(cu.toString())
 					.build();
 

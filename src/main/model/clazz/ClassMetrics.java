@@ -17,6 +17,7 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	private final LocalDateTime analysisDate;
 	private final List<MethodMetrics> currentMethods;
 	private final List<MethodMetrics> refactoredMethods;
+	private final String currentSource;
 	private final String refactoredSource;
 
 	public ClassMetrics(ClassMetricsBuilder classMetricsBuilder) {
@@ -26,6 +27,7 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		this.currentMethods = classMetricsBuilder.currentMethods == null ? Collections.emptyList() : Collections.unmodifiableList(classMetricsBuilder.currentMethods);
 		this.refactoredMethods = classMetricsBuilder.refactoredMethods == null ? Collections.emptyList() : Collections.unmodifiableList(classMetricsBuilder.refactoredMethods);
 		this.refactoredSource = classMetricsBuilder.refactoredSource;
+		this.currentSource = classMetricsBuilder.currentSource;
 	}
 
 	public static ClassMetricsBuilder builder() {
@@ -112,13 +114,18 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	public String getRefactoredSource() {
 		return refactoredSource;
 	}
+	
+	public String getCurrentSource() {
+		return currentSource;
+	}
 
 	public static class ClassMetricsBuilder {
 		private String name = "<unnamed>";
 		private LocalDateTime analysisDate = LocalDateTime.now();
 		private List<MethodMetrics> currentMethods = Collections.emptyList();
 		private List<MethodMetrics> refactoredMethods = Collections.emptyList();
-		public String refactoredSource = "";
+		private String currentSource = "";
+		private String refactoredSource = "";
 
 		public ClassMetricsBuilder() {
 		}
@@ -140,6 +147,11 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		
 		public ClassMetricsBuilder refactoredMethods(List<MethodMetrics> methods) {
 			this.refactoredMethods = methods;
+			return this;
+		}
+		
+		public ClassMetricsBuilder currentSource(String source) {
+			this.currentSource = source;
 			return this;
 		}
 		

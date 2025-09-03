@@ -17,6 +17,7 @@ public class ClassAnalysis {
 	private final LocalDateTime analysisDate;
 	private final List<MethodAnalysis> currentMethods;
 	private final List<MethodAnalysis> refactoredMethods;
+	private final String currentSource;
 	private final String refactoredSource;
 
 	public static Builder builder() {
@@ -32,6 +33,7 @@ public class ClassAnalysis {
 		this.currentMethods = Collections.unmodifiableList(b.currentMethods);
 		this.refactoredMethods = Collections.unmodifiableList(b.refactoredMethods);
 		this.refactoredSource = b.refactoredSource;
+		this.currentSource = b.currentSource;
 	}
 
 	public ICompilationUnit getIcu() {
@@ -62,6 +64,10 @@ public class ClassAnalysis {
 		return Collections.unmodifiableList(refactoredMethods);
 	}
 	
+	public String getCurrentSource() {
+		return currentSource;
+	}
+	
 	public String getRefactoredSource() {
 		return refactoredSource;
 	}
@@ -74,6 +80,7 @@ public class ClassAnalysis {
 		private LocalDateTime analysisDate = LocalDateTime.now();
 		private List<MethodAnalysis> currentMethods = List.of();
 		private List<MethodAnalysis> refactoredMethods = List.of();
+		private String currentSource;
 		private String refactoredSource;
 
 		public Builder icu(ICompilationUnit v) {
@@ -108,6 +115,11 @@ public class ClassAnalysis {
 		
 		public Builder refactoredMethods(List<MethodAnalysis> v) {
 			this.refactoredMethods = v;
+			return this;
+		}
+		
+		public Builder currentSource(String v) {
+			this.currentSource = v;
 			return this;
 		}
 		
