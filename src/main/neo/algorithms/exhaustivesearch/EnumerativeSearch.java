@@ -1,12 +1,9 @@
 package main.neo.algorithms.exhaustivesearch;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.util.List;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.MethodDeclaration;
 
 import main.neo.Constants;
 import main.neo.algorithms.Solution;
@@ -19,8 +16,42 @@ import main.neo.refactoringcache.RefactoringCache;
  */
 public class EnumerativeSearch {
 	private Solution bestSolution;
+	
+	/**
+	 * NEO's enumerative search algorithm to find optimal solutions for reducing without all params
+	 * 
+	 * @param approach
+	 * @param compilationUnit
+	 * @param refactoringCache
+	 * @param ast
+	 * @param methodComplexity
+	 * @return
+	 * @throws IOException
+	 * 
+	 * Author: Miguel Valadez Cano
+	 */
+	public Solution run(APPROACH approach, CompilationUnit compilationUnit, RefactoringCache refactoringCache, ASTNode ast, int methodComplexity)
+			throws IOException {
+		bestSolution = null;
 
-	public Solution run(APPROACH approach, BufferedWriter bf, String classWithIssues, CompilationUnit compilationUnit,
+		ExhaustiveEnumerationAlgorithm eea = new ExhaustiveEnumerationAlgorithm(refactoringCache, ast, approach);
+		try {
+			eea.run(solution -> {
+				Solution sol = new Solution(solution, compilationUnit, ast);
+				sol.evaluate(refactoringCache);
+				if (bestSolution == null || sol.getFitness() < bestSolution.getFitness()) {
+					bestSolution = sol;
+				}
+			}, Constants.MAX_EVALS);
+		} catch (RuntimeException e) {
+			System.out.print("Optimal " + bestSolution.toString());
+		}
+
+		return bestSolution;
+	}
+	
+	/*
+	 public Solution run(APPROACH approach, BufferedWriter bf, String classWithIssues, CompilationUnit compilationUnit,
 			RefactoringCache refactoringCache, long runtimeToFillRefactoringCache, List<ASTNode> auxList, ASTNode ast, int methodComplexity)
 			throws IOException {
 		bestSolution = null;
@@ -73,5 +104,6 @@ public class EnumerativeSearch {
 
 		return bestSolution;
 	}
+	 */
 
 }

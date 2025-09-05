@@ -51,7 +51,6 @@ public final class MethodAnalysisMetricsMapper {
 		for (RefactorComparison c : comparison) {
 			MethodAnalysis m = MethodAnalysis.builder()
 			.methodName(c.getName())
-			.methodDeclaration(c.getMethodDeclaration())
 			.currentCc(c.getOriginalCc())
 			.currentLoc(c.getOriginalLoc())
 			.refactoredCc(c.getRefactoredCc())
@@ -71,7 +70,6 @@ public final class MethodAnalysisMetricsMapper {
 	public static MethodAnalysis toMethodAnalysis(MethodDeclaration md, int currentCc, int currentLoc) {
 		return MethodAnalysis.builder()
 			.methodName(md.getName().getIdentifier())
-			.methodDeclaration(md)
 			.currentCc(currentCc)
 			.currentLoc(currentLoc)
 			.refactoredCc(currentCc)
