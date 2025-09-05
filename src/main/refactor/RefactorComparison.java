@@ -1,14 +1,11 @@
 package main.refactor;
 
-import org.eclipse.jdt.core.dom.MethodDeclaration;
-
 import main.model.change.ExtractionPlan;
 import main.neo.cem.CodeExtractionMetrics;
 import main.neo.cem.CodeExtractionMetricsStats;
 
 public class RefactorComparison {
 	private final String name;
-	private final MethodDeclaration methodDeclaration;
 	private final int originalCc;
 	private final int originalLoc;
 	private final int refactoredCc;
@@ -24,7 +21,6 @@ public class RefactorComparison {
 
 	public RefactorComparison(Builder b) {
 		this.name = b.name;
-		this.methodDeclaration = b.methodDeclaration;
 		this.originalCc = b.originalCc;
 		this.originalLoc = b.originalLoc;
 		this.refactoredCc = b.refactoredCc;
@@ -39,10 +35,6 @@ public class RefactorComparison {
 		return name;
 	}
 	
-	public MethodDeclaration getMethodDeclaration() {
-		return methodDeclaration;
-	}
-
 	public int getOriginalCc() {
 		return originalCc;
 	}
@@ -77,7 +69,6 @@ public class RefactorComparison {
 
 	public static class Builder {
 		private String name;
-		private MethodDeclaration methodDeclaration;
 		private int originalCc;
 		private int originalLoc;
 		private int refactoredCc;
@@ -89,11 +80,6 @@ public class RefactorComparison {
 
 		public Builder name(String v) {
 			this.name = v;
-			return this;
-		}
-		
-		public Builder methodDeclaration(MethodDeclaration v) {
-			this.methodDeclaration = v;
 			return this;
 		}
 		
