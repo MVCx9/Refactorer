@@ -1,9 +1,9 @@
 package main.analyzer;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -39,7 +39,7 @@ public class ComplexityAnalyzer {
      * contiene, comparando código actual vs. código refactorizado (si hay una
      * extracción viable).
      */
-    public ClassAnalysis analyze(CompilationUnit cu, ICompilationUnit icu) throws JavaModelException {
+    public ClassAnalysis analyze(CompilationUnit cu, ICompilationUnit icu) throws JavaModelException, IOException {
         MethodDeclaration targetMethod = null;
         Set<MethodDeclaration> processedMethods = new LinkedHashSet<>();
         
@@ -76,51 +76,12 @@ public class ComplexityAnalyzer {
 	            
 	            List<MethodAnalysis> refactoredMethodAnalysis = analyzeAndPlanMethod(cu, targetMethod);
 	            
-	            // Insertar según nombre y firma del método usando Set<MethodDeclaration>
-	            if (refactoredMethodAnalysis != null && !refactoredMethodAnalysis.isEmpty()) {
-	            	
-	            	// Conjunto de declaraciones ya existentes en la lista refactorizada
-	            	Set<MethodDeclaration> existingDecls = refactoredMethods.stream()
-	            		.map(MethodAnalysis::getMethodDeclaration)
-	            		.filter(Objects::nonNull)
-	            		.collect(Collectors.toCollection(LinkedHashSet::new));
-	            	
-	            	List<MethodAnalysis> toAdd = new LinkedList<>();
-	            	for (MethodAnalysis ma : refactoredMethodAnalysis) {
-	            		
-	            		MethodDeclaration cand = ma.getMethodDeclaration();
-	            		// si no hay declaración o nombre, no podemos comparar de forma fiable
-	            		if (cand == null || cand.getName() == null) {
-	            			continue; 
-	            		}
-	            		
-	            		String candName = cand.getName().getIdentifier();
-	            		boolean nameExists = existingDecls.stream().anyMatch(e -> e.getName() != null && candName.equals(e.getName().getIdentifier()));
-	            		boolean sameSigExists = existingDecls.stream().anyMatch(e -> sameSignature(e, cand));
-	            		
-	            		// Nuevo método (nombre distinto a todos los existentes)
-	            		if (!nameExists) {
-	            			toAdd.add(ma);
-	            			existingDecls.add(cand);
-	            			continue;
-	            		}
-	            		
-	            		// Mismo nombre pero distinta cantidad/tipos de parámetros
-	            		if (!sameSigExists) {
-	            			toAdd.add(ma);
-	            			existingDecls.add(cand);
-	            		}
-	            		
-	            		// Si la firma es igual, ya fue añadido; pasar al siguiente
-	            	}
-	            	
-	            	if (!toAdd.isEmpty()) {
-	            		refactoredMethods.addAll(toAdd);
-	            		if(toAdd.getLast().getExtraction() != null && toAdd.getLast().getExtraction().getCompilationUnitWithChanges() != null) {
-	            			cu = toAdd.getLast().getExtraction().getCompilationUnitWithChanges();
-	            		}
-	            	}
-	            }
+        		refactoredMethods.addAll(refactoredMethodAnalysis);
+        		
+        		// Si hubo extracciones, actualizar el CU para el siguiente análisis
+        		if(refactoredMethodAnalysis.getLast().getExtraction() != null && refactoredMethodAnalysis.getLast().getExtraction().getCompilationUnitWithChanges() != null) {
+        			cu = refactoredMethodAnalysis.getLast().getExtraction().getCompilationUnitWithChanges();
+        		}
             }
     
             return ClassAnalysis.builder()
@@ -161,7 +122,7 @@ public class ComplexityAnalyzer {
         return MethodAnalysisMetricsMapper.toMethodAnalysis(md, currentCc, currentLoc);
     }
 
-    private List<MethodAnalysis> analyzeAndPlanMethod(CompilationUnit cu, MethodDeclaration md) throws CoreException {
+    private List<MethodAnalysis> analyzeAndPlanMethod(CompilationUnit cu, MethodDeclaration md) throws CoreException, IOException {
     	// Defensive: avoid NPE if md is unexpectedly null
         if (md == null) return List.of();
     	// 1) Complejidad cognitiva actual
@@ -187,8 +148,13 @@ public class ComplexityAnalyzer {
         for (Object tObj : types) {
             var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
             for (MethodDeclaration md : typeDecl.getMethods()) {
+                if (md == null) {
+                	continue;
+                }
+                // Omitir métodos generados por extracción
+                if (md.getName() != null && md.getName().getIdentifier().contains("_ext_")) continue;
                 boolean alreadyProcessed = processed.stream().anyMatch(p -> sameSignature(p, md));
-                if (!alreadyProcessed && md != null) {
+                if (!alreadyProcessed) {
                     return md;
                 }
             }
