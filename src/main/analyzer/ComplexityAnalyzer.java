@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -44,26 +45,27 @@ public class ComplexityAnalyzer {
         Set<MethodDeclaration> processedMethods = new LinkedHashSet<>();
         
         String currentSource = icu.getSource();
-        List<MethodAnalysis> currentMethods = new ArrayList<>();
-        List<MethodAnalysis> refactoredMethods = new ArrayList<>();
+        ICompilationUnit icuWorkingCopy = (ICompilationUnit) icu.getWorkingCopy(null);
+        List<MethodAnalysis> currentMethods = new LinkedList<>();
+        List<MethodAnalysis> refactoredMethodAnalysis = new LinkedList<>();
+        List<MethodAnalysis> refactoredMethods = new LinkedList<>();
         try {
-        	
-        	// Analyze methods for current state
-        	 var types = cu.types();
-             for (Object tObj : types) {
-                 var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
-                 for (MethodDeclaration md : typeDecl.getMethods()) {
-         			 if (md == null) {
-         				 continue;
-         			 }
-                 	 MethodAnalysis ma = analyzeMethod(cu, md);
-                 	 if(ma != null) {
-                 		 currentMethods.add(ma);
-                 	 }
-                 }
-             }
+        	// Analizamos todos los métodos inicialmente
+	    	var types = cu.types();
+	        for (Object tObj : types) {
+	        	var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
+	            for (MethodDeclaration md : typeDecl.getMethods()) {
+	            	if (md == null) {
+	            		continue;
+	            	}
+	            	MethodAnalysis ma = analyzeMethod(cu, md);
+	            	if(ma != null) {
+	            		currentMethods.add(ma);
+            		}
+            	}
+	        }
             
-            // Analyze methods for refactored state (if any)
+            // Planificamos extracciones y aplicamos los cambios iterativamente al CompilationUnit
             while(true) {
 	            targetMethod = findNextMethodNeedingRefactor(cu, processedMethods);
 	            
@@ -74,15 +76,36 @@ public class ComplexityAnalyzer {
 	            // Marcar el método como procesado
 	            processedMethods.add(targetMethod);
 	            
-	            List<MethodAnalysis> refactoredMethodAnalysis = analyzeAndPlanMethod(cu, targetMethod);
+	            refactoredMethodAnalysis.addAll(analyzeAndPlanMethod(cu, icuWorkingCopy, targetMethod));
 	            
-        		refactoredMethods.addAll(refactoredMethodAnalysis);
-        		
-        		// Si hubo extracciones, actualizar el CU para el siguiente análisis
-        		if(refactoredMethodAnalysis.getLast().getExtraction() != null && refactoredMethodAnalysis.getLast().getExtraction().getCompilationUnitWithChanges() != null) {
-        			cu = refactoredMethodAnalysis.getLast().getExtraction().getCompilationUnitWithChanges();
-        		}
+	            if(refactoredMethodAnalysis.isEmpty()) {
+	            	// No se han encontrado extracciones para este método, continuar con el siguiente
+	            	continue;
+	            }
+	            
+	            cu = refactoredMethodAnalysis.getLast().getCompilationUnitRefactored();
             }
+            
+            // Analizamos de nuevo el CompilationUnit con los cambios aplicados (si los hay)
+            if (refactoredMethodAnalysis != null && !refactoredMethodAnalysis.isEmpty()) {
+            	types = cu.types();
+    	        for (Object tObj : types) {
+    	        	var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
+    	            for (MethodDeclaration md : typeDecl.getMethods()) {
+    	            	if (md == null) {
+    	            		continue;
+    	            	}
+    	            	MethodAnalysis ma = analyzeMethod(cu, md);
+    	            	if(ma != null) {
+    	            		refactoredMethods.add(ma);
+                		}
+                	}
+    	        }
+    	        
+			} else {
+				// No se hicieron extracciones, el estado refactorizado es igual al actual
+				refactoredMethods = currentMethods;
+			}	
     
             return ClassAnalysis.builder()
                     .icu(icu)
@@ -106,13 +129,15 @@ public class ComplexityAnalyzer {
     }
     
     private MethodAnalysis analyzeMethod(CompilationUnit cu, MethodDeclaration md) {
-        // Defensive: avoid NPE if md is unexpectedly null
-        if (md == null) return null;
-        // 1) Complejidad cognitiva actual
+    	if (md == null) {
+        	return null;
+        }
+        
+        // 1) Analizamos la complejidad cognitiva
         CognitiveComplexityVisitor ccVisitor = new CognitiveComplexityVisitor();
         md.accept(ccVisitor);
         
-        // 2) LOC actuales (aprox. rango de líneas del método)
+        // 2) Analizamos las LOC (aprox. rango de líneas del método)
         int currentCc = ccVisitor.getComplexity();
         int startLine = cu.getLineNumber(md.getStartPosition());
         int endLine = cu.getLineNumber(md.getStartPosition() + md.getLength());
@@ -122,9 +147,10 @@ public class ComplexityAnalyzer {
         return MethodAnalysisMetricsMapper.toMethodAnalysis(md, currentCc, currentLoc);
     }
 
-    private List<MethodAnalysis> analyzeAndPlanMethod(CompilationUnit cu, MethodDeclaration md) throws CoreException, IOException {
-    	// Defensive: avoid NPE if md is unexpectedly null
-        if (md == null) return List.of();
+    private List<MethodAnalysis> analyzeAndPlanMethod(CompilationUnit cu, ICompilationUnit icuWorkingCopy, MethodDeclaration md) throws CoreException, IOException {
+        if (md == null) {
+        	return List.of();
+        }
     	// 1) Complejidad cognitiva actual
         CognitiveComplexityVisitor ccVisitor = new CognitiveComplexityVisitor();
         md.accept(ccVisitor);
@@ -136,7 +162,7 @@ public class ComplexityAnalyzer {
         int currentLoc = Math.max(0, endLine - startLine + 1);
 
         // 3) Invocar a CodeExtractionEngine (usa NEO internamente) para evaluar posibles extracciones y obtener métricas + plan.
-        List<RefactorComparison> comparison = extractionEngine.analyseAndPlan(cu, md, currentCc, currentLoc);
+        List<RefactorComparison> comparison = extractionEngine.analyseAndPlan(cu, icuWorkingCopy, md, currentCc, currentLoc);
 
         // 4) Mapear al modelo de método
         return MethodAnalysisMetricsMapper.toMethodAnalysis(comparison);

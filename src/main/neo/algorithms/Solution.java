@@ -12,6 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -679,6 +680,133 @@ public class Solution {
 		}
 
 		return extractionsApplied;
+	}
+	
+	/**
+	 * Simulate/Apply the list of extract method refactoring operations associated to
+	 * this solution.
+	 * 
+	 * 
+	 * @param simulateCodeExtractions true to simulate code extractions. False to apply to the files.
+	 * @param cu Compilation unit to sustitute the current one in the Solution with others extractions.
+	 * @param icuWorkingCopy 
+	 * @return Compilation unit after applying the code extractions
+	 * @throws CoreException when processing undoing code extractions
+	 */
+	public CompilationUnit applyExtractMethodsToCompilationUnit(boolean simulateCodeExtractions, CompilationUnit cu, ICompilationUnit icuWorkingCopy) throws CoreException {
+		String methodName = null;
+		CodeExtractionMetrics extractionMetrics;
+		Pair current = null, last = null;
+		List<Pair> pairsForExtractions = get();
+		Stack<CodeExtractionMetrics> extractionMetricsStack = new Stack<>();
+
+		compilationUnit = cu;
+		int numberImportedLibraries = compilationUnit.imports().size();
+		int lenghtPreviousImportedLibraries = Utils.lenghtImportDeclaration(compilationUnit);
+		int lenghtImportedLibraries = lenghtPreviousImportedLibraries;
+		int deltaInLengthImportedLibraries = 0;
+		int deltaInNumberImportedLibraries = 0;
+
+
+		// loop for code extractions: from back to front
+		int indexOfExtraction = pairsForExtractions.size() - 1;
+		while (indexOfExtraction >= 0) {
+			current = pairsForExtractions.get(indexOfExtraction);
+
+			// Another extraction was applied (we update code extraction offsets if needed)
+			if (last != null) {
+				// This is initially for efficiency. Thus, we just compute this once in the
+				// while loop
+				ASTNode lastExtractionCall = null;
+				int auxiliarLenght = 0;
+
+				// loop for next code extractions in the list
+				int indexOfExtractionWhenUpdatingOffsets = indexOfExtraction;
+				Pair currentInNextExtractions = current;
+				while (indexOfExtractionWhenUpdatingOffsets >= 0) {
+					// Check if the current extraction length (second offset) must be adapted
+					if (Pair.isContained(last, currentInNextExtractions)) {
+						// Find call to last code extraction in compilation unit
+						if (lastExtractionCall == null) {
+							// We search for the call to the last code extraction
+							lastExtractionCall = new NodeFinder(compilationUnit, last.getA(), 0).getCoveringNode();
+							while (!(lastExtractionCall instanceof SimpleName)
+									|| (lastExtractionCall instanceof SimpleName)
+											&& !((SimpleName) lastExtractionCall).getIdentifier().equals(methodName)) {
+								// When extracting code, file format usually changes (spaces, tabulations,
+								// etc.). In order to control this, we use the auxiliarLenght variable to store
+								// the number of additional characters added.
+								auxiliarLenght++;
+								lastExtractionCall = new NodeFinder(compilationUnit, last.getA() + auxiliarLenght, 0)
+										.getCoveringNode();
+							}
+							if (((SimpleName) lastExtractionCall).getIdentifier().equals(methodName))
+								lastExtractionCall = lastExtractionCall.getParent();
+						}
+						// Compute end-offset of the current code extraction:
+						// subtracting the length of the last code extraction and adding the length of
+						// the call to the extracted method
+						int computedEndPosition;
+						computedEndPosition = currentInNextExtractions.getB() - (last.getB() - last.getA())
+								+ (lastExtractionCall.getLength()) + auxiliarLenght + 1;
+						// Adapt offset in case imported libraries have been modified by a previous
+						// extraction
+						if (deltaInNumberImportedLibraries > 0) {
+							computedEndPosition = computedEndPosition - deltaInLengthImportedLibraries
+									- deltaInNumberImportedLibraries;
+						}
+
+						// update end-offset of the current code extraction
+						currentInNextExtractions.setB(computedEndPosition);
+					}
+
+					// moving to next code extraction for next iteration
+					if (indexOfExtractionWhenUpdatingOffsets > 0)
+						currentInNextExtractions = pairsForExtractions.get(indexOfExtractionWhenUpdatingOffsets - 1);
+
+					indexOfExtractionWhenUpdatingOffsets--;
+				}
+			}
+
+			// Compose method name
+			methodName = this.methodName + "_ext_" + (indexOfExtraction + 1);
+			// We force first character to lower case to be accorded to Java convention
+			methodName = methodName.replaceFirst("^.", methodName.substring(0, 1).toLowerCase());
+
+			// Perform current code extraction
+			int length = current.getB() - current.getA();
+			extractionMetrics = Utils.extractCode(compilationUnit, icuWorkingCopy, current.getA(), length, methodName, simulateCodeExtractions);
+			extractionMetricsStack.push(extractionMetrics);
+			if(extractionMetrics.getCompilationUnitWithChanges() != null) {
+				compilationUnit = extractionMetrics.getCompilationUnitWithChanges();
+			}
+
+			last = current;
+			indexOfExtraction--;
+
+			// If imports have been modified, offsets must be updated
+			if (compilationUnit.imports().size() != numberImportedLibraries) {
+
+				lenghtPreviousImportedLibraries = lenghtImportedLibraries;
+				lenghtImportedLibraries = Utils.lenghtImportDeclaration(compilationUnit);
+
+				deltaInLengthImportedLibraries = lenghtImportedLibraries - lenghtPreviousImportedLibraries;
+				deltaInNumberImportedLibraries = compilationUnit.imports().size() - numberImportedLibraries;
+				for (int index = indexOfExtraction; index >= 0; index--) {
+					pairsForExtractions.get(index).setA(pairsForExtractions.get(index).getA()
+							+ deltaInLengthImportedLibraries + deltaInNumberImportedLibraries);
+					pairsForExtractions.get(index).setB(pairsForExtractions.get(index).getB()
+							+ deltaInLengthImportedLibraries + deltaInNumberImportedLibraries);
+				}
+
+				numberImportedLibraries = compilationUnit.imports().size();
+			} else {
+				deltaInLengthImportedLibraries = 0;
+				deltaInNumberImportedLibraries = 0;
+			}
+		}
+
+		return compilationUnit;
 	}
 
 	/**
