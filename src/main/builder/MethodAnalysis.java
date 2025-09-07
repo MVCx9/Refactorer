@@ -1,23 +1,17 @@
 package main.builder;
 
-import java.util.List;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 
-import org.eclipse.jdt.core.dom.MethodDeclaration;
-
-import main.model.change.ExtractionPlan;
-import main.neo.cem.CodeExtractionMetrics;
 import main.neo.cem.CodeExtractionMetricsStats;
 
 public class MethodAnalysis {
 	private final String methodName;
-	private final int currentCc;
-	private final int currentLoc;
-	private final int refactoredCc;
-	private final int refactoredLoc;
-	private final CodeExtractionMetrics extraction;
+	private final int cc;
+	private final int loc;
+	private final int reducedComplexity;
+	private final int numberOfExtractions;
+	private final CompilationUnit compilationUnitRefactored;
 	private final CodeExtractionMetricsStats stats;
-	private final ExtractionPlan doPlan;
-	private final ExtractionPlan undoPlan;
 
 	public static Builder builder() {
 		return new Builder();
@@ -25,90 +19,78 @@ public class MethodAnalysis {
 
 	private MethodAnalysis(Builder b) {
 		this.methodName = b.methodName;
-		this.currentCc = b.currentCc;
-		this.currentLoc = b.currentLoc;
-		this.refactoredCc = b.refactoredCc;
-		this.refactoredLoc = b.refactoredLoc;
-		this.extraction = b.extraction;
+		this.cc = b.cc;
+		this.loc = b.loc;
+		this.reducedComplexity = b.reducedComplexity;
+		this.numberOfExtractions = b.numberOfExtractions;
+		this.compilationUnitRefactored = b.compilationUnitRefactored;
 		this.stats = b.stats;
-		this.doPlan = b.doPlan;
-		this.undoPlan = b.undoPlan;
 	}
 
 	public String getMethodName() {
 		return methodName;
 	}
 	
-	public int getCurrentCc() {
-		return currentCc;
+	public int getCc() {
+		return cc;
 	}
 
-	public int getCurrentLoc() {
-		return currentLoc;
+	public int getLoc() {
+		return loc;
 	}
-
-	public int getRefactoredCc() {
-		return refactoredCc;
+	
+	public int getReducedComplexity() {
+		return reducedComplexity;
 	}
-
-	public int getRefactoredLoc() {
-		return refactoredLoc;
+	
+	public int getNumberOfExtractions() {
+		return numberOfExtractions;
 	}
-
-	public CodeExtractionMetrics getExtraction() {
-		return extraction;
+	
+	public CompilationUnit getCompilationUnitRefactored() {
+		return compilationUnitRefactored;
 	}
 
 	public CodeExtractionMetricsStats getStats() {
 		return stats;
 	}
 
-	public ExtractionPlan getDoPlan() {
-		return doPlan;
-	}
-
-	public ExtractionPlan getUndoPlan() {
-		return undoPlan;
-	}
-	
 	public static class Builder {
 		private String methodName;
-		private int currentCc;
-		private int currentLoc;
-		private int refactoredCc;
-		private int refactoredLoc;
-		private CodeExtractionMetrics extraction = null;
+		private int cc;
+		private int loc;
+		private int reducedComplexity;
+		private int numberOfExtractions;
+		private CompilationUnit compilationUnitRefactored;
 		private CodeExtractionMetricsStats stats = null;
-		private ExtractionPlan doPlan = new ExtractionPlan(List.of());
-		private ExtractionPlan undoPlan = new ExtractionPlan(List.of());
 
 		public Builder methodName(String v) {
 			this.methodName = v;
 			return this;
 		}
 		
-		public Builder currentCc(int v) {
-			this.currentCc = v;
+		public Builder cc(int v) {
+			this.cc = v;
 			return this;
 		}
 
-		public Builder currentLoc(int v) {
-			this.currentLoc = v;
+		public Builder loc(int v) {
+			this.loc = v;
 			return this;
 		}
-
-		public Builder refactoredCc(int v) {
-			this.refactoredCc = v;
+		
+		public Builder reducedComplexity(int v) {
+			this.reducedComplexity = v;
 			return this;
 		}
-
-		public Builder refactoredLoc(int v) {
-			this.refactoredLoc = v;
+		
+		public Builder numberOfExtractions(int v) {
+			this.numberOfExtractions = v;
 			return this;
 		}
-
-		public Builder extraction(CodeExtractionMetrics v) {
-			this.extraction = v;
+		
+		public Builder compilationUnitRefactored(CompilationUnit v) {
+			this.compilationUnitRefactored = v;
 			return this;
 		}
 
@@ -117,16 +99,6 @@ public class MethodAnalysis {
 			return this;
 		}
 
-		public Builder doPlan(ExtractionPlan v) {
-			this.doPlan = v;
-			return this;
-		}
-
-		public Builder undoPlan(ExtractionPlan v) {
-			this.undoPlan = v;
-			return this;
-		}
-		
 		public MethodAnalysis build() {
 			return new MethodAnalysis(this);
 		}

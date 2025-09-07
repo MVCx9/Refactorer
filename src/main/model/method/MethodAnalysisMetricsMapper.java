@@ -1,16 +1,11 @@
 package main.model.method;
 
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 
 import main.builder.MethodAnalysis;
-import main.model.change.ExtractionPlan;
-import main.neo.cem.CodeExtractionMetrics;
-import main.neo.cem.CodeExtractionMetricsStats;
 import main.refactor.RefactorComparison;
 
 public final class MethodAnalysisMetricsMapper {
@@ -22,15 +17,11 @@ public final class MethodAnalysisMetricsMapper {
 	}
 	
 	private static MethodMetrics toMethodMetrics(MethodAnalysis ma) {
-		ExtractionPlan applyPlan = ma.getDoPlan() != null ? ma.getDoPlan() : new ExtractionPlan(Collections.emptyList());
-		ExtractionPlan undoPlan = ma.getUndoPlan() != null ? ma.getUndoPlan() : new ExtractionPlan(Collections.emptyList());
 		
 		return MethodMetrics.builder()
 			.name(ma.getMethodName())
-			.loc(ma.getRefactoredLoc())
-			.cc(ma.getRefactoredCc())
-			.doPlan(applyPlan)
-			.undoPlan(undoPlan)
+			.cc(ma.getCc())
+			.loc(ma.getLoc())
 			.build();
 	}
 
@@ -38,27 +29,16 @@ public final class MethodAnalysisMetricsMapper {
 		
 		List<MethodAnalysis> result = new LinkedList<>();
 		
-		List<CodeExtractionMetrics> metricsList = comparison.stream()
-			.map(RefactorComparison::getExtraction)
-			.filter(Objects::nonNull)
-			.toList();
-		CodeExtractionMetricsStats stats = null;
-		
-		if(!metricsList.isEmpty()) {
-			stats = new CodeExtractionMetricsStats(metricsList.toArray(new CodeExtractionMetrics[0]));
-		}
 		
 		for (RefactorComparison c : comparison) {
 			MethodAnalysis m = MethodAnalysis.builder()
 			.methodName(c.getName())
-			.currentCc(c.getOriginalCc())
-			.currentLoc(c.getOriginalLoc())
-			.refactoredCc(c.getRefactoredCc())
-			.refactoredLoc(c.getRefactoredLoc())
-			.extraction(c.getExtraction())
-			.stats(stats)
-			.doPlan(c.getDoPlan())
-			.undoPlan(c.getUndoPlan())
+			.cc(0)
+			.loc(0)
+			.numberOfExtractions(c.getNumberOfExtractions())
+			.reducedComplexity(c.getReducedComplexity())
+			.compilationUnitRefactored(c.getCompilationUnitRefactored())
+			.stats(c.getStats())
 			.build();
 			
 			result.add(m);
@@ -70,14 +50,12 @@ public final class MethodAnalysisMetricsMapper {
 	public static MethodAnalysis toMethodAnalysis(MethodDeclaration md, int currentCc, int currentLoc) {
 		return MethodAnalysis.builder()
 			.methodName(md.getName().getIdentifier())
-			.currentCc(currentCc)
-			.currentLoc(currentLoc)
-			.refactoredCc(currentCc)
-			.refactoredLoc(currentLoc)
-			.extraction(null)
+			.cc(currentCc)
+			.loc(currentLoc)
+			.reducedComplexity(0)
+			.numberOfExtractions(0)
+			.compilationUnitRefactored(null)
 			.stats(null)
-			.doPlan(new ExtractionPlan(Collections.emptyList()))
-			.undoPlan(new ExtractionPlan(Collections.emptyList()))
 			.build();
 	}
 }

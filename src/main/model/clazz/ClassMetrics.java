@@ -4,8 +4,6 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
-import main.common.utils.Utils;
-import main.model.change.ExtractionPlan;
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
 import main.model.common.LocStats;
@@ -70,6 +68,14 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	public int getRefactoredLoc() {
 		return refactoredMethods.stream().mapToInt(MethodMetrics::getLoc).sum();
 	}
+	
+	public int getReducedComplexity() {
+		return getCurrentCc() - getRefactoredCc();
+	}
+	
+	public int getReducedLoc() {
+		return getCurrentLoc() - getRefactoredLoc();
+	}
 
 	public int getAverageCurrentLoc() {
 		return averageCurrent(MethodMetrics::getLoc);
@@ -87,6 +93,14 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		return averageRefactored(MethodMetrics::getLoc);
 	}
 	
+	public int getAverageReducedComplexity() {
+		return getAverageCurrentCc() - getAverageRefactoredCc();
+	}
+	
+	public int getAverageReducedLoc() {
+		return getAverageCurrentLoc() - getAverageRefactoredLoc();
+	}
+	
 	public int getCurrentMethodCount() {
 		return currentMethods.size();
 	}
@@ -95,14 +109,6 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		return refactoredMethods.size();
 	}
 
-	public List<ExtractionPlan> getDoPlan() {
-		return refactoredMethods.stream().map(MethodMetrics::getDoPlan).toList();
-	}
-	
-	public List<ExtractionPlan> getUndoPlan() {
-		return Utils.reverse(refactoredMethods.stream().map(MethodMetrics::getUndoPlan).toList());
-	}
-	
 	private int averageCurrent(java.util.function.ToIntFunction<MethodMetrics> mapper) {
 		return (int) Math.round(currentMethods.stream().mapToInt(mapper).average().orElse(0.0));
 	}
