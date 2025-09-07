@@ -179,6 +179,9 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             metric(right, "Métodos", String.valueOf(cm.getRefactoredMethodCount()));
             metric(right, "Media LOC por método", String.valueOf(cm.getAverageRefactoredLoc()));
             metric(right, "Media CC por método", String.valueOf(cm.getAverageRefactoredCc()));
+            metric(right, "Métodos extraídos", String.valueOf(cm.getRefactoredMethodCount() - cm.getCurrentMethodCount()));
+            metric(right, "Reducción de CC", String.valueOf(cm.getReducedComplexity()));
+            metric(right, "Reducción de LOC", String.valueOf(cm.getReducedLoc()));
 
         } else if (metrics instanceof ProjectMetrics) {
             ProjectMetrics pm = (ProjectMetrics) metrics;
@@ -193,6 +196,10 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             metric(right, "Media métodos por clase", String.valueOf(pm.getAverageRefactoredMethodCount()));
             metric(right, "Media LOC por clase", String.valueOf(pm.getAverageRefactoredLoc()));
             metric(right, "Media CC por clase", String.valueOf(pm.getAverageRefactoredCc()));
+            metric(right, "Métodos extraídos", String.valueOf(pm.getRefactoredMethodCount() - pm.getCurrentMethodCount()));
+            metric(right, "Reducción de CC", String.valueOf(pm.getReducedComplexity()));
+            metric(right, "Reducción de LOC", String.valueOf(pm.getReducedLoc()));
+            
         } else if (metrics instanceof WorkspaceMetrics) {
             WorkspaceMetrics wm = (WorkspaceMetrics) metrics;
             metric(left, "Proyectos", String.valueOf(wm.getProjects().size()));
@@ -206,6 +213,9 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             metric(right, "Media métodos por projecto", String.valueOf(wm.getAverageRefactoredMethodCount()));
             metric(right, "Media LOC por proyecto", String.valueOf(wm.getAverageRefactoredLoc()));
             metric(right, "Media CC por proyecto", String.valueOf(wm.getAverageRefactoredCc()));
+            metric(right, "Métodos extraídos", String.valueOf(wm.getRefactoredMethodCount() - wm.getCurrentMethodCount()));
+            metric(right, "Reducción de CC", String.valueOf(wm.getReducedComplexity()));
+            metric(right, "Reducción de LOC", String.valueOf(wm.getReducedLoc()));
         }
     }
 
