@@ -180,8 +180,6 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             metric(right, "Media LOC por método", String.valueOf(cm.getAverageRefactoredLoc()));
             metric(right, "Media CC por método", String.valueOf(cm.getAverageRefactoredCc()));
             metric(right, "Métodos extraídos", String.valueOf(cm.getRefactoredMethodCount() - cm.getCurrentMethodCount()));
-            metric(right, "Reducción de CC", String.valueOf(cm.getReducedComplexity()));
-            metric(right, "Reducción de LOC", String.valueOf(cm.getReducedLoc()));
 
         } else if (metrics instanceof ProjectMetrics) {
             ProjectMetrics pm = (ProjectMetrics) metrics;
@@ -197,16 +195,12 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             metric(right, "Media LOC por clase", String.valueOf(pm.getAverageRefactoredLoc()));
             metric(right, "Media CC por clase", String.valueOf(pm.getAverageRefactoredCc()));
             metric(right, "Métodos extraídos", String.valueOf(pm.getRefactoredMethodCount() - pm.getCurrentMethodCount()));
-            metric(right, "Reducción de CC", String.valueOf(pm.getReducedComplexity()));
-            metric(right, "Reducción de LOC", String.valueOf(pm.getReducedLoc()));
             
         } else if (metrics instanceof WorkspaceMetrics) {
             WorkspaceMetrics wm = (WorkspaceMetrics) metrics;
             metric(left, "Proyectos", String.valueOf(wm.getProjects().size()));
             metric(left, "Métodos", String.valueOf(wm.getCurrentMethodCount()));
             metric(left, "Media métodos por projecto", String.valueOf(wm.getAverageCurrentMethodCount()));
-            metric(left, "Media LOC por proyecto", String.valueOf(wm.getAverageCurrentLoc()));
-            metric(left, "Media CC por proyecto", String.valueOf(wm.getAverageCurrentCc()));
 
             metric(right, "Proyectos", String.valueOf(wm.getProjects().size()));
             metric(right, "Métodos", String.valueOf(wm.getRefactoredMethodCount()));
@@ -214,8 +208,6 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             metric(right, "Media LOC por proyecto", String.valueOf(wm.getAverageRefactoredLoc()));
             metric(right, "Media CC por proyecto", String.valueOf(wm.getAverageRefactoredCc()));
             metric(right, "Métodos extraídos", String.valueOf(wm.getRefactoredMethodCount() - wm.getCurrentMethodCount()));
-            metric(right, "Reducción de CC", String.valueOf(wm.getReducedComplexity()));
-            metric(right, "Reducción de LOC", String.valueOf(wm.getReducedLoc()));
         }
     }
 
