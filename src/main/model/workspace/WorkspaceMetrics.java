@@ -107,6 +107,10 @@ public class WorkspaceMetrics implements Identifiable, ComplexityStats, LocStats
 	public int getReducedLoc() {
 		return getCurrentLoc() - getRefactoredLoc();
 	}
+	
+	public int getMethodExtractionCount() {
+		return getRefactoredMethodCount() - getCurrentMethodCount();
+	}
 
 	private int average(java.util.function.ToIntFunction<ProjectMetrics> mapper) {
 		return (int) Math.round(projects.stream().mapToInt(mapper).average().orElse(0.0));

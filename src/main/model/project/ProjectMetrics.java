@@ -111,6 +111,10 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 	public int getReducedLoc() {
 		return getCurrentLoc() - getRefactoredLoc();
 	}
+	
+	public int getMethodExtractionCount() {
+		return getRefactoredMethodCount() - getCurrentMethodCount();
+	}
 
 	private int average(java.util.function.ToIntFunction<ClassMetrics> mapper) {
 		return (int) Math.round(classes.stream().mapToInt(mapper).average().orElse(0.0));

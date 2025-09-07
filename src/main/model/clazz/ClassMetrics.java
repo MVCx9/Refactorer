@@ -3,6 +3,7 @@ package main.model.clazz;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
@@ -108,14 +109,6 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	public int getRefactoredMethodCount() {
 		return refactoredMethods.size();
 	}
-
-	private int averageCurrent(java.util.function.ToIntFunction<MethodMetrics> mapper) {
-		return (int) Math.round(currentMethods.stream().mapToInt(mapper).average().orElse(0.0));
-	}
-	
-	private int averageRefactored(java.util.function.ToIntFunction<MethodMetrics> mapper) {
-		return (int) Math.round(refactoredMethods.stream().mapToInt(mapper).average().orElse(0.0));
-	}
 	
 	public String getRefactoredSource() {
 		return refactoredSource;
@@ -123,6 +116,18 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	
 	public String getCurrentSource() {
 		return currentSource;
+	}
+	
+	public int getMethodExtractionCount() {
+		return getRefactoredMethodCount() - getCurrentMethodCount();
+	}
+
+	private int averageCurrent(java.util.function.ToIntFunction<MethodMetrics> mapper) {
+		return (int) Math.round(currentMethods.stream().mapToInt(mapper).average().orElse(0.0));
+	}
+	
+	private int averageRefactored(java.util.function.ToIntFunction<MethodMetrics> mapper) {
+		return (int) Math.round(refactoredMethods.stream().mapToInt(mapper).average().orElse(0.0));
 	}
 
 	public static class ClassMetricsBuilder {
@@ -171,4 +176,31 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		}
 	}
 
+	@Override
+	public int hashCode() {
+		return Objects.hash(analysisDate, currentMethods, currentSource, name, refactoredMethods, refactoredSource);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ClassMetrics other = (ClassMetrics) obj;
+		return Objects.equals(analysisDate, other.analysisDate) && Objects.equals(currentMethods, other.currentMethods)
+				&& Objects.equals(currentSource, other.currentSource) && Objects.equals(name, other.name)
+				&& Objects.equals(refactoredMethods, other.refactoredMethods)
+				&& Objects.equals(refactoredSource, other.refactoredSource);
+	}
+
+	@Override
+	public String toString() {
+		return "ClassMetrics [name=" + name + ", analysisDate=" + analysisDate + ", currentMethods=" + currentMethods
+				+ ", refactoredMethods=" + refactoredMethods + ", currentSource=" + currentSource
+				+ ", refactoredSource=" + refactoredSource + "]";
+	}
+	
 }
