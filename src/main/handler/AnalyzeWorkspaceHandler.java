@@ -10,6 +10,7 @@ import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.ui.handlers.HandlerUtil;
 
 import main.builder.ProjectAnalysis;
 import main.builder.ProjectFilesAnalyzer;
@@ -21,6 +22,7 @@ import main.model.workspace.WorkspaceMetrics;
 import main.session.ActionType;
 import main.session.SessionAnalysisStore;
 import main.ui.AnalysisMetricsDialog;
+import main.ui.AnalysisNoRefactorDialog;
 
 public class AnalyzeWorkspaceHandler extends AbstractHandler {
 
@@ -54,7 +56,11 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
 
         WorkspaceMetrics workspaceMetrics = WorkspaceAnalysisMetricsMapper.toWorkspaceMetrics(workspaceAnalysis);
         SessionAnalysisStore.getInstance().register(ActionType.WORKSPACE, workspaceMetrics);
-        new AnalysisMetricsDialog(org.eclipse.ui.handlers.HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
+        if (workspaceMetrics.getMethodExtractionCount() == 0) {
+            new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
+            return null;
+        }
+        new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
         return null;
     }
 

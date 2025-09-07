@@ -15,6 +15,7 @@ import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 import main.analyzer.ComplexityAnalyzer;
 import main.common.error.AnalyzeException;
@@ -31,8 +32,9 @@ public class ProjectFilesAnalyzer {
 	}
 
 	/**
-	 * Analiza un fichero .java (IFile) devolviendo un FileAnalysis con las clases y
-	 * sus métodos evaluados (actual vs refactorizado).
+	 * Analiza un fichero .java (IFile) devolviendo un ClassAnalysis solo si el fichero
+	 * contiene al menos una clase top-level. Se ignoran ficheros que solo definan
+	 * enum, interface o record. Devuelve null si no hay ninguna clase.
 	 */
 	public ClassAnalysis analyzeFile(IFile file) throws CoreException {
 		Objects.requireNonNull(file, "file");
@@ -44,6 +46,25 @@ public class ProjectFilesAnalyzer {
 			}
 
 			CompilationUnit cu = Utils.parserAST(icu);
+
+			// Comprobar si existe al menos una clase (TypeDeclaration que no sea interface)
+			@SuppressWarnings("unchecked")
+			List<Object> topLevelTypes = cu.types();
+			boolean hasClass = false;
+			for (Object t : topLevelTypes) {
+				if (t instanceof TypeDeclaration) { // TypeDeclaration cubre class o interface
+					TypeDeclaration td = (TypeDeclaration) t;
+					if (!td.isInterface()) { // es una clase
+						hasClass = true;
+						break;
+					}
+				}
+				// EnumDeclaration y RecordDeclaration NO son TypeDeclaration (y por tanto se ignoran)
+			}
+
+			if (!hasClass) {
+				return null; // skip enums / interfaces / records only
+			}
 
 			return analyzer.analyze(cu, icu);
 
@@ -77,7 +98,10 @@ public class ProjectFilesAnalyzer {
 					IFile file = (IFile) icu.getResource();
 					if (file == null)
 						continue;
-					analyses.add(analyzeFile(file));
+					ClassAnalysis ca = analyzeFile(file);
+					if (ca != null) { // ignore non-class units
+						analyses.add(ca);
+					}
 				}
 			}
 		}

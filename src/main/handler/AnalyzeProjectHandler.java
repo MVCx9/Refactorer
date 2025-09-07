@@ -30,6 +30,7 @@ import main.model.project.ProjectMetrics;
 import main.session.ActionType;
 import main.session.SessionAnalysisStore;
 import main.ui.AnalysisMetricsDialog;
+import main.ui.AnalysisNoRefactorDialog;
 
 public class AnalyzeProjectHandler extends AbstractHandler {
 
@@ -83,6 +84,10 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 
 		ProjectMetrics metrics = ProjectAnalysisMetricsMapper.toProjectMetrics(analysis);
 		SessionAnalysisStore.getInstance().register(ActionType.PROJECT, metrics);
+        if (metrics.getMethodExtractionCount() == 0) {
+            new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.PROJECT, metrics).open();
+            return null;
+        }
 		new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.PROJECT, metrics).open();
 		return null;
 	}
