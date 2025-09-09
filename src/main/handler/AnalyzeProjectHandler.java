@@ -31,6 +31,7 @@ import main.session.ActionType;
 import main.session.SessionAnalysisStore;
 import main.ui.AnalysisMetricsDialog;
 import main.ui.AnalysisNoRefactorDialog;
+import main.ui.ErrorDetailsDialog;
 
 public class AnalyzeProjectHandler extends AbstractHandler {
 
@@ -74,7 +75,8 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 				}
 			}
 		} catch (CoreException e) {
-			throw new AnalyzeException("Error analyzing project", e);
+			AnalyzeException error = new AnalyzeException("Error analyzing project", e);
+			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
 		}
 
 		ProjectAnalysis analysis = ProjectAnalysis.builder()
@@ -84,10 +86,12 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 
 		ProjectMetrics metrics = ProjectAnalysisMetricsMapper.toProjectMetrics(analysis);
 		SessionAnalysisStore.getInstance().register(ActionType.PROJECT, metrics);
-        if (metrics.getMethodExtractionCount() == 0) {
+        
+		if (metrics.getMethodExtractionCount() == 0) {
             new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.PROJECT, metrics).open();
             return null;
         }
+		
 		new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.PROJECT, metrics).open();
 		return null;
 	}

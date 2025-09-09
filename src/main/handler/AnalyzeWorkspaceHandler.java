@@ -23,6 +23,7 @@ import main.session.ActionType;
 import main.session.SessionAnalysisStore;
 import main.ui.AnalysisMetricsDialog;
 import main.ui.AnalysisNoRefactorDialog;
+import main.ui.ErrorDetailsDialog;
 
 public class AnalyzeWorkspaceHandler extends AbstractHandler {
 
@@ -44,7 +45,8 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
                     projectAnalyses.add(analysis);
                 }
             } catch (CoreException e) {
-                throw new AnalyzeException("Error analyzing project: " + project.getName(), e);
+            	AnalyzeException error = new AnalyzeException("Error analyzing project", e);
+    			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
             }
         }
 
@@ -56,10 +58,12 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
 
         WorkspaceMetrics workspaceMetrics = WorkspaceAnalysisMetricsMapper.toWorkspaceMetrics(workspaceAnalysis);
         SessionAnalysisStore.getInstance().register(ActionType.WORKSPACE, workspaceMetrics);
+        
         if (workspaceMetrics.getMethodExtractionCount() == 0) {
             new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
             return null;
         }
+        
         new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
         return null;
     }

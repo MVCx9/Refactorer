@@ -20,6 +20,7 @@ import main.session.ActionType;
 import main.session.SessionAnalysisStore;
 import main.ui.AnalysisMetricsDialog;
 import main.ui.AnalysisNoRefactorDialog;
+import main.ui.ErrorDetailsDialog;
 
 public class AnalyzeSingleFileHandler extends AbstractHandler {
 
@@ -78,8 +79,11 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 				.open();
 			
 			return null;
+			
 		} catch (Exception e) {
-			throw new AnalyzeException("Error analyzing class", e);
+			AnalyzeException error = new AnalyzeException("Error analyzing class", e);
+			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
+			return null;
 		}
 	}
 
