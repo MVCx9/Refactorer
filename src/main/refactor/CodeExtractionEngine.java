@@ -29,41 +29,42 @@ public final class CodeExtractionEngine {
 	 * Analiza un método, busca posibles extracciones de código con la heurística de
 	 * NEO y devuelve un {@link MethodMetrics} rellenado con:
 	 * <ul>
-	 * <li>Complejidad y LOC actuales vs. tras refactorización</li>
-	 * <li>Número de métodos extraídos</li>
-	 * <li>Planes de cambio para aplicar / deshacer</li>
+	 * <li>Complejidad y LOC</li>
+	 * <li>Compilation Unit con los cambios aplicados</li>
 	 * </ul>
 	 * 
 	 * @param cu         unidad de compilación que contiene el método
 	 * @param icuWorkingCopy 
 	 * @param node       declaración del método a analizar
-	 * @param currentCc  complejidad cognitiva actual del método
-	 * @param currentLoc líneas de código actuales del método
+	 * @param cc  complejidad cognitiva actual del método
+	 * @param loc líneas de código actuales del método
+	 * @param loc 
 	 * @return métricas completas para el método
 	 * @throws CoreException propagadas desde el modelo de refactorización de
 	 *                       Eclipse
 	 * @throws IOException 
 	 */
-	public List<RefactorComparison> analyseAndPlan(CompilationUnit cu, ICompilationUnit icuWorkingCopy, MethodDeclaration node, int currentCc, int currentLoc) throws CoreException, IOException {
-		if (node == null || cu == null || currentCc <= Constants.MAX_COMPLEXITY) {
+	public static List<RefactorComparison> analyseAndPlan(CompilationUnit cu, ICompilationUnit icuWorkingCopy, MethodDeclaration node, int loc) throws CoreException, IOException {
+		RefactoringCache cache = new RefactoringCache(cu);
+		int cc = main.neo.cem.Utils.computeAndAnnotateAccumulativeCognitiveComplexity(node);
+
+		if (node == null || cu == null || cc <= Constants.MAX_COMPLEXITY) {
 			return Collections.emptyList();
 		}
 
 		List<RefactorComparison> result = new LinkedList<>();
-		
-		// set accumulative cognitive complexity properties in AST nodes
-		RefactoringCache cache = new RefactoringCache(cu);
-		main.neo.cem.Utils.computeAndAnnotateAccumulativeCognitiveComplexity(node);
+				
+		// Llenar caché de refactorizaciones
 		RefactoringCacheFiller.exhaustiveEnumerationAlgorithm(cache, node);
 		
-		/* Pick an algorithm to select the sequences
+		/* Ejecutar algoritmo de búsqueda exhaustiva
 		 * Constants.EXHAUSTIVE_SEARCH_LONG_SEQUENCES_FIRST: APPROACH.LONG_SEQUENCE_FIRST
 		 * Constants.EXHAUSTIVE_SEARCH_SHORT_SEQUENCES_FIRST: APPROACH.SHORT_SEQUENCE_FIRST
 		 */
 		List<Solution> solutions = new LinkedList<>();
 		Solution solution = new Solution(cu, node);
 		solution = new EnumerativeSearch()
-				.run(APPROACH.LONG_SEQUENCE_FIRST, cu, cache, node, currentCc);
+				.run(APPROACH.LONG_SEQUENCE_FIRST, cu, cache, node, cc);
 		
 		if (solution != null && solution.getSequenceList() != null && solution.getSequenceList().isEmpty()) {
 			return Collections.emptyList();
@@ -76,8 +77,8 @@ public final class CodeExtractionEngine {
 			result.add(RefactorComparison.builder()
 				.name(sol.getMethodName())
 				.compilationUnitRefactored(cu)
-				.reducedComplexity(currentCc)
-				.numberOfExtractions(currentLoc)
+				.reducedComplexity(sol.getReducedComplexity())
+				.numberOfExtractions(sol.getSize())
 				.stats(sol.getExtractionMetricsStats())
 				.build());
 		}

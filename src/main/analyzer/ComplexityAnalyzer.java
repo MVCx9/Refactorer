@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -28,12 +27,6 @@ import main.refactor.CodeExtractionEngine;
 import main.refactor.RefactorComparison;
 
 public class ComplexityAnalyzer {
-
-    private final CodeExtractionEngine extractionEngine;
-
-    public ComplexityAnalyzer(CodeExtractionEngine extractionEngine) {
-        this.extractionEngine = Objects.requireNonNull(extractionEngine, "extractionEngine");
-    }
 
     /**
      * Analiza un ICompilationUnit y devuelve el análisis de la(s) clase(s) que
@@ -134,35 +127,29 @@ public class ComplexityAnalyzer {
         }
         
         // 1) Analizamos la complejidad cognitiva
-        CognitiveComplexityVisitor ccVisitor = new CognitiveComplexityVisitor();
-        md.accept(ccVisitor);
+		int cc = main.neo.cem.Utils.computeAndAnnotateAccumulativeCognitiveComplexity(md);
         
         // 2) Analizamos las LOC (aprox. rango de líneas del método)
-        int currentCc = ccVisitor.getComplexity();
         int startLine = cu.getLineNumber(md.getStartPosition());
         int endLine = cu.getLineNumber(md.getStartPosition() + md.getLength());
-        int currentLoc = Math.max(0, endLine - startLine + 1);
+        int loc = Math.max(0, endLine - startLine + 1);
         
         // 3) Mapear al modelo de método
-        return MethodAnalysisMetricsMapper.toMethodAnalysis(md, currentCc, currentLoc);
+        return MethodAnalysisMetricsMapper.toMethodAnalysis(md, cc, loc);
     }
 
     private List<MethodAnalysis> analyzeAndPlanMethod(CompilationUnit cu, ICompilationUnit icuWorkingCopy, MethodDeclaration md) throws CoreException, IOException {
         if (md == null) {
         	return List.of();
         }
-    	// 1) Complejidad cognitiva actual
-        CognitiveComplexityVisitor ccVisitor = new CognitiveComplexityVisitor();
-        md.accept(ccVisitor);
 
-        // 2) LOC actuales (aprox. rango de líneas del método)
-        int currentCc = ccVisitor.getComplexity();
+        // 1) LOC (Lineas De Código aprox. rango de líneas del método)
         int startLine = cu.getLineNumber(md.getStartPosition());
         int endLine = cu.getLineNumber(md.getStartPosition() + md.getLength());
-        int currentLoc = Math.max(0, endLine - startLine + 1);
+        int loc = Math.max(0, endLine - startLine + 1);
 
         // 3) Invocar a CodeExtractionEngine (usa NEO internamente) para evaluar posibles extracciones y obtener métricas + plan.
-        List<RefactorComparison> comparison = extractionEngine.analyseAndPlan(cu, icuWorkingCopy, md, currentCc, currentLoc);
+        List<RefactorComparison> comparison = CodeExtractionEngine.analyseAndPlan(cu, icuWorkingCopy, md,  loc);
 
         // 4) Mapear al modelo de método
         return MethodAnalysisMetricsMapper.toMethodAnalysis(comparison);

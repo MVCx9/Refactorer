@@ -20,15 +20,13 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import main.analyzer.ComplexityAnalyzer;
 import main.common.error.AnalyzeException;
 import main.common.utils.Utils;
-import main.refactor.CodeExtractionEngine;
 
 public class ProjectFilesAnalyzer {
 
 	private final ComplexityAnalyzer analyzer;
 
 	public ProjectFilesAnalyzer() {
-		CodeExtractionEngine engine = new CodeExtractionEngine();
-		this.analyzer = new ComplexityAnalyzer(engine);
+		this.analyzer = new ComplexityAnalyzer();
 	}
 
 	/**
