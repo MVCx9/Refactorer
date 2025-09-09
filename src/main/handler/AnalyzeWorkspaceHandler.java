@@ -9,7 +9,6 @@ import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.ui.handlers.HandlerUtil;
 
 import main.builder.ProjectAnalysis;
@@ -37,35 +36,37 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
         ProjectFilesAnalyzer analyzer = new ProjectFilesAnalyzer();
         List<ProjectAnalysis> projectAnalyses = new ArrayList<>();
 
-        for (IProject project : eclipseProjects) {
-            if (project == null || !project.isOpen()) continue;
-            try {
-                ProjectAnalysis analysis = analyzer.analyzeProject(project);
-                if (analysis != null) {
-                    projectAnalyses.add(analysis);
-                }
-            } catch (CoreException e) {
-            	AnalyzeException error = new AnalyzeException("Error analyzing project", e);
-    			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
-            }
-        }
-
-        WorkspaceAnalysis workspaceAnalysis = WorkspaceAnalysis.builder()
-                .name("My Workspace")
-                .analysisDate(LocalDateTime.now())
-                .projects(projectAnalyses)
-                .build();
-
-        WorkspaceMetrics workspaceMetrics = WorkspaceAnalysisMetricsMapper.toWorkspaceMetrics(workspaceAnalysis);
-        SessionAnalysisStore.getInstance().register(ActionType.WORKSPACE, workspaceMetrics);
+        try {
+	        for (IProject project : eclipseProjects) {
+	            if (project == null || !project.isOpen()) continue;
+	                ProjectAnalysis analysis = analyzer.analyzeProject(project);
+	                if (analysis != null) {
+	                    projectAnalyses.add(analysis);
+	                }
+	        }
+	
+	        WorkspaceAnalysis workspaceAnalysis = WorkspaceAnalysis.builder()
+	                .name("My Workspace")
+	                .analysisDate(LocalDateTime.now())
+	                .projects(projectAnalyses)
+	                .build();
+	
+	        WorkspaceMetrics workspaceMetrics = WorkspaceAnalysisMetricsMapper.toWorkspaceMetrics(workspaceAnalysis);
+	        SessionAnalysisStore.getInstance().register(ActionType.WORKSPACE, workspaceMetrics);
+	        
+	        if (workspaceMetrics.getMethodExtractionCount() == 0) {
+	            new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
+	            return null;
+	        }
+	        
+	        new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
+	        return null;
         
-        if (workspaceMetrics.getMethodExtractionCount() == 0) {
-            new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
-            return null;
+        } catch (Throwable e) {
+	    	AnalyzeException error = new AnalyzeException("Error analyzing project", e);
+			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
+			return null;
         }
-        
-        new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
-        return null;
     }
 
 }

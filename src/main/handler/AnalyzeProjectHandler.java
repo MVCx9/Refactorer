@@ -8,7 +8,6 @@ import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
@@ -74,10 +73,6 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 					}
 				}
 			}
-		} catch (CoreException e) {
-			AnalyzeException error = new AnalyzeException("Error analyzing project", e);
-			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
-		}
 
 		ProjectAnalysis analysis = ProjectAnalysis.builder()
 				.project(project)
@@ -94,6 +89,12 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 		
 		new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.PROJECT, metrics).open();
 		return null;
+		
+		} catch (Throwable e) {
+			AnalyzeException error = new AnalyzeException("Error analyzing project", e);
+			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
+			return null;
+		}
 	}
 
 }

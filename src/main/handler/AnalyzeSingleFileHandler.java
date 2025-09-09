@@ -80,7 +80,7 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 			
 			return null;
 			
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			AnalyzeException error = new AnalyzeException("Error analyzing class", e);
 			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
 			return null;
