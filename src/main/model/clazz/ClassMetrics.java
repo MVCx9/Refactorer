@@ -3,9 +3,8 @@ package main.model.clazz;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
-import main.common.utils.Utils;
-import main.model.change.ExtractionPlan;
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
 import main.model.common.LocStats;
@@ -70,6 +69,14 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	public int getRefactoredLoc() {
 		return refactoredMethods.stream().mapToInt(MethodMetrics::getLoc).sum();
 	}
+	
+	public int getReducedComplexity() {
+		return getCurrentCc() - getRefactoredCc();
+	}
+	
+	public int getReducedLoc() {
+		return getCurrentLoc() - getRefactoredLoc();
+	}
 
 	public int getAverageCurrentLoc() {
 		return averageCurrent(MethodMetrics::getLoc);
@@ -87,28 +94,20 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		return averageRefactored(MethodMetrics::getLoc);
 	}
 	
+	public int getAverageReducedComplexity() {
+		return getAverageCurrentCc() - getAverageRefactoredCc();
+	}
+	
+	public int getAverageReducedLoc() {
+		return getAverageCurrentLoc() - getAverageRefactoredLoc();
+	}
+	
 	public int getCurrentMethodCount() {
 		return currentMethods.size();
 	}
 	
 	public int getRefactoredMethodCount() {
 		return refactoredMethods.size();
-	}
-
-	public List<ExtractionPlan> getDoPlan() {
-		return refactoredMethods.stream().map(MethodMetrics::getDoPlan).toList();
-	}
-	
-	public List<ExtractionPlan> getUndoPlan() {
-		return Utils.reverse(refactoredMethods.stream().map(MethodMetrics::getUndoPlan).toList());
-	}
-	
-	private int averageCurrent(java.util.function.ToIntFunction<MethodMetrics> mapper) {
-		return (int) Math.round(currentMethods.stream().mapToInt(mapper).average().orElse(0.0));
-	}
-	
-	private int averageRefactored(java.util.function.ToIntFunction<MethodMetrics> mapper) {
-		return (int) Math.round(refactoredMethods.stream().mapToInt(mapper).average().orElse(0.0));
 	}
 	
 	public String getRefactoredSource() {
@@ -117,6 +116,18 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	
 	public String getCurrentSource() {
 		return currentSource;
+	}
+	
+	public int getMethodExtractionCount() {
+		return getRefactoredMethodCount() - getCurrentMethodCount();
+	}
+
+	private int averageCurrent(java.util.function.ToIntFunction<MethodMetrics> mapper) {
+		return (int) Math.round(currentMethods.stream().mapToInt(mapper).average().orElse(0.0));
+	}
+	
+	private int averageRefactored(java.util.function.ToIntFunction<MethodMetrics> mapper) {
+		return (int) Math.round(refactoredMethods.stream().mapToInt(mapper).average().orElse(0.0));
 	}
 
 	public static class ClassMetricsBuilder {
@@ -165,4 +176,31 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		}
 	}
 
+	@Override
+	public int hashCode() {
+		return Objects.hash(analysisDate, currentMethods, currentSource, name, refactoredMethods, refactoredSource);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ClassMetrics other = (ClassMetrics) obj;
+		return Objects.equals(analysisDate, other.analysisDate) && Objects.equals(currentMethods, other.currentMethods)
+				&& Objects.equals(currentSource, other.currentSource) && Objects.equals(name, other.name)
+				&& Objects.equals(refactoredMethods, other.refactoredMethods)
+				&& Objects.equals(refactoredSource, other.refactoredSource);
+	}
+
+	@Override
+	public String toString() {
+		return "ClassMetrics [name=" + name + ", analysisDate=" + analysisDate + ", currentMethods=" + currentMethods
+				+ ", refactoredMethods=" + refactoredMethods + ", currentSource=" + currentSource
+				+ ", refactoredSource=" + refactoredSource + "]";
+	}
+	
 }

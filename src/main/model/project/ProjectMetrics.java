@@ -95,6 +95,26 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 	public int getAverageRefactoredMethodCount() {
 		return average(ClassMetrics::getRefactoredMethodCount);
 	}
+	
+	public int getAverageReducedComplexity() {
+		return getAverageCurrentCc() - getAverageRefactoredCc();
+	}
+
+	public int getAverageReducedLoc() {
+		return getAverageCurrentLoc() - getAverageRefactoredLoc();
+	}
+	
+	public int getReducedComplexity() {
+		return getCurrentCc() - getRefactoredCc();
+	}
+
+	public int getReducedLoc() {
+		return getCurrentLoc() - getRefactoredLoc();
+	}
+	
+	public int getMethodExtractionCount() {
+		return getRefactoredMethodCount() - getCurrentMethodCount();
+	}
 
 	private int average(java.util.function.ToIntFunction<ClassMetrics> mapper) {
 		return (int) Math.round(classes.stream().mapToInt(mapper).average().orElse(0.0));
@@ -150,5 +170,4 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 	public String toString() {
 		return "ProjectMetrics [name=" + name + ", analysisDate=" + analysisDate + ", classes=" + classes + "]";
 	}
-
 }

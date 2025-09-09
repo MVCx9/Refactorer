@@ -91,6 +91,26 @@ public class WorkspaceMetrics implements Identifiable, ComplexityStats, LocStats
 	public int getAverageRefactoredMethodCount() {
 		return average(ProjectMetrics::getAverageRefactoredMethodCount);
 	}
+	
+	public int getAverageReducedComplexity() {
+		return getAverageCurrentCc() - getAverageRefactoredCc();
+	}
+
+	public int getAverageReducedLoc() {
+		return getAverageCurrentLoc() - getAverageRefactoredLoc();
+	}
+	
+	public int getReducedComplexity() {
+		return getCurrentCc() - getRefactoredCc();
+	}
+	
+	public int getReducedLoc() {
+		return getCurrentLoc() - getRefactoredLoc();
+	}
+	
+	public int getMethodExtractionCount() {
+		return getRefactoredMethodCount() - getCurrentMethodCount();
+	}
 
 	private int average(java.util.function.ToIntFunction<ProjectMetrics> mapper) {
 		return (int) Math.round(projects.stream().mapToInt(mapper).average().orElse(0.0));
@@ -146,5 +166,4 @@ public class WorkspaceMetrics implements Identifiable, ComplexityStats, LocStats
 	public String toString() {
 		return "WorkspaceMetrics [name=" + name + ", analysisDate=" + analysisDate + ", projects=" + projects + "]";
 	}
-
 }

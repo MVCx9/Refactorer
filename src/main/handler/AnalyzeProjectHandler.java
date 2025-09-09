@@ -8,7 +8,6 @@ import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
@@ -30,6 +29,8 @@ import main.model.project.ProjectMetrics;
 import main.session.ActionType;
 import main.session.SessionAnalysisStore;
 import main.ui.AnalysisMetricsDialog;
+import main.ui.AnalysisNoRefactorDialog;
+import main.ui.ErrorDetailsDialog;
 
 public class AnalyzeProjectHandler extends AbstractHandler {
 
@@ -46,8 +47,8 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 			project = ((IAdaptable) selected).getAdapter(IProject.class);
 		}
 
-		if (project == null) {
-			throw new ValidationException("La selección no es un proyecto Eclipse válido.");
+		if (project == null || !project.isOpen()) {
+			throw new ValidationException("La selección no es un proyecto Eclipse válido o es un proyecto cerrado.");
 		}
 
 		ProjectFilesAnalyzer analyzer = new ProjectFilesAnalyzer();
@@ -65,16 +66,19 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 						IPackageFragment pkg = (IPackageFragment) element;
 						for (ICompilationUnit icu : pkg.getCompilationUnits()) {
 							IFile file = (IFile) icu.getResource();
-							if (file == null)
+							if (file == null) {
 								continue;
-							classesAnalyses.add(analyzer.analyzeFile(file));
+							}
+							
+							ClassAnalysis ca = analyzer.analyzeFile(file);
+							if (ca == null) { // ignore non-class units
+								continue;
+							}
+							classesAnalyses.add(ca);
 						}
 					}
 				}
 			}
-		} catch (CoreException e) {
-			throw new AnalyzeException("Error analyzing project", e);
-		}
 
 		ProjectAnalysis analysis = ProjectAnalysis.builder()
 				.project(project)
@@ -83,8 +87,20 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 
 		ProjectMetrics metrics = ProjectAnalysisMetricsMapper.toProjectMetrics(analysis);
 		SessionAnalysisStore.getInstance().register(ActionType.PROJECT, metrics);
+        
+		if (metrics.getMethodExtractionCount() == 0) {
+            new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.PROJECT, metrics).open();
+            return null;
+        }
+		
 		new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.PROJECT, metrics).open();
 		return null;
+		
+		} catch (Throwable e) {
+			AnalyzeException error = new AnalyzeException("Error analyzing project", e);
+			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
+			return null;
+		}
 	}
 
 }

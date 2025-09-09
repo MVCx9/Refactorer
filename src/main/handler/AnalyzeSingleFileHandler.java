@@ -19,6 +19,8 @@ import main.model.clazz.ClassMetrics;
 import main.session.ActionType;
 import main.session.SessionAnalysisStore;
 import main.ui.AnalysisMetricsDialog;
+import main.ui.AnalysisNoRefactorDialog;
+import main.ui.ErrorDetailsDialog;
 
 public class AnalyzeSingleFileHandler extends AbstractHandler {
 
@@ -48,8 +50,25 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 		ProjectFilesAnalyzer pfa = new ProjectFilesAnalyzer();
 		try {
 			ClassAnalysis analysis = pfa.analyzeFile(file);
+			
+			if(analysis == null) {
+				new AnalysisNoRefactorDialog(
+                        HandlerUtil.getActiveShell(event),
+                        ActionType.CLASS,
+                        null).open();
+                return null;
+			}
+			
 			ClassMetrics cm = ClassAnalysisMetricsMapper.toClassMetrics(analysis);
 			SessionAnalysisStore.getInstance().register(ActionType.CLASS, cm);
+
+            if (cm.getMethodExtractionCount() == 0) {
+                new AnalysisNoRefactorDialog(
+                        HandlerUtil.getActiveShell(event),
+                        ActionType.CLASS,
+                        cm).open();
+                return null;
+            }
 
 			new AnalysisMetricsDialog(
 					HandlerUtil.getActiveShell(event), 
@@ -60,8 +79,11 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 				.open();
 			
 			return null;
-		} catch (Exception e) {
-			throw new AnalyzeException("Error analyzing class", e);
+			
+		} catch (Throwable e) {
+			AnalyzeException error = new AnalyzeException("Error analyzing class", e);
+			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
+			return null;
 		}
 	}
 

@@ -42,11 +42,15 @@ import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.internal.corext.refactoring.code.ExtractMethodRefactoring;
 import org.eclipse.jdt.internal.corext.refactoring.structure.ChangeSignatureProcessor;
+import org.eclipse.jface.text.Document;
 import org.eclipse.ltk.core.refactoring.Change;
+import org.eclipse.ltk.core.refactoring.CompositeChange;
 import org.eclipse.ltk.core.refactoring.RefactoringStatus;
+import org.eclipse.ltk.core.refactoring.TextFileChange;
 import org.eclipse.ltk.core.refactoring.participants.CheckConditionsContext;
 import org.eclipse.ltk.core.refactoring.participants.ResourceChangeChecker;
 import org.eclipse.ltk.core.refactoring.participants.ValidateEditChecker;
+import org.eclipse.text.edits.TextEdit;
 
 import main.neo.Constants;
 
@@ -82,7 +86,7 @@ public class Utils {
 
 		return astRoot;
 	}
-	
+
 	/**
 	 * Create a {@link org.eclipse.jdt.core.dom.CompilationUnit CompilationUnit}
 	 * from the path of a file in the system.
@@ -91,10 +95,10 @@ public class Utils {
 	 * @return The {@link org.eclipse.jdt.core.dom.CompilationUnit CompilationUnit}
 	 *         associated to the file or null if problems when reading giving file.
 	 */
-	public static CompilationUnit createCompilationUnitFromFile (String pathToFile) {
+	public static CompilationUnit createCompilationUnitFromFile(String pathToFile) {
 		String sourceCode;
 		CompilationUnit astRoot = null;
-		
+
 		try {
 			sourceCode = new String(Files.readAllBytes(Paths.get(pathToFile)));
 			ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
@@ -106,10 +110,9 @@ public class Utils {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 		return astRoot;
 	}
-
 
 	/**
 	 * Check if a node can be extracted as a new method in the same compilation
@@ -184,7 +187,7 @@ public class Utils {
 
 		return result;
 	}
-	
+
 	/**
 	 * Get {@link org.eclipse.ltk.core.refactoring.Change Change} to apply to
 	 * refactor method name
@@ -223,7 +226,6 @@ public class Utils {
 		return change;
 	}
 
-
 	/**
 	 * Refactor a compilation unit extracting the given source code as a new method.
 	 * 
@@ -249,114 +251,239 @@ public class Utils {
 		boolean feasible = true;
 		int numberOfExtractedLinesOfCode = 0, numberOfParametersInExtractedMethod = 0;
 		IProgressMonitor npm = new NullProgressMonitor();
-		String resultOfRefactoring = new String("");
+		String resultOfRefactoring = "";
 		boolean compilationErrors = false;
-		CompilationUnit refactoredCompilationUnit = null;
-		
+
 		try {
-			// Prefer creating the refactoring with an ICompilationUnit to ensure resources exist
-			ICompilationUnit icu = null;
-			if (compilationUnit.getTypeRoot() instanceof ICompilationUnit) {
-				icu = (ICompilationUnit) compilationUnit.getTypeRoot();
-			} else if (compilationUnit.getJavaElement() instanceof ICompilationUnit) {
-				icu = (ICompilationUnit) compilationUnit.getJavaElement();
-			}
+			// Metrics independent of simulation path (need original CU)
+			numberOfExtractedLinesOfCode = numberOfLinesOfCode(compilationUnit, selectionStart, selectionLength);
 
-			ExtractMethodRefactoring refactoring;
-			if (icu != null) {
-				refactoring = new ExtractMethodRefactoring(icu, selectionStart, selectionLength);
-			} else {
-				// Fallback: use the AST-root based constructor; if it fails, return an unfeasible result
-				refactoring = new ExtractMethodRefactoring(compilationUnit, selectionStart, selectionLength);
-			}
-
-			// Set the name of the extracted method
-			refactoring.setMethodName(extractedMethodName);
-
-			// Check initial conditions of the refactoring (it returns OK when it is
-			// feasible)
-			RefactoringStatus status = refactoring.checkInitialConditions(npm);
-
-			// Check if refactoring satisfies initial conditions
-			if (status.isOK()) {
-				// Check if code will be valid after applying the refactoring (it returns OK
-				// when it is feasible)
-				status = refactoring.checkFinalConditions(npm);
-				
-				// Check if refactoring satisfies final conditions
-				if (status.isOK()) {
-					resultOfRefactoring = "OK";
-
-					// Get the length (in lines of code) of the code to extract
-					numberOfExtractedLinesOfCode = numberOfLinesOfCode(compilationUnit, selectionStart,
+			if (simulation) {
+				// Pure in-memory simulation using a working copy so file on disk is untouched
+				ICompilationUnit icu = (ICompilationUnit) compilationUnit.getJavaElement();
+				ICompilationUnit wc = icu.getWorkingCopy(null);
+				try {
+					ExtractMethodRefactoring refactoring = new ExtractMethodRefactoring(wc, selectionStart,
 							selectionLength);
-
-					// Get the number of parameters of the method to be extracted
-					numberOfParametersInExtractedMethod = refactoring.getParameterInfos().size();
-
-					// no refactor duplicates
+					refactoring.setMethodName(extractedMethodName);
 					refactoring.setReplaceDuplicates(false);
 
-					// The change to perform
-					Change c = refactoring.createChange(npm);
-
-					// Perform the refactoring (the compilation unit is NOT modified but the file in
-					// disk)
-					Change undo = c.perform(npm);
-
-					// Reload compilation unit (refactoring is applied to the file but is no
-					// reflected in the current compilation unit)
-					CompilationUnit compilationUnitAfterRefactoring = createCompilationUnitFromFileInWorkspace(
-							compilationUnit.getJavaElement().getPath().toOSString());
-					
-					/**
-					 * MVCx9: apply changes to actual CompilationUnit, so it accumulates old and the future changes
-					 */
-					refactoredCompilationUnit = compilationUnitAfterRefactoring;
-					
-					// Check if the compilation unit can be compiled
-					compilationErrors = builtWithCompilationErrors(compilationUnitAfterRefactoring);
-					if (compilationErrors) {
-						resultOfRefactoring = "Compilation unit does not compile after method extraction.";
+					RefactoringStatus status = refactoring.checkInitialConditions(npm);
+					if (!status.isOK()) {
 						feasible = false;
-
-						// Undo the refactoring
-						undo.perform(npm);
+						resultOfRefactoring = status.getEntryAt(0).getMessage();
 					} else {
-						// Track changes that the refactoring would apply
-						changes.add(c);
-
-						// Track performed changes to undo if wished
-						undoChanges.add(undo);
-
-						if (simulation) {
-							// Undo the refactoring
-							undo.perform(npm);
+						status = refactoring.checkFinalConditions(npm);
+						if (!status.isOK()) {
+							feasible = false;
+							resultOfRefactoring = status.getEntryAt(0).getMessage();
+						} else {
+							resultOfRefactoring = "OK";
+							numberOfParametersInExtractedMethod = refactoring.getParameterInfos().size();
+							Change change = refactoring.createChange(npm);
+							changes.add(change); // for traceability only
+							TextEdit edit = extractPrimaryTextEdit(change);
+							if (edit == null) {
+								feasible = false;
+								resultOfRefactoring = "Cannot locate primary TextEdit for refactoring";
+							} else {
+								// Apply edit to a temporary Document (do not touch working copy buffer to
+								// preserve original offsets for other simulations)
+								Document doc = new Document(wc.getSource());
+								try {
+									edit.apply(doc);
+									// Optionally we could parse doc.get() if we needed the post-state AST for
+									// metrics
+									// but current callers only need feasibility & parameter count.
+									refactoringApplied = true; // conceptually applicable
+								} catch (Exception te) {
+									feasible = false;
+									resultOfRefactoring = "Simulation edit failed: " + te.getMessage();
+								}
+							}
 						}
 					}
-
-					refactoringApplied = !compilationErrors && !simulation;
+				} finally {
+					if (wc != null) {
+						wc.discardWorkingCopy();
+					}
+				}
+			} else {
+				// Original behavior: applies change to file (then possibly undone by caller)
+				ExtractMethodRefactoring refactoring = new ExtractMethodRefactoring(compilationUnit, selectionStart,
+						selectionLength);
+				refactoring.setMethodName(extractedMethodName);
+				RefactoringStatus status = refactoring.checkInitialConditions(npm);
+				if (status.isOK()) {
+					status = refactoring.checkFinalConditions(npm);
+					if (status.isOK()) {
+						resultOfRefactoring = "OK";
+						numberOfParametersInExtractedMethod = refactoring.getParameterInfos().size();
+						refactoring.setReplaceDuplicates(false);
+						Change c = refactoring.createChange(npm);
+						Change undo = c.perform(npm);
+						CompilationUnit compilationUnitAfterRefactoring = createCompilationUnitFromFileInWorkspace(
+								compilationUnit.getJavaElement().getPath().toOSString());
+						compilationErrors = builtWithCompilationErrors(compilationUnitAfterRefactoring);
+						if (compilationErrors) {
+							resultOfRefactoring = "Compilation unit does not compile after method extraction.";
+							feasible = false;
+							undo.perform(npm);
+						} else {
+							changes.add(c);
+							undoChanges.add(undo);
+							refactoringApplied = true;
+						}
+					} else {
+						feasible = false;
+						resultOfRefactoring = status.getEntryAt(0).getMessage();
+					}
 				} else {
 					feasible = false;
 					resultOfRefactoring = status.getEntryAt(0).getMessage();
 				}
-			} else {
-				feasible = false;
-				resultOfRefactoring = status.getEntryAt(0).getMessage();
 			}
 		} catch (CoreException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (Exception e) {
-			// Defensive handling in case refactoring infrastructure cannot locate the ICompilationUnit
 			feasible = false;
-			resultOfRefactoring = "Extract Method pre-check failed: " + e.getMessage();
+			resultOfRefactoring = "Extract Method failed: " + e.getMessage();
 		}
 
 		result = new CodeExtractionMetrics(feasible, resultOfRefactoring, refactoringApplied,
-				numberOfExtractedLinesOfCode, numberOfParametersInExtractedMethod, changes, undoChanges, refactoredCompilationUnit);
+				numberOfExtractedLinesOfCode, numberOfParametersInExtractedMethod, changes, undoChanges);
 
 		return result;
+	}
+
+	public static CodeExtractionMetrics extractCode(CompilationUnit compilationUnit, ICompilationUnit icuWorkingCopy,
+			int selectionStart, int selectionLength, String extractedMethodName, boolean simulation) {
+		CodeExtractionMetrics result;
+		List<Change> changes = new ArrayList<Change>();
+		List<Change> undoChanges = new ArrayList<Change>(); // no real undo in pure in-memory path
+		boolean refactoringApplied = false;
+		boolean feasible = true;
+		int numberOfExtractedLinesOfCode = 0, numberOfParametersInExtractedMethod = 0;
+		IProgressMonitor npm = new NullProgressMonitor();
+		String resultOfRefactoring = "";
+		boolean compilationErrors = false;
+		CompilationUnit refactoredCompilationUnit = null;
+
+		try {
+			// Ensure selection is within current working copy source
+			String currentSource = icuWorkingCopy.getSource();
+			// Basic guard
+			if (selectionStart < 0 || selectionStart + selectionLength > currentSource.length()) {
+				feasible = false;
+				resultOfRefactoring = "Invalid selection range for current source";
+				return new CodeExtractionMetrics(feasible, resultOfRefactoring, refactoringApplied,
+						numberOfExtractedLinesOfCode, numberOfParametersInExtractedMethod, changes, undoChanges,
+						compilationUnit);
+			}
+
+			// Build refactoring on working copy (its buffer content is our truth)
+			ExtractMethodRefactoring refactoring = new ExtractMethodRefactoring(icuWorkingCopy, selectionStart,
+					selectionLength);
+			refactoring.setMethodName(extractedMethodName);
+			refactoring.setReplaceDuplicates(false);
+
+			RefactoringStatus status = refactoring.checkInitialConditions(npm);
+			if (!status.isOK()) {
+				feasible = false;
+				resultOfRefactoring = status.getEntryAt(0).getMessage();
+				return new CodeExtractionMetrics(feasible, resultOfRefactoring, refactoringApplied,
+						numberOfExtractedLinesOfCode, numberOfParametersInExtractedMethod, changes, undoChanges,
+						compilationUnit);
+			}
+			status = refactoring.checkFinalConditions(npm);
+			if (!status.isOK()) {
+				feasible = false;
+				resultOfRefactoring = status.getEntryAt(0).getMessage();
+				return new CodeExtractionMetrics(feasible, resultOfRefactoring, refactoringApplied,
+						numberOfExtractedLinesOfCode, numberOfParametersInExtractedMethod, changes, undoChanges,
+						compilationUnit);
+			}
+			resultOfRefactoring = "OK";
+
+			// Metrics prior to applying edit
+			numberOfExtractedLinesOfCode = numberOfLinesOfCode(compilationUnit, selectionStart, selectionLength);
+			numberOfParametersInExtractedMethod = refactoring.getParameterInfos().size();
+
+			// Create change (do NOT perform on workspace)
+			Change change = refactoring.createChange(npm);
+			changes.add(change);
+
+			TextEdit edit = extractPrimaryTextEdit(change);
+			if (edit == null) {
+				feasible = false;
+				resultOfRefactoring = "Cannot locate primary TextEdit for refactoring";
+				return new CodeExtractionMetrics(feasible, resultOfRefactoring, refactoringApplied,
+						numberOfExtractedLinesOfCode, numberOfParametersInExtractedMethod, changes, undoChanges,
+						compilationUnit);
+			}
+
+			// Apply edit in-memory
+			Document doc = new Document(currentSource);
+			edit.apply(doc); // may throw exceptions if edit invalid
+			String newSource = doc.get();
+
+			// Re-parse updated source through working copy so further extractions refer to
+			// updated offsets
+			icuWorkingCopy.getBuffer().setContents(newSource);
+			// Reconcile to refresh internal state (bindings if needed)
+			icuWorkingCopy.reconcile(ICompilationUnit.NO_AST, false, null, npm);
+
+			ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+			parser.setResolveBindings(true);
+			parser.setBindingsRecovery(true);
+			parser.setKind(ASTParser.K_COMPILATION_UNIT);
+			parser.setSource(icuWorkingCopy); // parse from working copy with updated buffer
+			refactoredCompilationUnit = (CompilationUnit) parser.createAST(null);
+
+			// Compilation problem check
+			compilationErrors = builtWithCompilationErrors(refactoredCompilationUnit);
+			if (compilationErrors) {
+				// revert buffer
+				icuWorkingCopy.getBuffer().setContents(currentSource);
+				icuWorkingCopy.reconcile(ICompilationUnit.NO_AST, false, null, npm);
+				feasible = false;
+				resultOfRefactoring = "Compilation unit does not compile after method extraction.";
+				refactoredCompilationUnit = compilationUnit; // keep old AST
+			} else {
+				refactoringApplied = true;
+				// Persist to disk only if simulation == false
+				if (!simulation) {
+					icuWorkingCopy.commitWorkingCopy(true, npm);
+				}
+			}
+
+		} catch (Exception e) {
+			feasible = false;
+			resultOfRefactoring = "Extract Method failed: " + e.getMessage();
+			refactoredCompilationUnit = compilationUnit;
+		}
+
+		result = new CodeExtractionMetrics(feasible, resultOfRefactoring, refactoringApplied,
+				numberOfExtractedLinesOfCode, numberOfParametersInExtractedMethod, changes, undoChanges,
+				refactoredCompilationUnit);
+
+		return result;
+	}
+
+	// Helper to obtain the primary TextEdit from a Change tree
+	private static TextEdit extractPrimaryTextEdit(Change change) {
+		if (change == null)
+			return null;
+		if (change instanceof TextFileChange) {
+			return ((TextFileChange) change).getEdit();
+		}
+		if (change instanceof CompositeChange) {
+			Change[] children = ((CompositeChange) change).getChildren();
+			for (Change c : children) {
+				TextEdit te = extractPrimaryTextEdit(c);
+				if (te != null)
+					return te;
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -370,24 +497,23 @@ public class Utils {
 		IProgressMonitor npm = new NullProgressMonitor();
 		boolean error = false;
 		IProblem problems[] = compilationUnit.getProblems();
-		
+
 		int index = 1;
-		while (!error && index <= problems.length)
-		{
-			error = problems[index-1].isError();
+		while (!error && index <= problems.length) {
+			error = problems[index - 1].isError();
 			index++;
 		}
-		
+
 		return error;
 	}
-	
+
 	public static String getCompilationUnitProblems(CompilationUnit compilationUnit) {
 		StringJoiner result = new StringJoiner(System.lineSeparator());
-		
+
 		for (IProblem p : compilationUnit.getProblems()) {
 			result.add("Error? " + p.isError() + ": " + p.toString());
 		}
-		
+
 		return result.toString();
 	}
 
@@ -616,8 +742,10 @@ public class Utils {
 
 		ASTNode parent = node.getParent();
 
-		// Note that a method could declare more methods in an anonymous class. Skip those cases
-		while (parent != null && !(parent instanceof MethodDeclaration && !(parent.getParent() instanceof AnonymousClassDeclaration))) {
+		// Note that a method could declare more methods in an anonymous class. Skip
+		// those cases
+		while (parent != null && !(parent instanceof MethodDeclaration
+				&& !(parent.getParent() instanceof AnonymousClassDeclaration))) {
 
 			if (parent.getProperty(Constants.CONTRIBUTION_TO_COMPLEXITY) != null) {
 				ancestors.add(parent);
@@ -649,29 +777,28 @@ public class Utils {
 			c.add(node);
 		}
 	}
-	
+
 	/**
-	 * Get the method declaration associated to the given ASTNode
-	 * It assumes the given node belongs to a method declaration
-	 * If not, for instance when node is an import declaration,
-	 * this method will have an unexpected behavior
+	 * Get the method declaration associated to the given ASTNode It assumes the
+	 * given node belongs to a method declaration If not, for instance when node is
+	 * an import declaration, this method will have an unexpected behavior
+	 * 
 	 * @return Node associated to the method declaration of the given node
 	 */
 	public static MethodDeclaration getMethodDeclaration(ASTNode node) {
-		ASTNode result=node;
+		ASTNode result = node;
 
 		while (!(result instanceof MethodDeclaration)) {
 			result = result.getParent();
-			
+
 			// A method could declare more methods in an anonymous class. Skip those cases
-			if (result instanceof MethodDeclaration)
-			{
+			if (result instanceof MethodDeclaration) {
 				if (result.getParent() instanceof AnonymousClassDeclaration) {
 					result = result.getParent();
 				}
 			}
 		}
-		
+
 		return (MethodDeclaration) result;
 	}
 
@@ -686,7 +813,7 @@ public class Utils {
 		ASTNode current = node;
 		ASTNode child = null;
 		ASTNode root = getMethodDeclaration(node);
-		
+
 		while (current != null && !(current.equals(root))) {
 			child = current;
 			current = current.getParent();
@@ -732,8 +859,9 @@ public class Utils {
 	public static int computeAndAnnotateAccumulativeCognitiveComplexity(MethodDeclaration ast) {
 		int result;
 
-		ast.setProperty(Constants.CONTRIBUTION_TO_COMPLEXITY, 0);
-		ast.setProperty(Constants.CONTRIBUTION_TO_COMPLEXITY_BY_NESTING, 0);
+		// NEW: limpiar propiedades previas en todo el subárbol para evitar acumulación
+		// entre invocaciones sucesivas
+		resetCognitiveComplexityProperties(ast);
 
 		// Pre-pass: annotate base contributions on nodes
 		annotateBaseCognitiveComplexityContributions(ast);
@@ -746,10 +874,41 @@ public class Utils {
 	}
 
 	/**
+	 * Recorre recursivamente el subárbol y elimina (pone a null) todas las
+	 * propiedades usadas en el cálculo de complejidad cognitiva para evitar que
+	 * llamadas repetidas sumen valores antiguos.
+	 */
+	private static void resetCognitiveComplexityProperties(ASTNode node) {
+		if (node == null)
+			return;
+		
+		for (String p : Constants.PROPERTIES) {
+			node.setProperty(p, null);
+		}
+		// Descender
+		List<?> structural = node.structuralPropertiesForType();
+		for (Object spdObj : structural) {
+			if (!(spdObj instanceof org.eclipse.jdt.core.dom.StructuralPropertyDescriptor))
+				continue;
+			var spd = (org.eclipse.jdt.core.dom.StructuralPropertyDescriptor) spdObj;
+			Object child = node.getStructuralProperty(spd);
+			if (child instanceof ASTNode) {
+				resetCognitiveComplexityProperties((ASTNode) child);
+			} else if (child instanceof List<?>) {
+				for (Object o : (List<?>) child) {
+					if (o instanceof ASTNode) {
+						resetCognitiveComplexityProperties((ASTNode) o);
+					}
+				}
+			}
+		}
+	}
+
+	/**
 	 * Annotate per-node base contributions to cognitive complexity so they can be
-	 * accumulated afterwards. This sets:
-	 * - Constants.CONTRIBUTION_TO_COMPLEXITY: inherent + logical operators
-	 * - Constants.CONTRIBUTION_TO_COMPLEXITY_BY_NESTING: current nesting for control structures
+	 * accumulated afterwards. This sets inherent contributions and stores nesting
+	 * components separately (and also folds nesting into the main contribution so
+	 * ACCUMULATED_COMPLEXITY already reflects nesting for the method total).
 	 */
 	private static void annotateBaseCognitiveComplexityContributions(MethodDeclaration ast) {
 		ast.accept(new ASTVisitor() {
@@ -770,17 +929,16 @@ public class Utils {
 
 			@Override
 			public void endVisit(SwitchStatement node) {
-				if (!switchFirstCase.isEmpty()) switchFirstCase.pop();
+				if (!switchFirstCase.isEmpty())
+					switchFirstCase.pop();
 			}
 
 			@Override
 			public boolean visit(SwitchCase node) {
 				boolean first = !switchFirstCase.isEmpty() && switchFirstCase.peek();
 				if (first) {
-					// mark that the first case for this switch has been seen
 					switchFirstCase.pop();
 					switchFirstCase.push(Boolean.FALSE);
-					// first case does not contribute
 				} else {
 					addContribution(node, 1, false);
 				}
@@ -828,39 +986,36 @@ public class Utils {
 				int logicalOps = countLogicalOperators(node);
 				if (logicalOps > 0) {
 					addContribution(node, logicalOps, false);
-					return false; // avoid double counting on sub-nodes
+					return false;
 				}
 				return true;
 			}
 
 			private int countLogicalOperators(InfixExpression node) {
 				int count = 0;
-				if (node.getOperator() == InfixExpression.Operator.CONDITIONAL_AND ||
-					node.getOperator() == InfixExpression.Operator.CONDITIONAL_OR) {
+				if (node.getOperator() == InfixExpression.Operator.CONDITIONAL_AND
+						|| node.getOperator() == InfixExpression.Operator.CONDITIONAL_OR)
 					count++;
-				}
-				if (node.getLeftOperand() instanceof InfixExpression) {
+				if (node.getLeftOperand() instanceof InfixExpression)
 					count += countLogicalOperators((InfixExpression) node.getLeftOperand());
-				}
-				if (node.getRightOperand() instanceof InfixExpression) {
+				if (node.getRightOperand() instanceof InfixExpression)
 					count += countLogicalOperators((InfixExpression) node.getRightOperand());
-				}
-				for (Object extended : node.extendedOperands()) {
-					if (extended instanceof InfixExpression) {
-						count += countLogicalOperators((InfixExpression) extended);
-					}
-				}
+				for (Object ext : node.extendedOperands())
+					if (ext instanceof InfixExpression)
+						count += countLogicalOperators((InfixExpression) ext);
 				return count;
 			}
 
 			private void addContribution(ASTNode node, int delta, boolean addNesting) {
 				int current = Utils.getIntegerPropertyOfNode(node, Constants.CONTRIBUTION_TO_COMPLEXITY);
-				node.setProperty(Constants.CONTRIBUTION_TO_COMPLEXITY, current + delta);
+				int updated = current + delta;
 				if (addNesting) {
 					int nesting = Utils.computeNesting(node);
 					int curNest = Utils.getIntegerPropertyOfNode(node, Constants.CONTRIBUTION_TO_COMPLEXITY_BY_NESTING);
 					node.setProperty(Constants.CONTRIBUTION_TO_COMPLEXITY_BY_NESTING, curNest + nesting);
+					updated += nesting;
 				}
+				node.setProperty(Constants.CONTRIBUTION_TO_COMPLEXITY, updated);
 			}
 		});
 	}
@@ -940,21 +1095,24 @@ public class Utils {
 	public ASTNode getAncestorContributingToComplexity(ASTNode node) {
 		ASTNode parent = node.getParent();
 
-		// Note that a method could declare more methods in an anonymous class. Skip those cases
-		while (parent != null && !(parent instanceof MethodDeclaration && !(parent.getParent() instanceof AnonymousClassDeclaration))
+		// Note that a method could declare more methods in an anonymous class. Skip
+		// those cases
+		while (parent != null
+				&& !(parent instanceof MethodDeclaration && !(parent.getParent() instanceof AnonymousClassDeclaration))
 				&& parent.getProperty(Constants.CONTRIBUTION_TO_COMPLEXITY) == null) {
 			parent = parent.getParent();
 		}
 
 		return parent;
 	}
-	
+
 	/**
-	 * Instantiate a personalized node finder using the given root node, the given start and the given length.
-	 * The field {@code nodes} contains the sibling nodes in the code from the given start in the given length
+	 * Instantiate a personalized node finder using the given root node, the given
+	 * start and the given length. The field {@code nodes} contains the sibling
+	 * nodes in the code from the given start in the given length
 	 * 
-	 * @param root the given root node
-	 * @param start the given start
+	 * @param root   the given root node
+	 * @param start  the given start
 	 * @param length the given length
 	 */
 	public static class NodeFinderVisitorForGivenSelection extends ASTVisitor {
@@ -965,59 +1123,58 @@ public class Utils {
 		private ASTNode fCoveringNode;
 		private ASTNode fCoveredNode;
 
-		
 		public NodeFinderVisitorForGivenSelection(ASTNode root, int offset, int length) {
 			super(true); // include Javadoc tags
 			nodes = new ArrayList<ASTNode>();
-			this.fStart= offset;
-			this.fEnd= offset + length;
+			this.fStart = offset;
+			this.fEnd = offset + length;
 			root.accept(this);
 		}
 
 		public List<ASTNode> getNodes() {
 			return nodes;
 		}
-		
+
 		@Override
 		public boolean preVisit2(ASTNode node) {
-			int nodeStart= node.getStartPosition();
-			int nodeEnd= nodeStart + node.getLength();
-			
+			int nodeStart = node.getStartPosition();
+			int nodeEnd = nodeStart + node.getLength();
+
 			if (this.fStart <= nodeStart && nodeEnd <= this.fEnd) {
 				if (nodes.isEmpty()) {
 					parent = node.getParent();
 					nodes.add(node);
-				}
-				else if (node.getParent() == parent) {
+				} else if (node.getParent() == parent) {
 					nodes.add(node);
 				}
 			}
-			
-			//The code below is the original code from NodeFinderVisitor
+
+			// The code below is the original code from NodeFinderVisitor
 			if (nodeEnd < this.fStart || this.fEnd < nodeStart) {
 				return false;
 			}
 			if (nodeStart <= this.fStart && this.fEnd <= nodeEnd) {
-				this.fCoveringNode= node;
+				this.fCoveringNode = node;
 			}
 			if (this.fStart <= nodeStart && nodeEnd <= this.fEnd) {
 				if (this.fCoveringNode == node) { // nodeStart == fStart && nodeEnd == fEnd
-					this.fCoveredNode= node;
+					this.fCoveredNode = node;
 					return true; // look further for node with same length as parent
 				} else if (this.fCoveredNode == null) { // no better found
-					this.fCoveredNode= node;
+					this.fCoveredNode = node;
 				}
 				return false;
 			}
 			return true;
 		}
 	}
-	
+
 	/**
 	 * Visitor for a method declaration in the AST
-	 * @param methodLookingFor the name of the method to look for
-	 * @param methodParameters parameters of the method (its signature)
-	 * @param found true if the method declaration is in the AST
+	 * 
+	 * @param methodLookingFor  the name of the method to look for
+	 * @param methodParameters  parameters of the method (its signature)
+	 * @param found             true if the method declaration is in the AST
 	 * @param methodDeclaration the method declaration node in the AST if found
 	 */
 	public static class MethodDeclarationFinderVisitor extends ASTVisitor {
@@ -1026,34 +1183,32 @@ public class Utils {
 		private boolean found;
 		private MethodDeclaration methodDeclaration;
 
-		
-		public MethodDeclarationFinderVisitor(ASTNode root, String methodName, List<SingleVariableDeclaration> parameters) {
+		public MethodDeclarationFinderVisitor(ASTNode root, String methodName,
+				List<SingleVariableDeclaration> parameters) {
 			super(true); // include Javadoc tags
 			methodLookingFor = methodName;
 			methodParameters = parameters;
 			methodDeclaration = null;
-			found=false;
+			found = false;
 			root.accept(this);
 		}
-		
+
 		public boolean found() {
 			return this.found;
 		}
-		
+
 		public MethodDeclaration getMethodDeclaration() {
 			return methodDeclaration;
 		}
-		
+
 		@Override
 		public boolean visit(MethodDeclaration method) {
-			if (method.getName().toString().compareTo(this.methodLookingFor)==0 &&
-				method.parameters().toString().equals(methodParameters.toString()))
-			{
+			if (method.getName().toString().compareTo(this.methodLookingFor) == 0
+					&& method.parameters().toString().equals(methodParameters.toString())) {
 				methodDeclaration = method;
 				found = true;
 				return false;
-			}
-			else {
+			} else {
 				return true;
 			}
 		}
@@ -1066,13 +1221,13 @@ public class Utils {
 	 * @param compilationUnit under processing
 	 * @return number of characters of the import declaration
 	 */
-	public static int lenghtImportDeclaration (CompilationUnit compilationUnit) {
+	public static int lenghtImportDeclaration(CompilationUnit compilationUnit) {
 		int result = 0;
-		
+
 		for (Object importDeclaration : compilationUnit.imports()) {
 			result = result + ((ImportDeclaration) importDeclaration).getLength();
 		}
-		
+
 		return result;
 	}
 }
