@@ -28,8 +28,15 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
 
     @Override
     public Object execute(ExecutionEvent event) throws ExecutionException {
-        IProject[] eclipseProjects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
-        if (eclipseProjects.length == 0) {
+        // Obtener todos los proyectos y filtrar únicamente los que están abiertos
+        IProject[] allProjects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
+        List<IProject> openProjects = new ArrayList<>();
+        for (IProject p : allProjects) {
+            if (p != null && p.isOpen()) {
+                openProjects.add(p);
+            }
+        }
+        if (openProjects.isEmpty()) {
             throw new ResourceNotFoundException("No hay proyectos abiertos en el workspace.");
         }
 
@@ -37,35 +44,35 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
         List<ProjectAnalysis> projectAnalyses = new ArrayList<>();
 
         try {
-	        for (IProject project : eclipseProjects) {
-	            if (project == null || !project.isOpen()) continue;
-	                ProjectAnalysis analysis = analyzer.analyzeProject(project);
-	                if (analysis != null) {
-	                    projectAnalyses.add(analysis);
-	                }
-	        }
-	
-	        WorkspaceAnalysis workspaceAnalysis = WorkspaceAnalysis.builder()
-	                .name("My Workspace")
-	                .analysisDate(LocalDateTime.now())
-	                .projects(projectAnalyses)
-	                .build();
-	
-	        WorkspaceMetrics workspaceMetrics = WorkspaceAnalysisMetricsMapper.toWorkspaceMetrics(workspaceAnalysis);
-	        SessionAnalysisStore.getInstance().register(ActionType.WORKSPACE, workspaceMetrics);
-	        
-	        if (workspaceMetrics.getMethodExtractionCount() == 0) {
-	            new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
-	            return null;
-	        }
-	        
-	        new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
-	        return null;
-        
+            for (IProject project : openProjects) {
+                // Ya están filtrados, no hace falta comprobar si están abiertos
+                ProjectAnalysis analysis = analyzer.analyzeProject(project);
+                if (analysis != null) {
+                    projectAnalyses.add(analysis);
+                }
+            }
+
+            WorkspaceAnalysis workspaceAnalysis = WorkspaceAnalysis.builder()
+                    .name("My Workspace")
+                    .analysisDate(LocalDateTime.now())
+                    .projects(projectAnalyses)
+                    .build();
+
+            WorkspaceMetrics workspaceMetrics = WorkspaceAnalysisMetricsMapper.toWorkspaceMetrics(workspaceAnalysis);
+            SessionAnalysisStore.getInstance().register(ActionType.WORKSPACE, workspaceMetrics);
+
+            if (workspaceMetrics.getMethodExtractionCount() == 0) {
+                new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
+                return null;
+            }
+
+            new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
+            return null;
+
         } catch (Throwable e) {
-	    	AnalyzeException error = new AnalyzeException("Error analyzing project", e);
-			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
-			return null;
+            AnalyzeException error = new AnalyzeException("Error analyzing project", e);
+            ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
+            return null;
         }
     }
 
