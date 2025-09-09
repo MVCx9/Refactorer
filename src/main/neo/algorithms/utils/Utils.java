@@ -3,7 +3,10 @@ package main.neo.algorithms.utils;
 import java.util.List;
 
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 
+import main.neo.Constants;
 import main.neo.algorithms.Solution;
 
 public class Utils {
@@ -60,21 +63,57 @@ public class Utils {
 	}
 
 	/**
-	 * Compose the URI to query in order to get cognitive complexity issues for the
-	 * given project, sonar server and page index (results reported by sonar are
-	 * usually paginated)
+	 * Annotate in the AST of a method the contribution to complexity reported by
+	 * SONAR.
 	 * 
-	 * @param server
-	 * @param project
-	 * @param page
-	 * @return The URL to query to get cognitive complexity issues of the given
-	 *         project
+	 * @param compilationUnit  The compilation unit under processing.
+	 * @param method           Information provided by SONAR for a method.
+	 * @param sequenceOfBlocks List with processed nodes.
+	 * @return The AST of the method.
 	 */
-	public static String composeSonarUri(String server, String project, int page) {
-		String result = new String(server + "/api/issues/search?rules=squid:S3776" + "&componentKeys=" + project
-				+ "&resolved=false" + "&p=" + page + "&pageSize=100");
+	/*
+	public static ASTNode getASTForMethodAnnotatingContributionToCognitiveComplexity(CompilationUnit compilationUnit,
+			CognitiveComplexMethod method, List<ASTNode> sequenceOfBlocks) {
+		ASTNode result = null, node = null;
+		List<Contribution> l = method.getContributionToComplexity();
+
+		try {
+			// Locate in the AST the MethodDeclaration node
+			result = neo.reducecognitivecomplexity.jdt.Utils.findNode(compilationUnit,
+					method.getTextRange().getStartLine(), method.getTextRange().getStartOffset()).getParent();
+
+			// Iterate over complexity blocks reported by SONAR
+			for (Contribution c : l) {
+				// Locate node in AST
+				node = neo.reducecognitivecomplexity.jdt.Utils.findNode(compilationUnit,
+						c.getTextRange().getStartLine(), c.getTextRange().getStartOffset());
+
+				// node.getProperty(CONTRIBUTION_TO_COMPLEXITY) != null when this node has
+				// already been visited. In this case, the current node refers to a catch
+				// clause or else.
+				if (node.getProperty(Constants.CONTRIBUTION_TO_COMPLEXITY) == null) {
+					sequenceOfBlocks.add(indexOfInsertionToKeepListSorted(node, sequenceOfBlocks), node);
+				}
+
+				int previousValue = neo.reducecognitivecomplexity.jdt.Utils.getIntegerPropertyOfNode(node,
+						Constants.CONTRIBUTION_TO_COMPLEXITY);
+				node.setProperty(Constants.CONTRIBUTION_TO_COMPLEXITY, previousValue + c.getContribution());
+
+				previousValue = neo.reducecognitivecomplexity.jdt.Utils.getIntegerPropertyOfNode(node,
+						Constants.CONTRIBUTION_TO_COMPLEXITY_BY_NESTING);
+				node.setProperty(Constants.CONTRIBUTION_TO_COMPLEXITY_BY_NESTING, previousValue + c.getNesting());
+
+				String previousText = (String) node.getProperty(Constants.TEXT_RANGE);
+				node.setProperty(Constants.TEXT_RANGE, (previousText == null ? "" : previousText) + c.getTextRange());
+			}
+
+		} catch (NullPointerException e) {
+			LOGGER.severe("There was a fail processing the AST. Are the SONAR and Eclipse projects the same?\n" + compilationUnit.getJavaElement());
+			e.printStackTrace();
+		}
 
 		return result;
 	}
+	*/
 
 }
