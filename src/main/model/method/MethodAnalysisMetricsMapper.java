@@ -47,11 +47,11 @@ public final class MethodAnalysisMetricsMapper {
 		return result;
 	}
 
-	public static MethodAnalysis toMethodAnalysis(MethodDeclaration md, int currentCc, int currentLoc) {
+	public static MethodAnalysis toMethodAnalysis(MethodDeclaration md, int cc, int loc) {
 		return MethodAnalysis.builder()
 			.methodName(md.getName().getIdentifier())
-			.cc(currentCc)
-			.loc(currentLoc)
+			.cc(cc)
+			.loc(loc)
 			.reducedComplexity(0)
 			.numberOfExtractions(0)
 			.compilationUnitRefactored(null)
