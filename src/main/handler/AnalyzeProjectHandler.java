@@ -47,8 +47,8 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 			project = ((IAdaptable) selected).getAdapter(IProject.class);
 		}
 
-		if (project == null) {
-			throw new ValidationException("La selección no es un proyecto Eclipse válido.");
+		if (project == null || !project.isOpen()) {
+			throw new ValidationException("La selección no es un proyecto Eclipse válido o es un proyecto cerrado.");
 		}
 
 		ProjectFilesAnalyzer analyzer = new ProjectFilesAnalyzer();
@@ -66,9 +66,15 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 						IPackageFragment pkg = (IPackageFragment) element;
 						for (ICompilationUnit icu : pkg.getCompilationUnits()) {
 							IFile file = (IFile) icu.getResource();
-							if (file == null)
+							if (file == null) {
 								continue;
-							classesAnalyses.add(analyzer.analyzeFile(file));
+							}
+							
+							ClassAnalysis ca = analyzer.analyzeFile(file);
+							if (ca == null) { // ignore non-class units
+								continue;
+							}
+							classesAnalyses.add(ca);
 						}
 					}
 				}

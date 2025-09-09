@@ -45,11 +45,11 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
 
         try {
             for (IProject project : openProjects) {
-                // Ya están filtrados, no hace falta comprobar si están abiertos
                 ProjectAnalysis analysis = analyzer.analyzeProject(project);
-                if (analysis != null) {
-                    projectAnalyses.add(analysis);
+                if (analysis == null) {
+                	continue;
                 }
+                projectAnalyses.add(analysis);
             }
 
             WorkspaceAnalysis workspaceAnalysis = WorkspaceAnalysis.builder()
