@@ -17,7 +17,7 @@ public class ProjectAnalysis {
         this.project = builder.project;
         this.name = builder.name;
         this.analysisDate = builder.analysisDate;
-        this.classes = List.copyOf(builder.classes);
+        this.classes = builder.classes;
     }
 
     public static Builder builder() {
