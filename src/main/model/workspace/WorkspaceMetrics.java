@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
@@ -110,6 +111,23 @@ public class WorkspaceMetrics implements Identifiable, ComplexityStats, LocStats
 	
 	public int getMethodExtractionCount() {
 		return getRefactoredMethodCount() - getCurrentMethodCount();
+	}
+
+	public List<ProjectMetrics> getProjectsWithRefactors() {
+		return  projects.stream()
+			.map(p -> {
+				List<main.model.clazz.ClassMetrics> trimmedClasses = p.getMethodsWithRefactors();
+				if (trimmedClasses.isEmpty()) {
+					return null; 
+				}
+				return ProjectMetrics.builder()
+						.name(p.getName())
+						.analysisDate(p.getAnalysisDate())
+						.classes(trimmedClasses)
+						.build();
+			})
+			.filter(p -> p != null)
+			.collect(Collectors.toList());
 	}
 
 	private int average(java.util.function.ToIntFunction<ProjectMetrics> mapper) {
