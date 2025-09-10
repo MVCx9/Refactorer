@@ -30,7 +30,9 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 		Object classSelected = selection.getFirstElement();
 
 		if (classSelected == null) {
-			throw new ResourceNotFoundException("No hay fichero seleccionado para analizar.");
+			ResourceNotFoundException error = new ResourceNotFoundException("No hay fichero seleccionado para analizar.");
+			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
+			return null;
 		}
 
 		IFile file = null;

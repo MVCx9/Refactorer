@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.dom.Comment;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -37,27 +38,14 @@ public class ComplexityAnalyzer {
         MethodDeclaration targetMethod = null;
         Set<MethodDeclaration> processedMethods = new LinkedHashSet<>();
         
-        String currentSource = icu.getSource();
+        // Obtener el código fuente original y eliminar comentarios para currentSource
+        String currentSource = removeComments(cu, icu.getSource());
         ICompilationUnit icuWorkingCopy = (ICompilationUnit) icu.getWorkingCopy(null);
         List<MethodAnalysis> currentMethods = new LinkedList<>();
         List<MethodAnalysis> refactoredMethodAnalysis = new LinkedList<>();
         List<MethodAnalysis> refactoredMethods = new LinkedList<>();
+        
         try {
-        	// Analizamos todos los métodos inicialmente
-	    	var types = cu.types();
-	        for (Object tObj : types) {
-	        	var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
-	            for (MethodDeclaration md : typeDecl.getMethods()) {
-	            	if (md == null) {
-	            		continue;
-	            	}
-	            	MethodAnalysis ma = analyzeMethod(cu, md);
-	            	if(ma != null) {
-	            		currentMethods.add(ma);
-            		}
-            	}
-	        }
-            
             // Planificamos extracciones y aplicamos los cambios iterativamente al CompilationUnit
             while(true) {
 	            targetMethod = findNextMethodNeedingRefactor(cu, processedMethods);
@@ -69,32 +57,40 @@ public class ComplexityAnalyzer {
 	            // Marcar el método como procesado
 	            processedMethods.add(targetMethod);
 	            
+	            // Analizamos el método en su estado original
+	            MethodAnalysis ma = analyzeMethod(cu, targetMethod);
+	            if(ma != null) {
+	            	currentMethods.add(ma);
+	            }
+	            
+	            // Planificamos extracciones para el método (si lo necesita)
 	            refactoredMethodAnalysis.addAll(analyzeAndPlanMethod(cu, icuWorkingCopy, targetMethod));
 	            
+	            // No se han encontrado extracciones para este método, continuar con el siguiente
 	            if(refactoredMethodAnalysis.isEmpty()) {
-	            	// No se han encontrado extracciones para este método, continuar con el siguiente
 	            	continue;
 	            }
 	            
+	            // Si se han encontrado extracciones, actualizar el CompilationUnit con los cambios aplicados
 	            cu = refactoredMethodAnalysis.getLast().getCompilationUnitRefactored();
             }
             
             // Analizamos de nuevo el CompilationUnit con los cambios aplicados (si los hay)
             if (refactoredMethodAnalysis != null && !refactoredMethodAnalysis.isEmpty()) {
-            	types = cu.types();
-    	        for (Object tObj : types) {
-    	        	var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
-    	            for (MethodDeclaration md : typeDecl.getMethods()) {
-    	            	if (md == null) {
-    	            		continue;
-    	            	}
-    	            	MethodAnalysis ma = analyzeMethod(cu, md);
-    	            	if(ma != null) {
-    	            		refactoredMethods.add(ma);
-                		}
-                	}
-    	        }
-    	        
+            	var types = cu.types();
+	        for (Object tObj : types) {
+	        	var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
+	            for (MethodDeclaration md : typeDecl.getMethods()) {
+	            	if (md == null) {
+	            		continue;
+	            	}
+	            	MethodAnalysis ma = analyzeMethod(cu, md);
+	            	if(ma != null) {
+	            		refactoredMethods.add(ma);
+        				}
+        			}
+	        }
+	        
 			} else {
 				// No se hicieron extracciones, el estado refactorizado es igual al actual
 				refactoredMethods = currentMethods;
@@ -220,5 +216,36 @@ public class ComplexityAnalyzer {
                 return t;
             })
             .collect(Collectors.toList());
+    }
+    
+    // Elimina comentarios (linea, bloque y javadoc) preservando el resto del código
+    @SuppressWarnings("unchecked")
+	private String removeComments(CompilationUnit cu, String source) {
+        if (cu == null || source == null) {
+        	return source;
+        }
+        List<Comment> comments = cu.getCommentList();
+        if (comments == null || comments.isEmpty()) {
+        	return source;
+        }
+        StringBuilder sb = new StringBuilder(source.length());
+        int last = 0;
+        for (Object obj : comments) {
+            Comment c = (Comment) obj;
+            int start = c.getStartPosition();
+            int end = start + c.getLength();
+            if (start < last) {
+                continue;
+            }
+            if (start > source.length() || end > source.length()) {
+                continue;
+            }
+            sb.append(source, last, start);
+            last = end;
+        }
+        if (last < source.length()) {
+            sb.append(source.substring(last));
+        }
+        return sb.toString();
     }
 }

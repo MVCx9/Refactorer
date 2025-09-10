@@ -40,7 +40,8 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 		Object selected = ((IStructuredSelection) HandlerUtil.getCurrentSelection(event)).getFirstElement();
 
 		if (selected == null) {
-			throw new ResourceNotFoundException("No hay proyecto para analizar");
+			ResourceNotFoundException error = new ResourceNotFoundException("No hay proyecto para analizar");
+			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
 		}
 
 		if (selected instanceof IAdaptable) {
@@ -48,7 +49,8 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 		}
 
 		if (project == null || !project.isOpen()) {
-			throw new ValidationException("La selección no es un proyecto Eclipse válido o es un proyecto cerrado.");
+			ValidationException error = new ValidationException("La selección no es un proyecto Eclipse válido o es un proyecto cerrado.");
+			ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
 		}
 
 		ProjectFilesAnalyzer analyzer = new ProjectFilesAnalyzer();
