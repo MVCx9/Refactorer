@@ -228,13 +228,15 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             
         } else if (metrics instanceof WorkspaceMetrics) {
             WorkspaceMetrics wm = (WorkspaceMetrics) metrics;
-            metric(left, "Proyectos", String.valueOf(wm.getProjects().size()));
+            metric(left, "Proyectos", String.valueOf(wm.getProjectCount()));
+            metric(left, "Clases", String.valueOf(wm.getClassCount()));
             metric(left, "Métodos", String.valueOf(wm.getCurrentMethodCount()));
             metric(left, "Media métodos por projecto", String.valueOf(wm.getAverageCurrentMethodCount()));
             metric(left, "Media LOC por proyecto", String.valueOf(wm.getAverageCurrentLoc()));
             metric(left, "Media CC por proyecto", String.valueOf(wm.getAverageCurrentCc()));
 
-            metric(right, "Proyectos", String.valueOf(wm.getProjects().size()));
+            metric(right, "Proyectos", String.valueOf(wm.getProjectCount()));
+            metric(right, "Clases", String.valueOf(wm.getClassCount()));
             metric(right, "Métodos", String.valueOf(wm.getRefactoredMethodCount()));
             metric(right, "Media métodos por projecto", String.valueOf(wm.getAverageRefactoredMethodCount()));
             metric(right, "Media LOC por proyecto", String.valueOf(wm.getAverageRefactoredLoc()));
@@ -701,7 +703,8 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             if (fullProject == null) continue;
             java.util.Map<String, ClassMetrics> fullClasses = fullProject.getClasses().stream()
                     .collect(java.util.stream.Collectors.toMap(ClassMetrics::getName, c -> c, (a,b)->a));
-            for (ClassMetrics trimmed : trimmedProject.getMethodsWithRefactors()) {
+            // Use the classes already trimmed by WorkspaceMetrics#getProjectsWithRefactors instead of re-trimming
+            for (ClassMetrics trimmed : trimmedProject.getClasses()) {
                 ClassMetrics full = fullClasses.get(trimmed.getName());
                 if (full == null) continue;
                 for (MethodMetrics original : trimmed.getCurrentMethods()) {

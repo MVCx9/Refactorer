@@ -112,6 +112,14 @@ public class WorkspaceMetrics implements Identifiable, ComplexityStats, LocStats
 	public int getMethodExtractionCount() {
 		return getRefactoredMethodCount() - getCurrentMethodCount();
 	}
+	
+	public int getProjectCount() {
+		return projects.size();
+	}
+	
+	public int getClassCount() {
+		return projects.stream().mapToInt(ProjectMetrics::getClassCount).sum();
+	}
 
 	public List<ProjectMetrics> getProjectsWithRefactors() {
 		return  projects.stream()
