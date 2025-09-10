@@ -24,10 +24,14 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Table;
+import org.eclipse.swt.widgets.TableColumn;
+import org.eclipse.swt.widgets.TableItem;
 
 import main.common.error.ModifyFilesException;
 import main.common.utils.Utils;
 import main.model.clazz.ClassMetrics;
+import main.model.method.MethodMetrics;
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
 import main.model.common.LocStats;
@@ -142,7 +146,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
 
             metricsSash.setWeights(new int[] { 1, 1 });
             root.setWeights(new int[] { 2, 1 });
-            return container;
+
         }
 
         SashForm sash = new SashForm(container, SWT.HORIZONTAL);
@@ -151,6 +155,12 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         Composite right = buildMetricsRight(sash);
         fillMetrics(left, right);
         sash.setWeights(new int[] { 1, 1 });
+
+        // Seccion tabla de refactors para PROJECT y WORKSPACE... en CLASS no tiene sentido
+        if (actionType == ActionType.PROJECT || actionType == ActionType.WORKSPACE) {
+            createRefactorsTableSection(container);
+        }
+
         return container;
     }
 
@@ -221,6 +231,8 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             metric(left, "Proyectos", String.valueOf(wm.getProjects().size()));
             metric(left, "Métodos", String.valueOf(wm.getCurrentMethodCount()));
             metric(left, "Media métodos por projecto", String.valueOf(wm.getAverageCurrentMethodCount()));
+            metric(left, "Media LOC por proyecto", String.valueOf(wm.getAverageCurrentLoc()));
+            metric(left, "Media CC por proyecto", String.valueOf(wm.getAverageCurrentCc()));
 
             metric(right, "Proyectos", String.valueOf(wm.getProjects().size()));
             metric(right, "Métodos", String.valueOf(wm.getRefactoredMethodCount()));
@@ -544,5 +556,268 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         // Mouse wheel sync fallback
         a.addListener(SWT.MouseWheel, e -> b.setTopIndex(a.getTopIndex()));
         b.addListener(SWT.MouseWheel, e -> a.setTopIndex(b.getTopIndex()));
+    }
+
+    private void createRefactorsTableSection(Composite parent) {
+        Label sepTitle = new Label(parent, SWT.NONE);
+        sepTitle.setText("Detalle de métodos refactorizados");
+        sepTitle.setFont(bold(sepTitle));
+        sepTitle.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+
+        // Summary counts (classes & methods affected)
+        String summaryText = "";
+        if (actionType == ActionType.WORKSPACE && metrics instanceof WorkspaceMetrics wm) {
+            List<ProjectMetrics> trimmedProjects = wm.getProjectsWithRefactors();
+            int classesAffected = trimmedProjects.stream().mapToInt(p -> p.getClasses().size()).sum();
+            int methodsAffected = trimmedProjects.stream().flatMap(p -> p.getClasses().stream())
+                    .mapToInt(c -> c.getCurrentMethods().size()).sum();
+            summaryText = "Clases afectadas: " + classesAffected + "    Métodos originales con refactor: " + methodsAffected;
+        }else if (actionType == ActionType.PROJECT && metrics instanceof ProjectMetrics pm) {
+            List<ClassMetrics> trimmed = pm.getMethodsWithRefactors();
+            int classesAffected = trimmed.size();
+            int methodsAffected = trimmed.stream().mapToInt(c -> c.getCurrentMethods().size()).sum();
+            summaryText = "Clases afectadas: " + classesAffected + "    Métodos originales con refactor: " + methodsAffected;
+        } else if (actionType == ActionType.CLASS && metrics instanceof ClassMetrics cm){
+        	List<ClassMetrics> trimmed = cm.getMethodsWithRefactors();
+            int methodsAffected = trimmed.stream().mapToInt(c -> c.getCurrentMethods().size()).sum();
+            summaryText = "Métodos originales con refactor: " + methodsAffected;
+        }
+        
+        if (!summaryText.isEmpty()) {
+            Label summary = new Label(parent, SWT.NONE);
+            summary.setText(summaryText);
+            summary.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        }
+
+        Composite tableContainer = new Composite(parent, SWT.NONE);
+        tableContainer.setLayout(new GridLayout(1, false));
+        GridData tcGD = new GridData(SWT.FILL, SWT.FILL, true, false);
+        tcGD.heightHint = 180; // make table section smaller; content still scrollable, unlimited rows
+        tableContainer.setLayoutData(tcGD);
+        int style = SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL | SWT.H_SCROLL;
+        Table table = new Table(tableContainer, style);
+        table.setHeaderVisible(true);
+        table.setLinesVisible(true);
+        table.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+
+        if (actionType == ActionType.WORKSPACE) {
+            createColumn(table, "Nº", 50);
+            createColumn(table, "Proyecto", 130);
+            createColumn(table, "Clase", 150);
+            createColumn(table, "Método original", 150);
+            createColumn(table, "CC método original", 120);
+            createColumn(table, "Método refactorizado", 240);
+            createColumn(table, "CC método refactorizado", 150);
+            populateWorkspaceTable(table, (WorkspaceMetrics) metrics);
+        }else if (actionType == ActionType.PROJECT) {
+            createColumn(table, "Nº", 50);
+            createColumn(table, "Clase", 150);
+            createColumn(table, "Método original", 150);
+            createColumn(table, "CC método original", 120);
+            createColumn(table, "Método refactorizado", 240);
+            createColumn(table, "CC método refactorizado", 150);
+            populateProjectTable(table, (ProjectMetrics) metrics);
+        } else if (actionType == ActionType.CLASS){
+        	createColumn(table, "Nº", 50);
+            createColumn(table, "Método original", 160);
+            createColumn(table, "CC método original", 130);
+            createColumn(table, "Método refactorizado", 240);
+            createColumn(table, "CC método refactorizado", 150);
+            populateClassTable(table, (ClassMetrics) metrics);
+		}
+    }
+
+	private void createColumn(Table table, String text, int width) {
+        TableColumn col = new TableColumn(table, SWT.LEFT);
+        col.setText(text);
+        col.setWidth(width);
+        col.setMoveable(true);
+        col.setResizable(true);
+    }
+
+    private void populateProjectTable(Table table, ProjectMetrics pm) {
+        java.util.Map<String, ClassMetrics> fullByName = pm.getClasses().stream()
+                .collect(java.util.stream.Collectors.toMap(ClassMetrics::getName, c -> c, (a,b)->a));
+        int[] rowNum = {1};
+        List<ClassMetrics> trimmedList = pm.getMethodsWithRefactors();
+        for (int classIdx=0; classIdx<trimmedList.size(); classIdx++) {
+            ClassMetrics trimmed = trimmedList.get(classIdx);
+            ClassMetrics full = fullByName.get(trimmed.getName());
+            if (full == null) continue;
+            for (int origIdx=0; origIdx<trimmed.getCurrentMethods().size(); origIdx++) {
+                MethodMetrics original = trimmed.getCurrentMethods().get(origIdx);
+                String baseName = original.getName();
+                if (baseName == null) continue;
+                List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
+                        .filter(m -> m.getName() != null && (m.getName().equals(baseName) || m.getName().startsWith(baseName + "_ext_")))
+                        .sorted((m1,m2)->{
+                            boolean b1 = m1.getName().equals(baseName);
+                            boolean b2 = m2.getName().equals(baseName);
+                            if (b1 && !b2) return -1;
+                            if (!b1 && b2) return 1;
+                            return m1.getName().compareTo(m2.getName());
+                        })
+                        .collect(java.util.stream.Collectors.toList());
+                if (refactoredAll.isEmpty()) continue;
+                for (int idx=0; idx<refactoredAll.size(); idx++) {
+                    MethodMetrics ref = refactoredAll.get(idx);
+                    TableItem item = new TableItem(table, SWT.NONE);
+                    if (idx == 0) {
+                        item.setText(new String[] {
+                                Integer.toString(rowNum[0]++),
+                                trimmed.getName(),
+                                baseName,
+                                Integer.toString(original.getCc()),
+                                ref.getName(),
+                                Integer.toString(ref.getCc())
+                        });
+                    } else {
+                        item.setText(new String[] {
+                                "",
+                                "",
+                                "",
+                                "",
+                                ref.getName(),
+                                Integer.toString(ref.getCc())
+                        });
+                    }
+                }
+                // separator after each original method group
+                addSeparatorRow(table);
+            }
+            // thicker separator between classes (optional) already handled by method separators
+        }
+        removeLastSeparatorIfPresent(table);
+    }
+
+    private void populateWorkspaceTable(Table table, WorkspaceMetrics wm) {
+        java.util.Map<String, ProjectMetrics> fullProjects = wm.getProjects().stream()
+                .collect(java.util.stream.Collectors.toMap(ProjectMetrics::getName, p -> p, (a,b)->a));
+        int[] rowNum = {1};
+        List<ProjectMetrics> trimmedProjects = wm.getProjectsWithRefactors();
+        for (int pIdx=0; pIdx<trimmedProjects.size(); pIdx++) {
+            ProjectMetrics trimmedProject = trimmedProjects.get(pIdx);
+            ProjectMetrics fullProject = fullProjects.get(trimmedProject.getName());
+            if (fullProject == null) continue;
+            java.util.Map<String, ClassMetrics> fullClasses = fullProject.getClasses().stream()
+                    .collect(java.util.stream.Collectors.toMap(ClassMetrics::getName, c -> c, (a,b)->a));
+            for (ClassMetrics trimmed : trimmedProject.getMethodsWithRefactors()) {
+                ClassMetrics full = fullClasses.get(trimmed.getName());
+                if (full == null) continue;
+                for (MethodMetrics original : trimmed.getCurrentMethods()) {
+                    String baseName = original.getName();
+                    if (baseName == null) continue;
+                    List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
+                            .filter(m -> m.getName() != null && (m.getName().equals(baseName) || m.getName().startsWith(baseName + "_ext_")))
+                            .sorted((m1,m2)->{
+                                boolean b1 = m1.getName().equals(baseName);
+                                boolean b2 = m2.getName().equals(baseName);
+                                if (b1 && !b2) return -1;
+                                if (!b1 && b2) return 1;
+                                return m1.getName().compareTo(m2.getName());
+                            })
+                            .collect(java.util.stream.Collectors.toList());
+                    if (refactoredAll.isEmpty()) continue;
+                    for (int idx=0; idx<refactoredAll.size(); idx++) {
+                        MethodMetrics ref = refactoredAll.get(idx);
+                        TableItem item = new TableItem(table, SWT.NONE);
+                        if (idx == 0) {
+                            item.setText(new String[] {
+                                    Integer.toString(rowNum[0]++),
+                                    trimmedProject.getName(),
+                                    trimmed.getName(),
+                                    baseName,
+                                    Integer.toString(original.getCc()),
+                                    ref.getName(),
+                                    Integer.toString(ref.getCc())
+                            });
+                        } else {
+                            item.setText(new String[] {
+                                    "",
+                                    "",
+                                    "",
+                                    "",
+                                    "",
+                                    ref.getName(),
+                                    Integer.toString(ref.getCc())
+                            });
+                        }
+                    }
+                    addSeparatorRow(table);
+                }
+            }
+        }
+        removeLastSeparatorIfPresent(table);
+    }
+
+    private void populateClassTable(Table table, ClassMetrics full) {
+        ClassMetrics trimmed = full.getMethodsWithRefactors().getFirst();
+    	int[] rowNum = {1};
+        for (MethodMetrics original : trimmed.getCurrentMethods()) {
+            String baseName = original.getName();
+            if (baseName == null) continue;
+            List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
+                    .filter(m -> m.getName() != null && (m.getName().equals(baseName) || m.getName().startsWith(baseName + "_ext_")))
+                    .sorted((m1,m2)->{
+                        boolean b1 = m1.getName().equals(baseName);
+                        boolean b2 = m2.getName().equals(baseName);
+                        if (b1 && !b2) return -1;
+                        if (!b1 && b2) return 1;
+                        return m1.getName().compareTo(m2.getName());
+                    })
+                    .collect(java.util.stream.Collectors.toList());
+            if (refactoredAll.isEmpty()) continue;
+            for (int idx=0; idx<refactoredAll.size(); idx++) {
+                MethodMetrics ref = refactoredAll.get(idx);
+                TableItem item = new TableItem(table, SWT.NONE);
+                if (idx == 0) {
+                    item.setText(new String[] {
+                        Integer.toString(rowNum[0]++),
+                        baseName,
+                        Integer.toString(original.getCc()),
+                        ref.getName(),
+                        Integer.toString(ref.getCc())
+                    });
+                } else {
+                    item.setText(new String[] {
+                        "",
+                        "",
+                        "",
+                        ref.getName(),
+                        Integer.toString(ref.getCc())
+                    });
+                }
+            }
+            addSeparatorRow(table);
+        }
+        removeLastSeparatorIfPresent(table);
+    }
+
+    private void addSeparatorRow(Table table) {
+        int cols = table.getColumnCount();
+        if (cols == 0) return;
+        TableItem sep = new TableItem(table, SWT.NONE);
+        String line = "";
+        // build a horizontal rule style line for last two columns; keep others empty
+        for (int i=0;i<cols;i++) {
+            if (i == cols-2) line = "────────"; // simple visual separator
+            sep.setText(i, i == cols-2 ? line : "");
+        }
+        sep.setForeground(table.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
+    }
+
+    private void removeLastSeparatorIfPresent(Table table) {
+        int count = table.getItemCount();
+        if (count == 0) return;
+        TableItem last = table.getItem(count-1);
+        boolean isSep = true;
+        for (int c=0;c<table.getColumnCount();c++) {
+            String txt = last.getText(c);
+            if (!txt.isBlank()) {
+                // allow only separator pattern
+                if (!(txt.equals("────────"))) { isSep = false; break; }
+            }
+        }
+        if (isSep) last.dispose();
     }
 }
