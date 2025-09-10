@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.dom.Comment;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -37,7 +38,8 @@ public class ComplexityAnalyzer {
         MethodDeclaration targetMethod = null;
         Set<MethodDeclaration> processedMethods = new LinkedHashSet<>();
         
-        String currentSource = icu.getSource();
+        // Obtener el código fuente original y eliminar comentarios para currentSource
+        String currentSource = removeComments(cu, icu.getSource());
         ICompilationUnit icuWorkingCopy = (ICompilationUnit) icu.getWorkingCopy(null);
         List<MethodAnalysis> currentMethods = new LinkedList<>();
         List<MethodAnalysis> refactoredMethodAnalysis = new LinkedList<>();
@@ -76,19 +78,19 @@ public class ComplexityAnalyzer {
             // Analizamos de nuevo el CompilationUnit con los cambios aplicados (si los hay)
             if (refactoredMethodAnalysis != null && !refactoredMethodAnalysis.isEmpty()) {
             	var types = cu.types();
-    	        for (Object tObj : types) {
-    	        	var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
-    	            for (MethodDeclaration md : typeDecl.getMethods()) {
-    	            	if (md == null) {
-    	            		continue;
-    	            	}
-    	            	MethodAnalysis ma = analyzeMethod(cu, md);
-    	            	if(ma != null) {
-    	            		refactoredMethods.add(ma);
-                		}
-                	}
-    	        }
-    	        
+	        for (Object tObj : types) {
+	        	var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
+	            for (MethodDeclaration md : typeDecl.getMethods()) {
+	            	if (md == null) {
+	            		continue;
+	            	}
+	            	MethodAnalysis ma = analyzeMethod(cu, md);
+	            	if(ma != null) {
+	            		refactoredMethods.add(ma);
+        				}
+        			}
+	        }
+	        
 			} else {
 				// No se hicieron extracciones, el estado refactorizado es igual al actual
 				refactoredMethods = currentMethods;
@@ -214,5 +216,36 @@ public class ComplexityAnalyzer {
                 return t;
             })
             .collect(Collectors.toList());
+    }
+    
+    // Elimina comentarios (linea, bloque y javadoc) preservando el resto del código
+    @SuppressWarnings("unchecked")
+	private String removeComments(CompilationUnit cu, String source) {
+        if (cu == null || source == null) {
+        	return source;
+        }
+        List<Comment> comments = cu.getCommentList();
+        if (comments == null || comments.isEmpty()) {
+        	return source;
+        }
+        StringBuilder sb = new StringBuilder(source.length());
+        int last = 0;
+        for (Object obj : comments) {
+            Comment c = (Comment) obj;
+            int start = c.getStartPosition();
+            int end = start + c.getLength();
+            if (start < last) {
+                continue;
+            }
+            if (start > source.length() || end > source.length()) {
+                continue;
+            }
+            sb.append(source, last, start);
+            last = end;
+        }
+        if (last < source.length()) {
+            sb.append(source.substring(last));
+        }
+        return sb.toString();
     }
 }
