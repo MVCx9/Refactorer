@@ -42,22 +42,8 @@ public class ComplexityAnalyzer {
         List<MethodAnalysis> currentMethods = new LinkedList<>();
         List<MethodAnalysis> refactoredMethodAnalysis = new LinkedList<>();
         List<MethodAnalysis> refactoredMethods = new LinkedList<>();
+        
         try {
-        	// Analizamos todos los métodos inicialmente
-	    	var types = cu.types();
-	        for (Object tObj : types) {
-	        	var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
-	            for (MethodDeclaration md : typeDecl.getMethods()) {
-	            	if (md == null) {
-	            		continue;
-	            	}
-	            	MethodAnalysis ma = analyzeMethod(cu, md);
-	            	if(ma != null) {
-	            		currentMethods.add(ma);
-            		}
-            	}
-	        }
-            
             // Planificamos extracciones y aplicamos los cambios iterativamente al CompilationUnit
             while(true) {
 	            targetMethod = findNextMethodNeedingRefactor(cu, processedMethods);
@@ -69,19 +55,27 @@ public class ComplexityAnalyzer {
 	            // Marcar el método como procesado
 	            processedMethods.add(targetMethod);
 	            
+	            // Analizamos el método en su estado original
+	            MethodAnalysis ma = analyzeMethod(cu, targetMethod);
+	            if(ma != null) {
+	            	currentMethods.add(ma);
+	            }
+	            
+	            // Planificamos extracciones para el método (si lo necesita)
 	            refactoredMethodAnalysis.addAll(analyzeAndPlanMethod(cu, icuWorkingCopy, targetMethod));
 	            
+	            // No se han encontrado extracciones para este método, continuar con el siguiente
 	            if(refactoredMethodAnalysis.isEmpty()) {
-	            	// No se han encontrado extracciones para este método, continuar con el siguiente
 	            	continue;
 	            }
 	            
+	            // Si se han encontrado extracciones, actualizar el CompilationUnit con los cambios aplicados
 	            cu = refactoredMethodAnalysis.getLast().getCompilationUnitRefactored();
             }
             
             // Analizamos de nuevo el CompilationUnit con los cambios aplicados (si los hay)
             if (refactoredMethodAnalysis != null && !refactoredMethodAnalysis.isEmpty()) {
-            	types = cu.types();
+            	var types = cu.types();
     	        for (Object tObj : types) {
     	        	var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
     	            for (MethodDeclaration md : typeDecl.getMethods()) {
