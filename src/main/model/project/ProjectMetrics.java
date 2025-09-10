@@ -4,11 +4,14 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import main.model.clazz.ClassMetrics;
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
 import main.model.common.LocStats;
+import main.model.method.MethodMetrics;
 
 public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 
@@ -115,9 +118,38 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 	public int getMethodExtractionCount() {
 		return getRefactoredMethodCount() - getCurrentMethodCount();
 	}
-
+	
 	private int average(java.util.function.ToIntFunction<ClassMetrics> mapper) {
 		return (int) Math.round(classes.stream().mapToInt(mapper).average().orElse(0.0));
+	}
+	
+	public List<ClassMetrics> getMethodsWithRefactors() {
+		return classes.stream()
+			.filter(c -> c.getMethodExtractionCount() > 0)
+			.map(originalClass -> {
+				List<MethodMetrics> extractedMethods = originalClass.getRefactoredMethods().stream()
+						.filter(m -> m.getName() != null && m.getName().contains("_ext_"))
+						.collect(Collectors.toList());
+				Set<String> baseNames = extractedMethods.stream()
+						.map(m -> {
+							String name = m.getName();
+							int idx = name.indexOf("_ext_");
+							return idx > -1 ? name.substring(0, idx) : name;
+						})
+						.collect(Collectors.toSet());
+				List<MethodMetrics> originalBaseMethods = originalClass.getCurrentMethods().stream()
+						.filter(m -> baseNames.contains(m.getName()))
+						.collect(Collectors.toList());
+				return ClassMetrics.builder()
+						.name(originalClass.getName())
+						.analysisDate(originalClass.getAnalysisDate())
+						.currentSource(originalClass.getCurrentSource())
+						.refactoredSource(originalClass.getRefactoredSource())
+						.currentMethods(originalBaseMethods)
+						.refactoredMethods(extractedMethods)
+						.build();
+			})
+			.collect(Collectors.toList());
 	}
 
 	public static class ProjectMetricsBuilder {

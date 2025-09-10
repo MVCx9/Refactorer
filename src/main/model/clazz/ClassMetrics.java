@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
@@ -120,6 +122,42 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	
 	public int getMethodExtractionCount() {
 		return getRefactoredMethodCount() - getCurrentMethodCount();
+	}
+	
+	public List<ClassMetrics> getMethodsWithRefactors() {
+		// If no extracted methods, return empty list
+		if (getMethodExtractionCount() <= 0) {
+			return Collections.emptyList();
+		}
+		// Extracted methods: refactored ones containing _ext_
+		List<MethodMetrics> extracted = refactoredMethods.stream()
+				.filter(m -> m.getName() != null && m.getName().contains("_ext_"))
+				.collect(Collectors.toList());
+		if (extracted.isEmpty()) {
+			return Collections.emptyList();
+		}
+		// Base names of extracted methods
+		Set<String> baseNames = extracted.stream()
+				.map(m -> {
+					String n = m.getName();
+					int idx = n.indexOf("_ext_");
+					return idx > -1 ? n.substring(0, idx) : n;
+				})
+				.collect(Collectors.toSet());
+		// Original methods corresponding to extracted base names
+		List<MethodMetrics> originalBase = currentMethods.stream()
+				.filter(m -> baseNames.contains(m.getName()))
+				.collect(Collectors.toList());
+		// Build trimmed ClassMetrics
+		ClassMetrics trimmed = ClassMetrics.builder()
+				.name(this.name)
+				.analysisDate(this.analysisDate)
+				.currentSource(this.currentSource)
+				.refactoredSource(this.refactoredSource)
+				.currentMethods(originalBase)
+				.refactoredMethods(extracted)
+				.build();
+		return Collections.singletonList(trimmed);
 	}
 
 	private int averageCurrent(java.util.function.ToIntFunction<MethodMetrics> mapper) {

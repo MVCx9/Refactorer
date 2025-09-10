@@ -64,7 +64,7 @@ public final class CodeExtractionEngine {
 		List<Solution> solutions = new LinkedList<>();
 		Solution solution = new Solution(cu, node);
 		solution = new EnumerativeSearch()
-				.run(APPROACH.LONG_SEQUENCE_FIRST, cu, cache, node, cc);
+				.run(APPROACH.LONG_SEQUENCE_FIRST, cu, cache, node);
 		
 		if (solution != null && solution.getSequenceList() != null && solution.getSequenceList().isEmpty()) {
 			return Collections.emptyList();

@@ -37,7 +37,9 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
             }
         }
         if (openProjects.isEmpty()) {
-            throw new ResourceNotFoundException("No hay proyectos abiertos en el workspace.");
+        	ResourceNotFoundException error = new ResourceNotFoundException("No hay proyectos abiertos en el workspace.");
+        	ErrorDetailsDialog.open(HandlerUtil.getActiveShell(event), error.getMessage(), error);
+			return null;
         }
 
         ProjectFilesAnalyzer analyzer = new ProjectFilesAnalyzer();
@@ -53,10 +55,10 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
             }
 
             WorkspaceAnalysis workspaceAnalysis = WorkspaceAnalysis.builder()
-                    .name("My Workspace")
-                    .analysisDate(LocalDateTime.now())
-                    .projects(projectAnalyses)
-                    .build();
+                .name("My Workspace")
+                .analysisDate(LocalDateTime.now())
+                .projects(projectAnalyses)
+                .build();
 
             WorkspaceMetrics workspaceMetrics = WorkspaceAnalysisMetricsMapper.toWorkspaceMetrics(workspaceAnalysis);
             SessionAnalysisStore.getInstance().register(ActionType.WORKSPACE, workspaceMetrics);
