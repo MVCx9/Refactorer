@@ -1,4 +1,4 @@
-package test.model.method.mother;
+package test.refactor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,26 +8,22 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.ltk.core.refactoring.Change;
 
-import main.builder.MethodAnalysis;
 import main.neo.cem.CodeExtractionMetrics;
 import main.neo.cem.CodeExtractionMetricsStats;
+import main.refactor.RefactorComparison;
 
-public final class MethodAnalysisMother {
-	private static final String DEFAULT_METHOD_NAME = "method";
-	private static final int DEFAULT_CC = 7;
-	private static final int DEFAULT_LOC = 20;
-	private static final int DEFAULT_REDUCED_COMPLEXITY = 3;
+public final class RefactorComparisonMother {
+	private static final String DEFAULT_NAME = "method";
+	private static final int DEFAULT_REDUCED_COMPLEXITY = 4;
 	private static final int DEFAULT_NUMBER_OF_EXTRACTIONS = 2;
 
-	private MethodAnalysisMother() {}
+	private RefactorComparisonMother() {}
 
-	public static MethodAnalysis defaultAnalysis() {
+	public static RefactorComparison defaultComparison() {
 		final CompilationUnit cu = sampleCompilationUnit();
 		final CodeExtractionMetricsStats stats = sampleStats();
-		return MethodAnalysis.builder()
-				.methodName(DEFAULT_METHOD_NAME)
-				.cc(DEFAULT_CC)
-				.loc(DEFAULT_LOC)
+		return RefactorComparison.builder()
+				.name(DEFAULT_NAME)
 				.reducedComplexity(DEFAULT_REDUCED_COMPLEXITY)
 				.numberOfExtractions(DEFAULT_NUMBER_OF_EXTRACTIONS)
 				.compilationUnitRefactored(cu)
@@ -35,14 +31,12 @@ public final class MethodAnalysisMother {
 				.build();
 	}
 
-	public static MethodAnalysis withMethodName(String name) {
-		final String n = name == null ? DEFAULT_METHOD_NAME : name;
+	public static RefactorComparison withName(String name) {
+		final String n = name == null ? DEFAULT_NAME : name;
 		final CompilationUnit cu = sampleCompilationUnit();
 		final CodeExtractionMetricsStats stats = sampleStats();
-		return MethodAnalysis.builder()
-				.methodName(n)
-				.cc(DEFAULT_CC)
-				.loc(DEFAULT_LOC)
+		return RefactorComparison.builder()
+				.name(n)
 				.reducedComplexity(DEFAULT_REDUCED_COMPLEXITY)
 				.numberOfExtractions(DEFAULT_NUMBER_OF_EXTRACTIONS)
 				.compilationUnitRefactored(cu)
@@ -50,14 +44,12 @@ public final class MethodAnalysisMother {
 				.build();
 	}
 
-	public static MethodAnalysis custom(String methodName, int cc, int loc, int reducedComplexity, int numberOfExtractions, CompilationUnit cu, CodeExtractionMetricsStats stats) {
-		final String n = methodName == null ? DEFAULT_METHOD_NAME : methodName;
+	public static RefactorComparison custom(String name, int reducedComplexity, int numberOfExtractions, CompilationUnit cu, CodeExtractionMetricsStats stats) {
+		final String n = name == null ? DEFAULT_NAME : name;
 		final CompilationUnit compilationUnit = cu == null ? sampleCompilationUnit() : cu;
 		final CodeExtractionMetricsStats s = stats == null ? sampleStats() : stats;
-		return MethodAnalysis.builder()
-				.methodName(n)
-				.cc(cc)
-				.loc(loc)
+		return RefactorComparison.builder()
+				.name(n)
 				.reducedComplexity(reducedComplexity)
 				.numberOfExtractions(numberOfExtractions)
 				.compilationUnitRefactored(compilationUnit)
@@ -67,7 +59,7 @@ public final class MethodAnalysisMother {
 
 	private static CompilationUnit sampleCompilationUnit() {
 		final ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
-		final String src = "public class Sample { void x() { int a=0; } }";
+		final String src = "public class Sample { void x(){} }";
 		parser.setKind(ASTParser.K_COMPILATION_UNIT);
 		parser.setSource(src.toCharArray());
 		parser.setResolveBindings(false);
@@ -77,7 +69,7 @@ public final class MethodAnalysisMother {
 	private static CodeExtractionMetricsStats sampleStats() {
 		final List<Change> empty = new ArrayList<>();
 		final CodeExtractionMetrics m1 = new CodeExtractionMetrics(true, "OK", true, 5, 1, empty, empty);
-		final CodeExtractionMetrics m2 = new CodeExtractionMetrics(true, "OK", true, 7, 2, empty, empty);
+		final CodeExtractionMetrics m2 = new CodeExtractionMetrics(true, "OK", true, 8, 2, empty, empty);
 		return new CodeExtractionMetricsStats(new CodeExtractionMetrics[] { m1, m2 });
 	}
 }
