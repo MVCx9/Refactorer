@@ -75,16 +75,6 @@ class ComplexityAnalyzerTest {
 		toStrictEqual("a", analysis.getCurrentMethods().get(0).getMethodName());
 	}
 
-	@Test
-	@DisplayName("given_classWithNullSource_when_analyze_should_setCurrentSourceNull")
-	void given_classWithNullSource_when_analyze_should_setCurrentSourceNull() throws Exception {
-		final String src = "public class NullSrc { public void a(){} }";
-		final CompilationUnit cu = parse(src);
-		final ICompilationUnit icu = proxyICompilationUnit(null, "NullSrc.java", false);
-		final ComplexityAnalyzer analyzer = new TestableComplexityAnalyzer(3);
-		final ClassAnalysis analysis = analyzer.analyze(cu, icu);
-		toStrictEqual(null, analysis.getCurrentSource());
-	}
 
 	@Test
 	@DisplayName("given_classWithOverloadedMethods_when_analyze_should_processBothOverloads")

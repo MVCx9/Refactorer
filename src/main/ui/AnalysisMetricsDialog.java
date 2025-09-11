@@ -16,10 +16,14 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.custom.StyleRange;
+import org.eclipse.swt.dnd.Clipboard;
+import org.eclipse.swt.dnd.TextTransfer;
+import org.eclipse.swt.dnd.Transfer;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
@@ -157,7 +161,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         sash.setWeights(new int[] { 1, 1 });
 
         // Seccion tabla de refactors para PROJECT y WORKSPACE... en CLASS no tiene sentido
-        if (actionType == ActionType.PROJECT || actionType == ActionType.WORKSPACE) {
+        if (actionType == ActionType.PROJECT || actionType == ActionType.WORKSPACE || actionType == ActionType.CLASS) { // allow also CLASS if requested
             createRefactorsTableSection(container);
         }
 
@@ -627,6 +631,13 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             createColumn(table, "CC método refactorizado", 150);
             populateClassTable(table, (ClassMetrics) metrics);
 		}
+
+        // Button to copy table content to clipboard
+        Button copyBtn = new Button(tableContainer, SWT.PUSH);
+        copyBtn.setText("Copiar al portapapeles");
+        GridData btnGD = new GridData(SWT.RIGHT, SWT.CENTER, true, false);
+        copyBtn.setLayoutData(btnGD);
+        copyBtn.addListener(SWT.Selection, e -> copyTableToClipboard(table));
     }
 
 	private void createColumn(Table table, String text, int width) {
@@ -642,7 +653,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                 .collect(java.util.stream.Collectors.toMap(ClassMetrics::getName, c -> c, (a,b)->a));
         int[] rowNum = {1};
         List<ClassMetrics> trimmedList = pm.getMethodsWithRefactors();
-        for (int classIdx=0; classIdx<trimmedList.size(); classIdx++) {
+        for (int classIdx = 0; classIdx < trimmedList.size(); classIdx++) { // fixed loop condition
             ClassMetrics trimmed = trimmedList.get(classIdx);
             ClassMetrics full = fullByName.get(trimmed.getName());
             if (full == null) continue;
@@ -822,5 +833,55 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             }
         }
         if (isSep) last.dispose();
+    }
+
+    // --- New helper methods for copy-to-clipboard ---
+    private void copyTableToClipboard(Table table) {
+        if (table.isDisposed()) return;
+        StringBuilder sb = new StringBuilder();
+        int colCount = table.getColumnCount();
+        // headers
+        for (int c=0; c<colCount; c++) {
+            sb.append(escapeCell(table.getColumn(c).getText()));
+            if (c < colCount - 1) sb.append('\t');
+        }
+        sb.append('\n');
+        // rows
+        for (TableItem item : table.getItems()) {
+            if (isSeparator(item, colCount)) continue; // skip separator rows
+            boolean allBlank = true;
+            for (int c=0;c<colCount;c++) {
+                String cell = item.getText(c);
+                if (!cell.isBlank()) { allBlank = false; }
+                sb.append(escapeCell(cell));
+                if (c < colCount - 1) sb.append('\t');
+            }
+            if (!allBlank) sb.append('\n');
+        }
+        Clipboard clipboard = new Clipboard(table.getDisplay());
+        TextTransfer textTransfer = TextTransfer.getInstance();
+        try {
+            clipboard.setContents(new Object[]{ sb.toString() }, new Transfer[]{ textTransfer });
+        } finally {
+            clipboard.dispose();
+        }
+    }
+
+    private boolean isSeparator(TableItem item, int colCount) {
+        int nonBlank = 0;
+        for (int c=0;c<colCount;c++) {
+            String t = item.getText(c);
+            if (!t.isBlank()) {
+                nonBlank++;
+                if (!t.equals("────────")) return false; // some other text -> not separator
+            }
+        }
+        return nonBlank == 1; // exactly one non-blank cell with the dashes
+    }
+
+    private String escapeCell(String cell) {
+        if (cell == null) return "";
+        // For TSV minimal escaping: replace newlines/tabs
+        return cell.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ');
     }
 }
