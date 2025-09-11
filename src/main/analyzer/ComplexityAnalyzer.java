@@ -117,13 +117,17 @@ public class ComplexityAnalyzer {
         }
     }
     
+    protected int computeCognitiveComplexity(MethodDeclaration md) {
+        return main.neo.cem.Utils.computeAndAnnotateAccumulativeCognitiveComplexity(md);
+    }
+    
     private MethodAnalysis analyzeMethod(CompilationUnit cu, MethodDeclaration md) {
     	if (md == null) {
         	return null;
         }
         
-        // 1) Analizamos la complejidad cognitiva
-		int cc = main.neo.cem.Utils.computeAndAnnotateAccumulativeCognitiveComplexity(md);
+    	// 1) Analizamos la complejidad cognitiva
+        int cc = computeCognitiveComplexity(md);
         
         // 2) Analizamos las LOC (aprox. rango de líneas del método)
         int startLine = cu.getLineNumber(md.getStartPosition());
