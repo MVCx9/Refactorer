@@ -599,6 +599,9 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         tableContainer.setLayout(new GridLayout(1, false));
         GridData tcGD = new GridData(SWT.FILL, SWT.FILL, true, false);
         tcGD.heightHint = 180; // make table section smaller; content still scrollable, unlimited rows
+        if(actionType == ActionType.CLASS) {
+        	tcGD.heightHint = 140;
+        }
         tableContainer.setLayoutData(tcGD);
         int style = SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL | SWT.H_SCROLL;
         Table table = new Table(tableContainer, style);
