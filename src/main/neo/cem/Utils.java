@@ -3,9 +3,7 @@ package main.neo.cem;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
@@ -912,7 +910,8 @@ public class Utils {
 	 */
 	private static void annotateBaseCognitiveComplexityContributions(MethodDeclaration ast) {
 		ast.accept(new ASTVisitor() {
-			private final Deque<Boolean> switchFirstCase = new ArrayDeque<>();
+			// NOTE: For switch statements we count exactly 1 for the whole construct, NOT for each case.
+			// Therefore we only add contribution on SwitchStatement visit and ignore SwitchCase nodes.
 
 			@Override
 			public boolean visit(IfStatement node) {
@@ -922,28 +921,12 @@ public class Utils {
 
 			@Override
 			public boolean visit(SwitchStatement node) {
-				addContribution(node, 1, true);
-				switchFirstCase.push(Boolean.TRUE);
-				return true;
+				addContribution(node, 1, true); // single point for the entire switch
+				return true; // still visit inside to process nested structures
 			}
 
-			@Override
-			public void endVisit(SwitchStatement node) {
-				if (!switchFirstCase.isEmpty())
-					switchFirstCase.pop();
-			}
-
-			@Override
-			public boolean visit(SwitchCase node) {
-				boolean first = !switchFirstCase.isEmpty() && switchFirstCase.peek();
-				if (first) {
-					switchFirstCase.pop();
-					switchFirstCase.push(Boolean.FALSE);
-				} else {
-					addContribution(node, 1, false);
-				}
-				return true;
-			}
+			// SwitchCase nodes DO NOT contribute inherent complexity anymore.
+			// Any nested control flow inside the switch will be handled by their own visitors.
 
 			@Override
 			public boolean visit(org.eclipse.jdt.core.dom.ForStatement node) {
@@ -986,7 +969,7 @@ public class Utils {
 				int logicalOps = countLogicalOperators(node);
 				if (logicalOps > 0) {
 					addContribution(node, logicalOps, false);
-					return false;
+					return false; // no need to traverse deeper for logical ops counting
 				}
 				return true;
 			}
