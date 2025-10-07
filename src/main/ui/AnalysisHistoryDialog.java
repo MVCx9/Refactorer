@@ -105,11 +105,13 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
             				e.getActionType(), 
             				metrics, 
             				metrics1.getCurrentSource(), 
-            				metrics1.getRefactoredSource() != null ? metrics1.getRefactoredSource() : metrics1.getCurrentSource());
+            				metrics1.getRefactoredSource() != null ? metrics1.getRefactoredSource() : metrics1.getCurrentSource())
+            				.setReadOnly(true);
             		d.open();
             	} else {
             		Object metrics1 = e.getMetrics();
-            		AnalysisMetricsDialog d = new AnalysisMetricsDialog(getShell(), e.getActionType(), metrics1);
+            		AnalysisMetricsDialog d = new AnalysisMetricsDialog(getShell(), e.getActionType(), metrics1)
+            				.setReadOnly(true);
             		d.open();
             	}
             });
