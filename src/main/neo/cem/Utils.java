@@ -910,24 +910,28 @@ public class Utils {
 	 */
 	private static void annotateBaseCognitiveComplexityContributions(MethodDeclaration ast) {
 		ast.accept(new ASTVisitor() {
-			// NOTE: For switch statements we count exactly 1 for the whole construct, NOT for each case.
-			// Therefore we only add contribution on SwitchStatement visit and ignore SwitchCase nodes.
 
 			@Override
 			public boolean visit(IfStatement node) {
+				// Base contribution (+1) incluyendo nesting component
 				addContribution(node, 1, true);
+				// IF the if statement has else/elseif parts, add +1 without nesting component.
+				if (node.getElseStatement() != null) {
+					addContribution(node, 1, false); // inherent only, no nesting component
+				}
 				return true;
 			}
 
 			@Override
 			public boolean visit(SwitchStatement node) {
+				// NOTE: For switch statements we count exactly 1 for the whole construct, NOT for each case.
+				// Therefore we only add contribution on SwitchStatement visit and ignore SwitchCase nodes.
 				addContribution(node, 1, true); // single point for the entire switch
 				return true; // still visit inside to process nested structures
 			}
 
-			// SwitchCase nodes DO NOT contribute inherent complexity anymore.
+			// SwitchCase nodes DO NOT contribute inherent complexity.
 			// Any nested control flow inside the switch will be handled by their own visitors.
-
 			@Override
 			public boolean visit(org.eclipse.jdt.core.dom.ForStatement node) {
 				addContribution(node, 1, true);
