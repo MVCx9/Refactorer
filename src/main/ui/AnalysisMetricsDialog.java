@@ -1,5 +1,12 @@
 package main.ui;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,22 +17,21 @@ import org.eclipse.core.resources.IResourceVisitor;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
-import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.custom.StyleRange;
-import org.eclipse.swt.dnd.Clipboard;
-import org.eclipse.swt.dnd.TextTransfer;
-import org.eclipse.swt.dnd.Transfer;
-import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
@@ -35,10 +41,10 @@ import org.eclipse.swt.widgets.TableItem;
 import main.common.error.ModifyFilesException;
 import main.common.utils.Utils;
 import main.model.clazz.ClassMetrics;
-import main.model.method.MethodMetrics;
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
 import main.model.common.LocStats;
+import main.model.method.MethodMetrics;
 import main.model.project.ProjectMetrics;
 import main.model.workspace.WorkspaceMetrics;
 import main.session.ActionType;
@@ -59,6 +65,8 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
     private Color modColor;    // modified
     private final Color black = org.eclipse.swt.widgets.Display.getCurrent().getSystemColor(SWT.COLOR_BLACK);
 
+    private boolean readOnly = false; // when true (history), no code modification buttons
+
     public AnalysisMetricsDialog(Shell parentShell, ActionType actionType, Object metrics) {
         super(parentShell);
         this.actionType = actionType;
@@ -75,6 +83,12 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         this.leftSource = leftSource;
         this.rightSource = rightSource;
         setHelpAvailable(false);
+    }
+
+    /** Mark dialog as read-only (used when opened from history). */
+    public AnalysisMetricsDialog setReadOnly(boolean value) {
+        this.readOnly = value;
+        return this;
     }
 
     @Override
@@ -202,50 +216,41 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             metric(right, "Líneas de código (LOC)", String.valueOf(ls.getRefactoredLoc()));
             metric(right, "Complejidad cognitiva (CC)", String.valueOf(cs.getRefactoredCc()));
         }
-
-        // Type-specific details
-        if (metrics instanceof ClassMetrics) {
-            ClassMetrics cm = (ClassMetrics) metrics;
+        if (metrics instanceof ClassMetrics cm) {
             metric(left, "Métodos", String.valueOf(cm.getCurrentMethodCount()));
             metric(left, "Media LOC por método", String.valueOf(cm.getAverageCurrentLoc()));
             metric(left, "Media CC por método", String.valueOf(cm.getAverageCurrentCc()));
-
             metric(right, "Métodos", String.valueOf(cm.getRefactoredMethodCount()));
             metric(right, "Media LOC por método", String.valueOf(cm.getAverageRefactoredLoc()));
             metric(right, "Media CC por método", String.valueOf(cm.getAverageRefactoredCc()));
             metric(right, "Métodos extraídos", String.valueOf(cm.getRefactoredMethodCount() - cm.getCurrentMethodCount()));
-
-        } else if (metrics instanceof ProjectMetrics) {
-            ProjectMetrics pm = (ProjectMetrics) metrics;
+            metric(right, "Umbral de Complejidad", String.valueOf(cm.getThreshold()));
+        } else if (metrics instanceof ProjectMetrics pm) {
             metric(left, "Clases", String.valueOf(pm.getClassCount()));
             metric(left, "Métodos", String.valueOf(pm.getCurrentMethodCount()));
             metric(left, "Media métodos por clase", String.valueOf(pm.getAverageCurrentMethodCount()));
             metric(left, "Media LOC por clase", String.valueOf(pm.getAverageCurrentLoc()));
             metric(left, "Media CC por clase", String.valueOf(pm.getAverageCurrentCc()));
-
             metric(right, "Clases", String.valueOf(pm.getClassCount()));
             metric(right, "Métodos", String.valueOf(pm.getRefactoredMethodCount()));
             metric(right, "Media métodos por clase", String.valueOf(pm.getAverageRefactoredMethodCount()));
             metric(right, "Media LOC por clase", String.valueOf(pm.getAverageRefactoredLoc()));
             metric(right, "Media CC por clase", String.valueOf(pm.getAverageRefactoredCc()));
             metric(right, "Métodos extraídos", String.valueOf(pm.getRefactoredMethodCount() - pm.getCurrentMethodCount()));
-            
-        } else if (metrics instanceof WorkspaceMetrics) {
-            WorkspaceMetrics wm = (WorkspaceMetrics) metrics;
+            metric(right, "Umbral de Complejidad", String.valueOf(pm.getComplexityThreshold()));
+        } else if (metrics instanceof WorkspaceMetrics wm) {
             metric(left, "Proyectos", String.valueOf(wm.getProjectCount()));
             metric(left, "Clases", String.valueOf(wm.getClassCount()));
             metric(left, "Métodos", String.valueOf(wm.getCurrentMethodCount()));
             metric(left, "Media métodos por projecto", String.valueOf(wm.getAverageCurrentMethodCount()));
             metric(left, "Media LOC por proyecto", String.valueOf(wm.getAverageCurrentLoc()));
             metric(left, "Media CC por proyecto", String.valueOf(wm.getAverageCurrentCc()));
-
             metric(right, "Proyectos", String.valueOf(wm.getProjectCount()));
             metric(right, "Clases", String.valueOf(wm.getClassCount()));
             metric(right, "Métodos", String.valueOf(wm.getRefactoredMethodCount()));
             metric(right, "Media métodos por projecto", String.valueOf(wm.getAverageRefactoredMethodCount()));
             metric(right, "Media LOC por proyecto", String.valueOf(wm.getAverageRefactoredLoc()));
             metric(right, "Media CC por proyecto", String.valueOf(wm.getAverageRefactoredCc()));
-            metric(right, "Métodos extraídos", String.valueOf(wm.getRefactoredMethodCount() - wm.getCurrentMethodCount()));
         }
     }
 
@@ -270,22 +275,28 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
     @Override
     protected void createButtonsForButtonBar(Composite parent) {
         createButton(parent, OK, "Cerrar", true);
-        createButton(parent, BREAK_EXTRACT_ID, "Deshacer extracciones de código", false);
-        createButton(parent, APPLY_EXTRACT_ID, "Aplicar extracciones de código", false);
+        if (!readOnly) { // only allow modifying code when not in history mode
+            createButton(parent, BREAK_EXTRACT_ID, "Deshacer extracciones de código", false);
+            createButton(parent, APPLY_EXTRACT_ID, "Aplicar extracciones de código", false);
+        }
     }
 
     @Override
     protected void buttonPressed(int buttonId) {
+        if (readOnly) { // ignore modification buttons if in read-only (safety)
+            if (buttonId == OK) {
+                super.buttonPressed(buttonId);
+            }
+            return;
+        }
         if (buttonId == APPLY_EXTRACT_ID) {
             applyCodeExtractions();
             return; // keep dialog open after applying
         }
-        
         if(buttonId == BREAK_EXTRACT_ID) {
-        	breackCodeExtractions();
-        	return;
+            breackCodeExtractions();
+            return;
         }
-        
         super.buttonPressed(buttonId);
     }
 
@@ -569,8 +580,6 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         sepTitle.setText("Detalle de métodos refactorizados");
         sepTitle.setFont(bold(sepTitle));
         sepTitle.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-
-        // Summary counts (classes & methods affected)
         String summaryText = "";
         if (actionType == ActionType.WORKSPACE && metrics instanceof WorkspaceMetrics wm) {
             List<ProjectMetrics> trimmedProjects = wm.getProjectsWithRefactors();
@@ -584,34 +593,29 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             int methodsAffected = trimmed.stream().mapToInt(c -> c.getCurrentMethods().size()).sum();
             summaryText = "Clases afectadas: " + classesAffected + "    Métodos originales con refactor: " + methodsAffected;
         } else if (actionType == ActionType.CLASS && metrics instanceof ClassMetrics cm){
-        	List<ClassMetrics> trimmed = cm.getMethodsWithRefactors();
+            List<ClassMetrics> trimmed = cm.getMethodsWithRefactors();
             int methodsAffected = trimmed.stream().mapToInt(c -> c.getCurrentMethods().size()).sum();
             summaryText = "Métodos originales con refactor: " + methodsAffected;
         }
-        
         if (!summaryText.isEmpty()) {
             Label summary = new Label(parent, SWT.NONE);
             summary.setText(summaryText);
             summary.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         }
-
         Composite tableContainer = new Composite(parent, SWT.NONE);
         tableContainer.setLayout(new GridLayout(1, false));
         GridData tcGD = new GridData(SWT.FILL, SWT.FILL, true, false);
-        tcGD.heightHint = 180; // make table section smaller; content still scrollable, unlimited rows
-        if(actionType == ActionType.CLASS) {
-        	tcGD.heightHint = 140;
-        }
+        tcGD.heightHint = actionType == ActionType.CLASS ? 140 : 180;
         tableContainer.setLayoutData(tcGD);
         int style = SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL | SWT.H_SCROLL;
         Table table = new Table(tableContainer, style);
         table.setHeaderVisible(true);
         table.setLinesVisible(true);
         table.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-
         if (actionType == ActionType.WORKSPACE) {
             createColumn(table, "Nº", 50);
             createColumn(table, "Proyecto", 130);
+            createColumn(table, "Umbral", 80);
             createColumn(table, "Clase", 150);
             createColumn(table, "Método original", 150);
             createColumn(table, "CC método original", 120);
@@ -627,20 +631,18 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             createColumn(table, "CC método refactorizado", 150);
             populateProjectTable(table, (ProjectMetrics) metrics);
         } else if (actionType == ActionType.CLASS){
-        	createColumn(table, "Nº", 50);
+            createColumn(table, "Nº", 50);
             createColumn(table, "Método original", 160);
             createColumn(table, "CC método original", 130);
             createColumn(table, "Método refactorizado", 240);
             createColumn(table, "CC método refactorizado", 150);
             populateClassTable(table, (ClassMetrics) metrics);
-		}
-
-        // Button to copy table content to clipboard
-        Button copyBtn = new Button(tableContainer, SWT.PUSH);
-        copyBtn.setText("Copiar al portapapeles");
+        }
+        Button exportBtn = new Button(tableContainer, SWT.PUSH);
+        exportBtn.setText("Exportar a archivo CSV");
         GridData btnGD = new GridData(SWT.RIGHT, SWT.CENTER, true, false);
-        copyBtn.setLayoutData(btnGD);
-        copyBtn.addListener(SWT.Selection, e -> copyTableToClipboard(table));
+        exportBtn.setLayoutData(btnGD);
+        exportBtn.addListener(SWT.Selection, e -> exportTableToCsv(table));
     }
 
 	private void createColumn(Table table, String text, int width) {
@@ -717,7 +719,6 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             if (fullProject == null) continue;
             java.util.Map<String, ClassMetrics> fullClasses = fullProject.getClasses().stream()
                     .collect(java.util.stream.Collectors.toMap(ClassMetrics::getName, c -> c, (a,b)->a));
-            // Use the classes already trimmed by WorkspaceMetrics#getProjectsWithRefactors instead of re-trimming
             for (ClassMetrics trimmed : trimmedProject.getClasses()) {
                 ClassMetrics full = fullClasses.get(trimmed.getName());
                 if (full == null) continue;
@@ -726,13 +727,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                     if (baseName == null) continue;
                     List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
                             .filter(m -> m.getName() != null && (m.getName().equals(baseName) || m.getName().startsWith(baseName + "_ext_")))
-                            .sorted((m1,m2)->{
-                                boolean b1 = m1.getName().equals(baseName);
-                                boolean b2 = m2.getName().equals(baseName);
-                                if (b1 && !b2) return -1;
-                                if (!b1 && b2) return 1;
-                                return m1.getName().compareTo(m2.getName());
-                            })
+                            .sorted((m1,m2)->{ boolean b1 = m1.getName().equals(baseName); boolean b2 = m2.getName().equals(baseName); if (b1 && !b2) return -1; if (!b1 && b2) return 1; return m1.getName().compareTo(m2.getName()); })
                             .collect(java.util.stream.Collectors.toList());
                     if (refactoredAll.isEmpty()) continue;
                     for (int idx=0; idx<refactoredAll.size(); idx++) {
@@ -742,6 +737,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                             item.setText(new String[] {
                                     Integer.toString(rowNum[0]++),
                                     trimmedProject.getName(),
+                                    Integer.toString(fullProject.getComplexityThreshold()),
                                     trimmed.getName(),
                                     baseName,
                                     Integer.toString(original.getCc()),
@@ -749,15 +745,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                                     Integer.toString(ref.getCc())
                             });
                         } else {
-                            item.setText(new String[] {
-                                    "",
-                                    "",
-                                    "",
-                                    "",
-                                    "",
-                                    ref.getName(),
-                                    Integer.toString(ref.getCc())
-                            });
+                            item.setText(new String[] { "", "", "", "", "", "", ref.getName(), Integer.toString(ref.getCc()) });
                         }
                     }
                     addSeparatorRow(table);
@@ -838,38 +826,72 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         if (isSep) last.dispose();
     }
 
-    // --- New helper methods for copy-to-clipboard ---
-    private void copyTableToClipboard(Table table) {
+    // --- CSV Export Helper Methods ---
+    private void exportTableToCsv(Table table) {
         if (table.isDisposed()) return;
-        StringBuilder sb = new StringBuilder();
+        FileDialog dialog = new FileDialog(table.getShell(), SWT.SAVE);
+        dialog.setText("Exportar tabla a CSV");
+        dialog.setFilterExtensions(new String[] {"*.csv"});
+        dialog.setFilterNames(new String[] {"CSV (separado por comas)"});
+        dialog.setFileName(buildDefaultCsvFileName());
+        String pathStr = dialog.open();
+        if (pathStr == null) return; // usuario canceló
+        if (!pathStr.toLowerCase().endsWith(".csv")) {
+            pathStr += ".csv";
+        }
+        Path path = Paths.get(pathStr);
+
         int colCount = table.getColumnCount();
-        // headers
-        for (int c=0; c<colCount; c++) {
-            sb.append(escapeCell(table.getColumn(c).getText()));
-            if (c < colCount - 1) sb.append('\t');
-        }
-        sb.append('\n');
-        // rows
-        for (TableItem item : table.getItems()) {
-            if (isSeparator(item, colCount)) continue; // skip separator rows
-            boolean allBlank = true;
+        try (BufferedWriter bw = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
+            // Encabezados
             for (int c=0;c<colCount;c++) {
-                String cell = item.getText(c);
-                if (!cell.isBlank()) { allBlank = false; }
-                sb.append(escapeCell(cell));
-                if (c < colCount - 1) sb.append('\t');
+                bw.write(csvEscape(table.getColumn(c).getText()));
+                if (c < colCount - 1) bw.write(',');
             }
-            if (!allBlank) sb.append('\n');
+            bw.write('\n');
+            // Filas
+            for (TableItem item : table.getItems()) {
+                if (isSeparator(item, colCount)) continue; // saltar separadores
+                boolean allBlank = true;
+                for (int c=0;c<colCount;c++) {
+                    String cell = item.getText(c);
+                    if (!cell.isBlank()) allBlank = false;
+                    bw.write(csvEscape(cell));
+                    if (c < colCount - 1) bw.write(',');
+                }
+                if (!allBlank) bw.write('\n');
+            }
+        } catch (IOException ex) {
+            MessageDialog.openError(table.getShell(), "Error", "No se pudo exportar el archivo: " + ex.getMessage());
+            return;
         }
-        Clipboard clipboard = new Clipboard(table.getDisplay());
-        TextTransfer textTransfer = TextTransfer.getInstance();
-        try {
-            clipboard.setContents(new Object[]{ sb.toString() }, new Transfer[]{ textTransfer });
-        } finally {
-            clipboard.dispose();
+        MessageDialog.openInformation(table.getShell(), "Exportación completada", "Archivo CSV exportado en: " + path.toString());
+    }
+
+    private String buildDefaultCsvFileName() {
+        String tipo = analysisTypeToken();
+        String timestamp = DateTimeFormatter.ofPattern("yyyyMMdd_HHmm").format(LocalDateTime.now());
+        return "Refactorer_" + tipo + "_" + timestamp + ".csv";
+    }
+
+    private String analysisTypeToken() {
+        switch (actionType) {
+            case CLASS: return "clase";
+            case PROJECT: return "proyecto";
+            case WORKSPACE: return "workspace";
+            default: return "analisis";
         }
     }
 
+    private String csvEscape(String cell) {
+        if (cell == null) return "";
+        boolean needsQuotes = cell.contains(",") || cell.contains("\n") || cell.contains("\r") || cell.contains("\"") || cell.startsWith(" ") || cell.endsWith(" ");
+        String v = cell.replace("\"", "\"\"");
+        if (needsQuotes) return '"' + v + '"';
+        return v;
+    }
+
+    // --- Existing helper used by CSV (separator detection) ---
     private boolean isSeparator(TableItem item, int colCount) {
         int nonBlank = 0;
         for (int c=0;c<colCount;c++) {
@@ -882,6 +904,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         return nonBlank == 1; // exactly one non-blank cell with the dashes
     }
 
+    // Retained for potential future use (now unused) - previously for clipboard export
     private String escapeCell(String cell) {
         if (cell == null) return "";
         // For TSV minimal escaping: replace newlines/tabs

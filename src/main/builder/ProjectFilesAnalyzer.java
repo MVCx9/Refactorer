@@ -20,6 +20,7 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import main.analyzer.ComplexityAnalyzer;
 import main.common.error.AnalyzeException;
 import main.common.utils.Utils;
+import main.preferences.ProjectPreferences;
 
 public class ProjectFilesAnalyzer {
 
@@ -30,9 +31,9 @@ public class ProjectFilesAnalyzer {
 	}
 
 	/**
-	 * Analiza un fichero .java (IFile) devolviendo un ClassAnalysis solo si el fichero
-	 * contiene al menos una clase top-level. Se ignoran ficheros que solo definan
-	 * enum, interface o record. Devuelve null si no hay ninguna clase.
+	 * Analiza un fichero .java (IFile) devolviendo un ClassAnalysis solo si el
+	 * fichero contiene al menos una clase top-level. Se ignoran ficheros que solo
+	 * definan enum, interface o record. Devuelve null si no hay ninguna clase.
 	 */
 	public ClassAnalysis analyzeFile(IFile file) throws CoreException {
 		Objects.requireNonNull(file, "file");
@@ -40,7 +41,8 @@ public class ProjectFilesAnalyzer {
 		try {
 			ICompilationUnit icu = (ICompilationUnit) JavaCore.create(file);
 			if (icu == null) {
-				throw new IllegalStateException("Refactorer: Cannot create ICompilationUnit from file: " + file.getName());
+				throw new IllegalStateException(
+						"Refactorer: Cannot create ICompilationUnit from file: " + file.getName());
 			}
 
 			CompilationUnit cu = Utils.parserAST(icu);
@@ -57,7 +59,8 @@ public class ProjectFilesAnalyzer {
 						break;
 					}
 				}
-				// EnumDeclaration y RecordDeclaration NO son TypeDeclaration (y por tanto se ignoran)
+				// EnumDeclaration y RecordDeclaration NO son TypeDeclaration (y por tanto se
+				// ignoran)
 			}
 
 			if (!hasClass) {
@@ -103,13 +106,9 @@ public class ProjectFilesAnalyzer {
 				}
 			}
 		}
-
-		return ProjectAnalysis.builder()
-				.project(project)
-				.name(project.getName())
-				.analysisDate(LocalDateTime.now())
-				.classes(analyses)
-				.build();
+		int threshold = ProjectPreferences.getComplexityThreshold(project);
+		return ProjectAnalysis.builder().project(project).name(project.getName()).analysisDate(LocalDateTime.now())
+				.classes(analyses).complexityThreshold(threshold).build();
 	}
 
 }

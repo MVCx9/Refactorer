@@ -44,11 +44,11 @@ public final class CodeExtractionEngine {
 	 *                       Eclipse
 	 * @throws IOException 
 	 */
-	public static List<RefactorComparison> analyseAndPlan(CompilationUnit cu, ICompilationUnit icuWorkingCopy, MethodDeclaration node, int loc) throws CoreException, IOException {
+	public static List<RefactorComparison> analyseAndPlan(CompilationUnit cu, ICompilationUnit icuWorkingCopy, MethodDeclaration node, int loc, int threshold) throws CoreException, IOException {
 		RefactoringCache cache = new RefactoringCache(cu);
 		int cc = main.neo.cem.Utils.computeAndAnnotateAccumulativeCognitiveComplexity(node);
 
-		if (node == null || cu == null || cc <= Constants.MAX_COMPLEXITY) {
+		if (node == null || cu == null || cc <= threshold) {
 			return Collections.emptyList();
 		}
 
@@ -62,9 +62,9 @@ public final class CodeExtractionEngine {
 		 * Constants.EXHAUSTIVE_SEARCH_SHORT_SEQUENCES_FIRST: APPROACH.SHORT_SEQUENCE_FIRST
 		 */
 		List<Solution> solutions = new LinkedList<>();
-		Solution solution = new Solution(cu, node);
+		Solution solution = new Solution(cu, node, threshold);
 		solution = new EnumerativeSearch()
-				.run(APPROACH.LONG_SEQUENCE_FIRST, cu, cache, node);
+				.run(APPROACH.LONG_SEQUENCE_FIRST, cu, cache, node, threshold);
 		
 		if (solution != null && solution.getSequenceList() != null && solution.getSequenceList().isEmpty()) {
 			return Collections.emptyList();

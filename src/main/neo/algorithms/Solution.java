@@ -83,6 +83,11 @@ public class Solution {
 	private CodeExtractionMetricsStats extractionMetricsStats = null;
 
 	/**
+	 * threshold for complexity
+	 */
+	private int threshold;
+
+	/**
 	 * Create a Solution from a given {@link Sequence} list
 	 * 
 	 * @param sequenceList          The {@link Sequence} list
@@ -90,13 +95,14 @@ public class Solution {
 	 *                              {@link Sequence} list
 	 * @param methodDeclarationNode {@link MethodDeclaration} node
 	 */
-	public Solution(List<Sequence> sequenceList, CompilationUnit compilationUnit, ASTNode methodDeclarationNode) {
+	public Solution(List<Sequence> sequenceList, CompilationUnit compilationUnit, ASTNode methodDeclarationNode, int threshold) {
 		this.sequenceList = sequenceList;
 		this.compilationUnit = compilationUnit;
 		this.method = methodDeclarationNode;
 		this.methodName = ((MethodDeclaration) this.method).getName().toString();
 		this.initialComplexity = Utils.getIntegerPropertyOfNode(method, Constants.ACCUMULATED_COMPLEXITY);
 		this.fitness = Double.MAX_VALUE;
+		this.threshold = threshold;
 	}
 
 	/**
@@ -106,13 +112,14 @@ public class Solution {
 	 *                              Solution
 	 * @param methodDeclarationNode {@link MethodDeclaration} node
 	 */
-	public Solution(CompilationUnit compilationUnit, ASTNode methodDeclarationNode) {
+	public Solution(CompilationUnit compilationUnit, ASTNode methodDeclarationNode, int threshold) {
 		this.sequenceList = new ArrayList<>();
 		this.compilationUnit = compilationUnit;
 		this.method = methodDeclarationNode;
 		this.methodName = ((MethodDeclaration) this.method).getName().toString();
 		this.initialComplexity = Utils.getIntegerPropertyOfNode(method, Constants.ACCUMULATED_COMPLEXITY);
 		this.fitness = Double.MAX_VALUE;
+		this.threshold = threshold;
 	}
 	
 	/**
@@ -125,7 +132,7 @@ public class Solution {
 	 *                        [10105 10147 10194]])
 	 * @param methodCognitiveComplexity Cognitive complexity of the method
 	 */
-	public Solution(CompilationUnit compilationUnit, String solution, int methodCognitiveComplexity) {
+	public Solution(CompilationUnit compilationUnit, String solution, int methodCognitiveComplexity, int threshold) {
 		this.sequenceList = new ArrayList<>();
 		this.compilationUnit = compilationUnit;
 
@@ -154,6 +161,7 @@ public class Solution {
 		this.methodName = ((MethodDeclaration) this.method).getName().toString();
 		this.initialComplexity = methodCognitiveComplexity;
 		this.fitness = Double.MAX_VALUE;
+		this.threshold = threshold;
 	}
 
 	/**
@@ -175,6 +183,7 @@ public class Solution {
 		this.initialComplexity = currentSolution.initialComplexity;
 		this.reducedComplexity = currentSolution.reducedComplexity;
 		this.extractionMetricsStats = currentSolution.getExtractionMetricsStats();
+		this.threshold = currentSolution.threshold;
 	}
 	
 	/**
@@ -242,8 +251,8 @@ public class Solution {
 			// The sequence might exceed the complexity
 			complexityOfNewExtractedMethod = metrics[i].getCognitiveComplexityOfNewExtractedMethod();
 			// We penalize if the sequence exceeds complexity
-			if (complexityOfNewExtractedMethod > Constants.MAX_COMPLEXITY) {
-				fitness += (complexityOfNewExtractedMethod - Constants.MAX_COMPLEXITY) * 10;
+			if (complexityOfNewExtractedMethod > threshold) {
+				fitness += (complexityOfNewExtractedMethod - threshold) * 10;
 			}
 			
 			//Accumulate reduced complexity from the initial one so far
@@ -259,8 +268,8 @@ public class Solution {
 		int finalMethodComplexity = this.initialComplexity - reducedComplexity;
 
 		// We penalize when the main method still have more than MAX_COMPLEXITY
-		if (finalMethodComplexity > Constants.MAX_COMPLEXITY) {
-			fitness += (finalMethodComplexity - Constants.MAX_COMPLEXITY) * 10;
+		if (finalMethodComplexity > threshold) {
+			fitness += (finalMethodComplexity - threshold) * 10;
 		}
 		
 		feasible = results.isFeasible();
@@ -425,6 +434,13 @@ public class Solution {
 	public CodeExtractionMetricsStats getExtractionMetricsStats() {
 		return extractionMetricsStats;
 	}
+
+	/**
+	 * Get the threshold of the Solution
+	 * 
+	 * @return the threshold of the Solution
+	 */
+	public int getThreshold() { return threshold; }
 
 	private int complexityOfSubtreeAfterExtraction(ASTNode root) {
 		final int nodeNesting = Utils.computeNesting(root);
