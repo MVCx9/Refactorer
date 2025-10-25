@@ -11,7 +11,6 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 
 import main.model.method.MethodMetrics;
-import main.neo.Constants;
 import main.neo.algorithms.Solution;
 import main.neo.algorithms.exhaustivesearch.EnumerativeSearch;
 import main.neo.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
