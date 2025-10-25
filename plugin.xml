@@ -84,5 +84,15 @@
 
 	</extension>
 
+   <extension point="org.eclipse.ui.propertyPages">
+      <page
+            class="main.preferences.ComplexityThresholdPropertyPage"
+            id="refactorer.propertyPages.complexityThreshold"
+            name="Refactorer Plugin Threshold">
+         <enabledWhen>
+            <adapt type="org.eclipse.core.resources.IProject"/>
+         </enabledWhen>
+      </page>
+   </extension>
 
 </plugin>
