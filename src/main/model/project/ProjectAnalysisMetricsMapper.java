@@ -19,10 +19,17 @@ public final class ProjectAnalysisMetricsMapper {
 			.map(ClassAnalysisMetricsMapper::toClassMetrics)
 			.toList();
 
+		// Obtener el umbral de complejidad de la primera clase (todas deben tener el mismo valor)
+		int complexityThreshold = classMetrics.stream()
+			.findFirst()
+			.map(ClassMetrics::getThreshold)
+			.orElse(15); // Valor por defecto si no hay clases
+
 		return ProjectMetrics.builder()
 			.name(analysis.getName())
 			.analysisDate(analysis.getAnalysisDate())
 			.classes(classMetrics)
+			.complexityThreshold(complexityThreshold)
 			.build();
 	}
 }

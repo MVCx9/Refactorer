@@ -29,6 +29,7 @@ public final class ClassAnalysisMetricsMapper {
 			.refactoredMethods(refactoredMethodMetrics)
 			.refactoredSource(analysis.getRefactoredSource())
 			.currentSource(analysis.getCurrentSource())
+			.complexityThreshold(analysis.getComplexityThreshold())
 			.build();
 	}
 }

@@ -30,7 +30,7 @@ public class MethodAnalysis {
 	public String getMethodName() {
 		return methodName;
 	}
-	
+
 	public int getCc() {
 		return cc;
 	}
@@ -38,15 +38,15 @@ public class MethodAnalysis {
 	public int getLoc() {
 		return loc;
 	}
-	
+
 	public int getReducedComplexity() {
 		return reducedComplexity;
 	}
-	
+
 	public int getNumberOfExtractions() {
 		return numberOfExtractions;
 	}
-	
+
 	public CompilationUnit getCompilationUnitRefactored() {
 		return compilationUnitRefactored;
 	}
@@ -68,7 +68,7 @@ public class MethodAnalysis {
 			this.methodName = v;
 			return this;
 		}
-		
+
 		public Builder cc(int v) {
 			this.cc = v;
 			return this;
@@ -78,17 +78,17 @@ public class MethodAnalysis {
 			this.loc = v;
 			return this;
 		}
-		
+
 		public Builder reducedComplexity(int v) {
 			this.reducedComplexity = v;
 			return this;
 		}
-		
+
 		public Builder numberOfExtractions(int v) {
 			this.numberOfExtractions = v;
 			return this;
 		}
-		
+
 		public Builder compilationUnitRefactored(CompilationUnit v) {
 			this.compilationUnitRefactored = v;
 			return this;
