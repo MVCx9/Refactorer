@@ -38,10 +38,11 @@ public class ComplexityAnalyzer {
 	public ClassAnalysis analyze(CompilationUnit cu, ICompilationUnit icu) throws JavaModelException, IOException {
 		MethodDeclaration targetMethod = null;
 		Set<MethodDeclaration> processedMethods = new LinkedHashSet<>();
-		String currentSource = Utils.formatJava(cu.toString());
-		ICompilationUnit icuWorkingCopy = (ICompilationUnit) icu.getWorkingCopy(null);
 		IProject project = icu.getJavaProject() != null ? icu.getJavaProject().getProject() : null;
 		int threshold = ProjectPreferences.getComplexityThreshold(project);
+		ICompilationUnit icuWorkingCopy = (ICompilationUnit) icu.getWorkingCopy(null);
+		String currentSource = Utils.formatJava(icuWorkingCopy.getSource());
+		String refactoredSource = currentSource;
 		List<MethodAnalysis> currentMethods = new LinkedList<>();
 		List<MethodAnalysis> refactoredMethodAnalysis = new LinkedList<>();
 		List<MethodAnalysis> refactoredMethods = new LinkedList<>();
@@ -52,13 +53,15 @@ public class ComplexityAnalyzer {
 				if (targetMethod == null)
 					break;
 				processedMethods.add(targetMethod);
-				MethodAnalysis ma = analyzeMethod(cu, targetMethod);
-				if (ma != null)
-					currentMethods.add(ma);
-				refactoredMethodAnalysis.addAll(analyzeAndPlanMethod(cu, icuWorkingCopy, targetMethod, threshold));
-				if (refactoredMethodAnalysis.isEmpty())
-					continue;
+			MethodAnalysis ma = analyzeMethod(cu, targetMethod);
+			if (ma != null)
+				currentMethods.add(ma);
+			List<MethodAnalysis> planResult = analyzeAndPlanMethod(cu, icuWorkingCopy, targetMethod, threshold);
+			if (!planResult.isEmpty()) {
+				refactoredMethodAnalysis.addAll(planResult);
+				refactoredSource = Utils.formatJava(icuWorkingCopy.getSource());
 				cu = refactoredMethodAnalysis.getLast().getCompilationUnitRefactored();
+			}
 			}
 			if (refactoredMethodAnalysis != null && !refactoredMethodAnalysis.isEmpty()) {
 				var types = cu.types();
@@ -72,6 +75,7 @@ public class ComplexityAnalyzer {
 							refactoredMethods.add(ma);
 					}
 				}
+								
 			} else {
 				refactoredMethods = currentMethods;
 			}
@@ -83,7 +87,7 @@ public class ComplexityAnalyzer {
 					.currentMethods(currentMethods)
 					.refactoredMethods(refactoredMethods)
 					.currentSource(currentSource)
-					.refactoredSource(Utils.formatJava(cu.toString()))
+					.refactoredSource(refactoredSource)
 					.complexityThreshold(threshold)
 					.build();
 		} catch (CoreException e) {
@@ -92,7 +96,9 @@ public class ComplexityAnalyzer {
 					: "<unknown>";
 			throw new AnalyzeException("Error analyzing method " + methodName, e);
 		} finally {
-			icu.discardWorkingCopy();
+			if (icuWorkingCopy != null) {
+				icuWorkingCopy.discardWorkingCopy();
+			}
 		}
 	}
 
