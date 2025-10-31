@@ -4,6 +4,7 @@ import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaModelException;
@@ -51,33 +52,38 @@ public class AnalyzeSingleFileHandler extends AbstractHandler {
 
 		ProjectFilesAnalyzer pfa = new ProjectFilesAnalyzer();
 		try {
+			// Get IProject from file
+			IProject project = file != null ? file.getProject() : null;
+			
 			ClassAnalysis analysis = pfa.analyzeFile(file);
 			
 			if(analysis == null) {
 				new AnalysisNoRefactorDialog(
                         HandlerUtil.getActiveShell(event),
                         ActionType.CLASS,
-                        null).open();
+                        null,
+                        project).open();
                 return null;
 			}
 			
 			ClassMetrics cm = ClassAnalysisMetricsMapper.toClassMetrics(analysis);
 			SessionAnalysisStore.getInstance().register(ActionType.CLASS, cm);
-
+			
             if (cm.getMethodExtractionCount() == 0) {
                 new AnalysisNoRefactorDialog(
                         HandlerUtil.getActiveShell(event),
                         ActionType.CLASS,
-                        cm).open();
+                        cm,
+                        project).open();
                 return null;
             }
-
 			new AnalysisMetricsDialog(
 					HandlerUtil.getActiveShell(event), 
 					ActionType.CLASS, 
 					cm, 
 					cm.getCurrentSource(), 
-					cm.getRefactoredSource() != null ? cm.getRefactoredSource() : cm.getCurrentSource())
+					cm.getRefactoredSource() != null ? cm.getRefactoredSource() : cm.getCurrentSource(),
+					project)
 				.open();
 			
 			return null;
