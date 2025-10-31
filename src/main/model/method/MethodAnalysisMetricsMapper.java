@@ -22,6 +22,7 @@ public final class MethodAnalysisMetricsMapper {
 			.name(ma.getMethodName())
 			.cc(ma.getCc())
 			.loc(ma.getLoc())
+			.usedILP(ma.isUsedILP())
 			.build();
 	}
 
@@ -39,6 +40,7 @@ public final class MethodAnalysisMetricsMapper {
 			.reducedComplexity(c.getReducedComplexity())
 			.compilationUnitRefactored(c.getCompilationUnitRefactored())
 			.stats(c.getStats())
+			.usedILP(c.isUsedILP())
 			.build();
 			
 			result.add(m);

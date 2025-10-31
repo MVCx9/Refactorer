@@ -7,12 +7,14 @@ public class MethodMetrics implements Identifiable {
 	private final String name;
 	private final int loc;
 	private final int cc;
+	private final boolean usedILP;
 
 	public MethodMetrics(MethodMetricsBuilder methodMetricsBuilder) {
 		super();
 		this.name = methodMetricsBuilder.name;
 		this.loc = methodMetricsBuilder.loc;
 		this.cc = methodMetricsBuilder.cc;
+		this.usedILP = methodMetricsBuilder.usedILP;
 	}
 
 	public static MethodMetricsBuilder builder() {
@@ -32,10 +34,15 @@ public class MethodMetrics implements Identifiable {
 		return loc;
 	}
 
+	public boolean isUsedILP() {
+		return usedILP;
+	}
+
 	public static class MethodMetricsBuilder {
 		private String name = "<unnamed>";
 		private int loc = 0;
 		private int cc = 0;
+		private boolean usedILP = false;
 
 		public MethodMetricsBuilder() {
 		}
@@ -53,6 +60,11 @@ public class MethodMetrics implements Identifiable {
 
 		public MethodMetricsBuilder cc(int cc) {
 			this.cc = cc;
+			return this;
+		}
+
+		public MethodMetricsBuilder usedILP(boolean usedILP) {
+			this.usedILP = usedILP;
 			return this;
 		}
 

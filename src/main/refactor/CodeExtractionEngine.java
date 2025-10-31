@@ -1,18 +1,30 @@
 package main.refactor;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.DefaultWeightedEdge;
+import org.jgrapht.graph.SimpleDirectedWeightedGraph;
+import org.jgrapht.graph.SimpleGraph;
 
 import main.model.method.MethodMetrics;
 import main.neo.algorithms.Solution;
 import main.neo.algorithms.exhaustivesearch.EnumerativeSearch;
+import main.neo.algorithms.ilp.ILP;
+import main.neo.graphs.ExtractionVertex;
 import main.neo.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
 import main.neo.refactoringcache.RefactoringCache;
 import main.neo.refactoringcache.RefactoringCacheFiller;
@@ -56,14 +68,139 @@ public final class CodeExtractionEngine {
 		// Llenar caché de refactorizaciones
 		RefactoringCacheFiller.exhaustiveEnumerationAlgorithm(cache, node);
 		
-		/* Ejecutar algoritmo de búsqueda exhaustiva
-		 * Constants.EXHAUSTIVE_SEARCH_LONG_SEQUENCES_FIRST: APPROACH.LONG_SEQUENCE_FIRST
-		 * Constants.EXHAUSTIVE_SEARCH_SHORT_SEQUENCES_FIRST: APPROACH.SHORT_SEQUENCE_FIRST
-		 */
 		List<Solution> solutions = new LinkedList<>();
 		Solution solution = new Solution(cu, node, threshold);
-		solution = new EnumerativeSearch()
-				.run(APPROACH.LONG_SEQUENCE_FIRST, cu, cache, node, threshold);
+		boolean usedILP = false;
+		
+		// Crear carpeta temporal para archivos .dot dentro del proyecto
+		IProject project = icuWorkingCopy.getJavaProject() != null ? 
+				icuWorkingCopy.getJavaProject().getProject() : null;
+		Path tempDir = null;
+		List<Path> tempFiles = new ArrayList<>();
+		
+		try {
+			if (project != null) {
+				// Crear carpeta temporal .refactorer-temp en el proyecto
+				tempDir = Paths.get(project.getLocation().toOSString(), ".refactorer-temp");
+				Files.createDirectories(tempDir);
+			}
+		} catch (IOException e) {
+			// Si no se puede crear la carpeta temporal, no ejecutaremos ILP
+			tempDir = null;
+		}
+		
+		
+		// Ejecutar algoritmo ILP con fallback a búsqueda exhaustiva
+		try {
+			/* Initialize graphs 
+			 * -> The one including conflicts
+			 * -> The one excluding conflicts
+			 * -> The one just including conflicts
+			 */
+			ExtractionVertex root = 
+					main.neo.graphs.Utils.getRootForGraphAssociatedToMethodBody(node);
+			SimpleGraph<ExtractionVertex, DefaultEdge> conflictsGraph = 
+					new SimpleGraph<>(DefaultEdge.class);
+			SimpleDirectedWeightedGraph<ExtractionVertex, DefaultWeightedEdge> graphWithoutConflicts = 
+					new SimpleDirectedWeightedGraph<>(DefaultWeightedEdge.class);
+			SimpleDirectedWeightedGraph<ExtractionVertex, DefaultWeightedEdge> graph = 
+					cache.getGraphOfFeasibleRefactorings(root, cc, graphWithoutConflicts, conflictsGraph);
+
+			// Renderizar grafos solo si se pudo crear la carpeta temporal
+			if (tempDir != null) {
+				String methodName = node.getName().getIdentifier();
+				String timestamp = String.valueOf(System.currentTimeMillis());
+				
+				// Generar nombres únicos para los archivos
+				String fileNameForGraph = methodName + "-graph-" + timestamp + ".dot";
+				String fileNameForGraphWithoutConflicts = methodName + "-graph-no-conflicts-" + timestamp + ".dot";
+				String fileNameForConflictGraph = methodName + "-conflicts-" + timestamp + ".dot";
+				
+				// render full graph
+				Path graphFile = tempDir.resolve(fileNameForGraph);
+				main.neo.graphs.Utils.renderGraphInDotFormatInFile(
+					graph, 
+					tempDir.toString() + File.separator, 
+					fileNameForGraph
+				);
+				tempFiles.add(graphFile);
+
+				// render graph without conflicts
+				Path graphNoConflictsFile = tempDir.resolve(fileNameForGraphWithoutConflicts);
+				main.neo.graphs.Utils.renderGraphInDotFormatInFile(
+					graphWithoutConflicts, 
+					tempDir.toString() + File.separator, 
+					fileNameForGraphWithoutConflicts
+				);
+				tempFiles.add(graphNoConflictsFile);
+
+				// render conflicts graph
+				Path conflictsFile = tempDir.resolve(fileNameForConflictGraph);
+				main.neo.graphs.Utils.renderConflictGraphInDotFormatInFile(
+					conflictsGraph, 
+					tempDir.toString() + File.separator, 
+					fileNameForConflictGraph
+				);
+				tempFiles.add(conflictsFile);
+			}
+
+			// Ejecutar algoritmo ILP
+			solution = new ILP()
+				.run(
+					cu, 
+					cache,
+					node, 
+					cc, 
+					conflictsGraph, 
+					graphWithoutConflicts,
+					graph,
+					threshold
+				);
+			
+			usedILP = true;
+			
+			// Limpiar grafos para reducir uso de memoria
+			if (graph != null)
+				main.neo.graphs.Utils.clear(graph);
+			if (graphWithoutConflicts != null)
+				main.neo.graphs.Utils.clear(graphWithoutConflicts);
+			if (conflictsGraph != null)
+				main.neo.graphs.Utils.clear(conflictsGraph);
+			
+		} catch (Exception e) {
+			// En caso de cualquier error durante el ILP, ejecutar algoritmo de búsqueda exhaustiva
+			try {
+				usedILP = false;
+				solution = new EnumerativeSearch()
+						.run(APPROACH.LONG_SEQUENCE_FIRST, cu, cache, node, threshold);
+			} catch (Exception fallbackException) {
+				// Si también falla el fallback, propagar la excepción original
+				throw new RuntimeException("Error en algoritmo ILP y búsqueda exhaustiva: " + e.getMessage(), e);
+			}
+		} finally {
+			
+			// Eliminar archivos temporales
+			for (Path tempFile : tempFiles) {
+				try {
+					Files.deleteIfExists(tempFile);
+				} catch (IOException e) {
+					// Ignorar errores al eliminar archivos temporales
+				}
+			}
+			
+			// Intentar eliminar la carpeta temporal si está vacía
+			if (tempDir != null) {
+				try {
+					File tempDirFile = tempDir.toFile();
+					if (tempDirFile.exists() && tempDirFile.isDirectory() && 
+						tempDirFile.list().length == 0) {
+						Files.deleteIfExists(tempDir);
+					}
+				} catch (IOException e) {
+					// Ignorar errores al eliminar la carpeta temporal
+				}
+			}
+		}
 		
 		if (solution != null && solution.getSequenceList() != null && solution.getSequenceList().isEmpty()) {
 			return Collections.emptyList();
@@ -79,6 +216,7 @@ public final class CodeExtractionEngine {
 				.reducedComplexity(sol.getReducedComplexity())
 				.numberOfExtractions(sol.getSize())
 				.stats(sol.getExtractionMetricsStats())
+				.usedILP(usedILP)
 				.build());
 		}
 		

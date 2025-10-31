@@ -12,6 +12,7 @@ public class MethodAnalysis {
 	private final int numberOfExtractions;
 	private final CompilationUnit compilationUnitRefactored;
 	private final CodeExtractionMetricsStats stats;
+	private final boolean usedILP;
 
 	public static Builder builder() {
 		return new Builder();
@@ -25,6 +26,7 @@ public class MethodAnalysis {
 		this.numberOfExtractions = b.numberOfExtractions;
 		this.compilationUnitRefactored = b.compilationUnitRefactored;
 		this.stats = b.stats;
+		this.usedILP = b.usedILP;
 	}
 
 	public String getMethodName() {
@@ -55,6 +57,10 @@ public class MethodAnalysis {
 		return stats;
 	}
 
+	public boolean isUsedILP() {
+		return usedILP;
+	}
+
 	public static class Builder {
 		private String methodName;
 		private int cc;
@@ -63,6 +69,7 @@ public class MethodAnalysis {
 		private int numberOfExtractions;
 		private CompilationUnit compilationUnitRefactored;
 		private CodeExtractionMetricsStats stats = null;
+		private boolean usedILP = false;
 
 		public Builder methodName(String v) {
 			this.methodName = v;
@@ -96,6 +103,11 @@ public class MethodAnalysis {
 
 		public Builder stats(CodeExtractionMetricsStats v) {
 			this.stats = v;
+			return this;
+		}
+
+		public Builder usedILP(boolean v) {
+			this.usedILP = v;
 			return this;
 		}
 

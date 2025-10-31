@@ -621,6 +621,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             createColumn(table, "CC método original", 120);
             createColumn(table, "Método refactorizado", 240);
             createColumn(table, "CC método refactorizado", 150);
+            createColumn(table, "Algoritmo", 80);
             populateWorkspaceTable(table, (WorkspaceMetrics) metrics);
         }else if (actionType == ActionType.PROJECT) {
             createColumn(table, "Nº", 50);
@@ -629,6 +630,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             createColumn(table, "CC método original", 120);
             createColumn(table, "Método refactorizado", 240);
             createColumn(table, "CC método refactorizado", 150);
+            createColumn(table, "Algoritmo", 80);
             populateProjectTable(table, (ProjectMetrics) metrics);
         } else if (actionType == ActionType.CLASS){
             createColumn(table, "Nº", 50);
@@ -636,6 +638,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             createColumn(table, "CC método original", 130);
             createColumn(table, "Método refactorizado", 240);
             createColumn(table, "CC método refactorizado", 150);
+            createColumn(table, "Algoritmo", 80);
             populateClassTable(table, (ClassMetrics) metrics);
         }
         Button exportBtn = new Button(tableContainer, SWT.PUSH);
@@ -680,6 +683,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                 for (int idx=0; idx<refactoredAll.size(); idx++) {
                     MethodMetrics ref = refactoredAll.get(idx);
                     TableItem item = new TableItem(table, SWT.NONE);
+                    String algorithm = original.isUsedILP() ? "ILP" : "ESH";
                     if (idx == 0) {
                         item.setText(new String[] {
                                 Integer.toString(rowNum[0]++),
@@ -687,7 +691,8 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                                 baseName,
                                 Integer.toString(original.getCc()),
                                 ref.getName(),
-                                Integer.toString(ref.getCc())
+                                Integer.toString(ref.getCc()),
+                                algorithm
                         });
                     } else {
                         item.setText(new String[] {
@@ -696,7 +701,8 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                                 "",
                                 "",
                                 ref.getName(),
-                                Integer.toString(ref.getCc())
+                                Integer.toString(ref.getCc()),
+                                ""
                         });
                     }
                 }
@@ -733,6 +739,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                     for (int idx=0; idx<refactoredAll.size(); idx++) {
                         MethodMetrics ref = refactoredAll.get(idx);
                         TableItem item = new TableItem(table, SWT.NONE);
+                        String algorithm = original.isUsedILP() ? "ILP" : "ESH";
                         if (idx == 0) {
                             item.setText(new String[] {
                                     Integer.toString(rowNum[0]++),
@@ -742,10 +749,11 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                                     baseName,
                                     Integer.toString(original.getCc()),
                                     ref.getName(),
-                                    Integer.toString(ref.getCc())
+                                    Integer.toString(ref.getCc()),
+                                    algorithm
                             });
                         } else {
-                            item.setText(new String[] { "", "", "", "", "", "", ref.getName(), Integer.toString(ref.getCc()) });
+                            item.setText(new String[] { "", "", "", "", "", "", ref.getName(), Integer.toString(ref.getCc()), "" });
                         }
                     }
                     addSeparatorRow(table);
@@ -775,13 +783,15 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             for (int idx=0; idx<refactoredAll.size(); idx++) {
                 MethodMetrics ref = refactoredAll.get(idx);
                 TableItem item = new TableItem(table, SWT.NONE);
+                String algorithm = original.isUsedILP() ? "ILP" : "ESH";
                 if (idx == 0) {
                     item.setText(new String[] {
                         Integer.toString(rowNum[0]++),
                         baseName,
                         Integer.toString(original.getCc()),
                         ref.getName(),
-                        Integer.toString(ref.getCc())
+                        Integer.toString(ref.getCc()),
+                        algorithm
                     });
                 } else {
                     item.setText(new String[] {
@@ -789,7 +799,8 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                         "",
                         "",
                         ref.getName(),
-                        Integer.toString(ref.getCc())
+                        Integer.toString(ref.getCc()),
+                        ""
                     });
                 }
             }
