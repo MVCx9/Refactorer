@@ -9,6 +9,8 @@ import main.boot.Activator;
 
 public final class ProjectPreferences {
 	private static final String KEY_THRESHOLD = "complexityThreshold";
+	private static final String KEY_LANGUAGE = "pluginLanguage";
+	private static final String DEFAULT_LANGUAGE = "Castellano";
 
 	private ProjectPreferences() {
 	}
@@ -46,6 +48,37 @@ public final class ProjectPreferences {
 			return val;
 		} catch (Exception e) {
 			return Constants.MAX_COMPLEXITY;
+		}
+	}
+
+	public static String getPluginLanguage(IProject project) {
+		if (project == null)
+			return DEFAULT_LANGUAGE;
+		try {
+			IEclipsePreferences node = new ProjectScope(project).getNode(Activator.PLUGIN_ID);
+			String language = node.get(KEY_LANGUAGE, DEFAULT_LANGUAGE);
+			// Validar que sea un valor válido
+			if (language.equals("Castellano") || language.equals("English")) {
+				return language;
+			}
+			return DEFAULT_LANGUAGE;
+		} catch (Exception e) {
+			return DEFAULT_LANGUAGE;
+		}
+	}
+
+	public static void setPluginLanguage(IProject project, String language) {
+		if (project == null)
+			return;
+		// Validar que sea un valor válido
+		if (!language.equals("Castellano") && !language.equals("English")) {
+			language = DEFAULT_LANGUAGE;
+		}
+		try {
+			IEclipsePreferences node = new ProjectScope(project).getNode(Activator.PLUGIN_ID);
+			node.put(KEY_LANGUAGE, language);
+			node.flush();
+		} catch (Exception ignore) {
 		}
 	}
 }

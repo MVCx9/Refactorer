@@ -167,16 +167,11 @@ public final class CodeExtractionEngine {
 			if (conflictsGraph != null)
 				main.neo.graphs.Utils.clear(conflictsGraph);
 			
-		} catch (Exception e) {
+		} catch (Exception | UnsatisfiedLinkError e) {
 			// En caso de cualquier error durante el ILP, ejecutar algoritmo de búsqueda exhaustiva
-			try {
-				usedILP = false;
-				solution = new EnumerativeSearch()
-						.run(APPROACH.LONG_SEQUENCE_FIRST, cu, cache, node, threshold);
-			} catch (Exception fallbackException) {
-				// Si también falla el fallback, propagar la excepción original
-				throw new RuntimeException("Error en algoritmo ILP y búsqueda exhaustiva: " + e.getMessage(), e);
-			}
+			usedILP = false;
+			solution = new EnumerativeSearch()
+					.run(APPROACH.LONG_SEQUENCE_FIRST, cu, cache, node, threshold);
 		} finally {
 			
 			// Eliminar archivos temporales
