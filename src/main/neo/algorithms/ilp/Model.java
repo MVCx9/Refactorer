@@ -109,7 +109,7 @@ public class Model<V, E> {
 			IloLinearNumExpr expr = cplex.linearNumExpr();
 			// System.out.println("NodoI"+nodos.get(i).toString());
 			int comple = nodos.get(i).getAccumulatedInherentComponent() + nodos.get(i).getAccumulatedNestingComponent()
-					- Constants.MAX_COMPLEXITY;
+					- threshold;
 			expr.addTerm(comple, this.decisionVariables[i]);
 			// expr.setConstant(comple);
 			// Necesitamos los nodos J anidados en I
