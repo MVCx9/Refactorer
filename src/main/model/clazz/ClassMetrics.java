@@ -128,7 +128,7 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		return getRefactoredMethodCount() - getCurrentMethodCount();
 	}
 
-	public int getThreshold() {
+	public int getComplexityThreshold() {
 		return complexityThreshold;
 	}
 

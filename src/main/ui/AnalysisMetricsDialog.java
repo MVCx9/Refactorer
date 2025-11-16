@@ -231,7 +231,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             metric(right, Messages.getMetricAverageLOCPerMethod(project), String.valueOf(cm.getAverageRefactoredLoc()));
             metric(right, Messages.getMetricAverageCCPerMethod(project), String.valueOf(cm.getAverageRefactoredCc()));
             metric(right, Messages.getMetricExtractedMethods(project), String.valueOf(cm.getRefactoredMethodCount() - cm.getCurrentMethodCount()));
-            metric(right, Messages.getMetricComplexityThreshold(project), String.valueOf(cm.getThreshold()));
+            metric(right, Messages.getMetricComplexityThreshold(project), String.valueOf(cm.getComplexityThreshold()));
         } else if (metrics instanceof ProjectMetrics pm) {
             metric(left, Messages.getMetricClasses(project), String.valueOf(pm.getClassCount()));
             metric(left, Messages.getMetricMethods(project), String.valueOf(pm.getCurrentMethodCount()));
@@ -619,7 +619,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         GridData tcGD = new GridData(SWT.FILL, SWT.FILL, true, false);
         tcGD.heightHint = actionType == ActionType.CLASS ? 140 : 180;
         tableContainer.setLayoutData(tcGD);
-        int style = SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL | SWT.H_SCROLL;
+        int style = SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL;
         Table table = new Table(tableContainer, style);
         table.setHeaderVisible(true);
         table.setLinesVisible(true);
@@ -653,6 +653,10 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             createColumn(table, Messages.getTableColumnAlgorithm(project), 80);
             populateClassTable(table, (ClassMetrics) metrics);
         }
+        
+        // Ajustar las columnas al tamaño de la tabla
+        adjustTableColumns(table);
+        
         Button exportBtn = new Button(tableContainer, SWT.PUSH);
         String exportLabel = actionType == ActionType.WORKSPACE ? "Export to CSV file" : Messages.getButtonExportCSV(project);
         exportBtn.setText(exportLabel);
@@ -667,6 +671,43 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         col.setWidth(width);
         col.setMoveable(true);
         col.setResizable(true);
+    }
+
+    /**
+     * Ajusta las columnas de la tabla para que ocupen todo el ancho disponible
+     * sin dejar columnas vacías, distribuyendo el espacio proporcionalmente.
+     */
+    private void adjustTableColumns(Table table) {
+        table.addListener(SWT.Resize, event -> {
+            int tableWidth = table.getClientArea().width;
+            TableColumn[] columns = table.getColumns();
+            if (columns.length == 0) return;
+            
+            // Calcular el ancho total actual de todas las columnas
+            int totalWidth = 0;
+            for (TableColumn col : columns) {
+                totalWidth += col.getWidth();
+            }
+            
+            if (totalWidth == 0) return;
+            
+            // Ajustar cada columna proporcionalmente al ancho de la tabla
+            int assignedWidth = 0;
+            for (int i = 0; i < columns.length; i++) {
+                if (i == columns.length - 1) {
+                    // La última columna toma el espacio restante
+                    columns[i].setWidth(tableWidth - assignedWidth);
+                } else {
+                    // Calcular el ancho proporcional
+                    int newWidth = (columns[i].getWidth() * tableWidth) / totalWidth;
+                    columns[i].setWidth(newWidth);
+                    assignedWidth += newWidth;
+                }
+            }
+        });
+        
+        // Forzar el primer ajuste
+        table.getParent().layout(true, true);
     }
 
     private void populateProjectTable(Table table, ProjectMetrics pm) {
@@ -696,7 +737,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                 for (int idx=0; idx<refactoredAll.size(); idx++) {
                     MethodMetrics ref = refactoredAll.get(idx);
                     TableItem item = new TableItem(table, SWT.NONE);
-                    String algorithm = original.isUsedILP() ? "ILP" : "ESH";
+                    String algorithm = ref.isUsedILP() ? "ILP" : "ESH";
                     if (idx == 0) {
                         item.setText(new String[] {
                                 Integer.toString(rowNum[0]++),
@@ -752,7 +793,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                     for (int idx=0; idx<refactoredAll.size(); idx++) {
                         MethodMetrics ref = refactoredAll.get(idx);
                         TableItem item = new TableItem(table, SWT.NONE);
-                        String algorithm = original.isUsedILP() ? "ILP" : "ESH";
+                        String algorithm = ref.isUsedILP() ? "ILP" : "ESH";
                         if (idx == 0) {
                             item.setText(new String[] {
                                     Integer.toString(rowNum[0]++),
@@ -766,7 +807,17 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                                     algorithm
                             });
                         } else {
-                            item.setText(new String[] { "", "", "", "", "", "", ref.getName(), Integer.toString(ref.getCc()), "" });
+                            item.setText(new String[] { 
+                        		"", 
+                        		"", 
+                        		"", 
+                        		"", 
+                        		"", 
+                        		"", 
+                        		ref.getName(), 
+                        		Integer.toString(ref.getCc()), 
+                        		"" 
+                            });
                         }
                     }
                     addSeparatorRow(table);
@@ -796,7 +847,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             for (int idx=0; idx<refactoredAll.size(); idx++) {
                 MethodMetrics ref = refactoredAll.get(idx);
                 TableItem item = new TableItem(table, SWT.NONE);
-                String algorithm = original.isUsedILP() ? "ILP" : "ESH";
+                String algorithm = ref.isUsedILP() ? "ILP" : "ESH";
                 if (idx == 0) {
                     item.setText(new String[] {
                         Integer.toString(rowNum[0]++),
@@ -934,12 +985,5 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             }
         }
         return nonBlank == 1; // exactly one non-blank cell with the dashes
-    }
-
-    // Retained for potential future use (now unused) - previously for clipboard export
-    private String escapeCell(String cell) {
-        if (cell == null) return "";
-        // For TSV minimal escaping: replace newlines/tabs
-        return cell.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ');
     }
 }

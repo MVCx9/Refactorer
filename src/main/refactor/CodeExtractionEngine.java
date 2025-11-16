@@ -197,7 +197,7 @@ public final class CodeExtractionEngine {
 			}
 		}
 		
-		if (solution != null && solution.getSequenceList() != null && solution.getSequenceList().isEmpty()) {
+		if (null == solution || null == solution.getSequenceList() || solution.getSequenceList().isEmpty()) {
 			return Collections.emptyList();
 		}
 		

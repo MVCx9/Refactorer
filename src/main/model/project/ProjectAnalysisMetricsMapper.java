@@ -22,7 +22,7 @@ public final class ProjectAnalysisMetricsMapper {
 		// Obtener el umbral de complejidad de la primera clase (todas deben tener el mismo valor)
 		int complexityThreshold = classMetrics.stream()
 			.findFirst()
-			.map(ClassMetrics::getThreshold)
+			.map(ClassMetrics::getComplexityThreshold)
 			.orElse(15); // Valor por defecto si no hay clases
 
 		return ProjectMetrics.builder()

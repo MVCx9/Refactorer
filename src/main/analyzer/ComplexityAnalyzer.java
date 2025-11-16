@@ -3,9 +3,11 @@ package main.analyzer;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -44,41 +46,41 @@ public class ComplexityAnalyzer {
 		String currentSource = Utils.formatJava(icuWorkingCopy.getSource());
 		String refactoredSource = currentSource;
 		List<MethodAnalysis> currentMethods = new LinkedList<>();
-		List<MethodAnalysis> refactoredMethodAnalysis = new LinkedList<>();
 		List<MethodAnalysis> refactoredMethods = new LinkedList<>();
+		
 		try {
-			// Planificamos extracciones y aplicamos los cambios iterativamente al CompilationUnit
+			// Analyze current state and plan refactorings iteratively
+			Map<String, MethodAnalysis> refactoredMethodsMap = new HashMap<>();
+			
 			while (true) {
 				targetMethod = findNextMethodNeedingRefactor(cu, processedMethods);
 				if (targetMethod == null)
 					break;
+				
 				processedMethods.add(targetMethod);
-			MethodAnalysis ma = analyzeMethod(cu, targetMethod);
-			if (ma != null)
-				currentMethods.add(ma);
-			List<MethodAnalysis> planResult = analyzeAndPlanMethod(cu, icuWorkingCopy, targetMethod, threshold);
-			if (!planResult.isEmpty()) {
-				refactoredMethodAnalysis.addAll(planResult);
-				refactoredSource = Utils.formatJava(icuWorkingCopy.getSource());
-				cu = refactoredMethodAnalysis.getLast().getCompilationUnitRefactored();
-			}
-			}
-			if (refactoredMethodAnalysis != null && !refactoredMethodAnalysis.isEmpty()) {
-				var types = cu.types();
-				for (Object tObj : types) {
-					var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
-					for (MethodDeclaration md : typeDecl.getMethods()) {
-						if (md == null)
-							continue;
-						MethodAnalysis ma = analyzeMethod(cu, md);
-						if (ma != null)
-							refactoredMethods.add(ma);
-					}
+				MethodAnalysis currentMethodAnalysis = analyzeMethod(cu, targetMethod);
+				if (currentMethodAnalysis != null) {
+					currentMethods.add(currentMethodAnalysis);
 				}
-								
+				
+				List<MethodAnalysis> planResult = analyzeAndPlanMethod(cu, icuWorkingCopy, targetMethod, threshold);
+				if (!planResult.isEmpty()) {
+					// Store refactored method info with stats and usedILP
+					for (MethodAnalysis refactoredMethod : planResult) {
+						refactoredMethodsMap.put(refactoredMethod.getMethodName(), refactoredMethod);
+					}
+					refactoredSource = Utils.formatJava(icuWorkingCopy.getSource());
+					cu = planResult.getLast().getCompilationUnitRefactored();
+				}
+			}
+			
+			// Build final refactored methods list
+			if (!refactoredMethodsMap.isEmpty()) {
+				refactoredMethods = buildRefactoredMethodsList(cu, refactoredMethodsMap);
 			} else {
 				refactoredMethods = currentMethods;
 			}
+			
 			return ClassAnalysis.builder()
 					.icu(icu)
 					.compilationUnit(cu)
@@ -100,6 +102,53 @@ public class ComplexityAnalyzer {
 				icuWorkingCopy.discardWorkingCopy();
 			}
 		}
+	}
+
+	private List<MethodAnalysis> buildRefactoredMethodsList(CompilationUnit cu, Map<String, MethodAnalysis> refactoredMethodsMap) {
+		List<MethodAnalysis> result = new LinkedList<>();
+		
+		var types = cu.types();
+		for (Object tObj : types) {
+			var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
+			for (MethodDeclaration md : typeDecl.getMethods()) {
+				if (md == null || md.getName() == null) {
+					continue;
+				}
+				
+				String methodName = md.getName().getIdentifier();
+				MethodAnalysis baseAnalysis = analyzeMethod(cu, md);
+				
+				if (baseAnalysis == null) {
+					continue;
+				}
+				
+				// Check if this method was refactored and has additional info
+				MethodAnalysis refactoredInfo = refactoredMethodsMap.get(methodName);
+				
+				if (refactoredInfo != null) {
+					// Merge: use complete metrics from baseAnalysis + stats/usedILP from refactoredInfo
+					result.add(mergeMethodAnalysis(baseAnalysis, refactoredInfo));
+				} else {
+					// Method was not refactored, use base analysis
+					result.add(baseAnalysis);
+				}
+			}
+		}
+		
+		return result;
+	}
+	
+	private MethodAnalysis mergeMethodAnalysis(MethodAnalysis base, MethodAnalysis refactored) {
+		return MethodAnalysis.builder()
+				.methodName(base.getMethodName())
+				.cc(base.getCc())
+				.loc(base.getLoc())
+				.reducedComplexity(refactored.getReducedComplexity())
+				.numberOfExtractions(refactored.getNumberOfExtractions())
+				.compilationUnitRefactored(refactored.getCompilationUnitRefactored())
+				.stats(refactored.getStats())
+				.usedILP(refactored.isUsedILP())
+				.build();
 	}
 
 	protected int computeCognitiveComplexity(MethodDeclaration md) {

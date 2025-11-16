@@ -98,7 +98,7 @@ public class AnalysisNoRefactorDialog extends TitleAreaDialog {
     }
 
     private int getThreshold() {
-        if (metrics instanceof ClassMetrics cm) return cm.getThreshold();
+        if (metrics instanceof ClassMetrics cm) return cm.getComplexityThreshold();
         if (metrics instanceof ProjectMetrics pm) return pm.getComplexityThreshold();
         return 15; // default
     }
