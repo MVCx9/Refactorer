@@ -3,12 +3,15 @@ package main.analyzer;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaModelException;
@@ -25,199 +28,230 @@ import main.common.utils.Utils;
 import main.model.method.MethodAnalysisMetricsMapper;
 import main.refactor.CodeExtractionEngine;
 import main.refactor.RefactorComparison;
+import main.preferences.ProjectPreferences;
 
 public class ComplexityAnalyzer {
 
-    /**
-     * Analiza un ICompilationUnit y devuelve el análisis de la(s) clase(s) que
-     * contiene, comparando código actual vs. código refactorizado (si hay una
-     * extracción viable).
-     */
-    public ClassAnalysis analyze(CompilationUnit cu, ICompilationUnit icu) throws JavaModelException, IOException {
-        MethodDeclaration targetMethod = null;
-        Set<MethodDeclaration> processedMethods = new LinkedHashSet<>();
-        
-        // Obtener el código fuente original y eliminar comentarios para currentSource
-        String currentSource = Utils.formatJava(cu.toString());
-        ICompilationUnit icuWorkingCopy = (ICompilationUnit) icu.getWorkingCopy(null);
-        List<MethodAnalysis> currentMethods = new LinkedList<>();
-        List<MethodAnalysis> refactoredMethodAnalysis = new LinkedList<>();
-        List<MethodAnalysis> refactoredMethods = new LinkedList<>();
-        
-        try {
-            // Planificamos extracciones y aplicamos los cambios iterativamente al CompilationUnit
-            while(true) {
-	            targetMethod = findNextMethodNeedingRefactor(cu, processedMethods);
-	            
-	            if (targetMethod == null) {
-	                break;
-	            }
-	            
-	            // Marcar el método como procesado
-	            processedMethods.add(targetMethod);
-	            
-	            // Analizamos el método en su estado original
-	            MethodAnalysis ma = analyzeMethod(cu, targetMethod);
-	            if(ma != null) {
-	            	currentMethods.add(ma);
-	            }
-	            
-	            // Planificamos extracciones para el método (si lo necesita)
-	            refactoredMethodAnalysis.addAll(analyzeAndPlanMethod(cu, icuWorkingCopy, targetMethod));
-	            
-	            // No se han encontrado extracciones para este método, continuar con el siguiente
-	            if(refactoredMethodAnalysis.isEmpty()) {
-	            	continue;
-	            }
-	            
-	            // Si se han encontrado extracciones, actualizar el CompilationUnit con los cambios aplicados
-	            cu = refactoredMethodAnalysis.getLast().getCompilationUnitRefactored();
-            }
-            
-            // Analizamos de nuevo el CompilationUnit con los cambios aplicados (si los hay)
-            if (refactoredMethodAnalysis != null && !refactoredMethodAnalysis.isEmpty()) {
-            	var types = cu.types();
-	        for (Object tObj : types) {
-	        	var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
-	            for (MethodDeclaration md : typeDecl.getMethods()) {
-	            	if (md == null) {
-	            		continue;
-	            	}
-	            	MethodAnalysis ma = analyzeMethod(cu, md);
-	            	if(ma != null) {
-	            		refactoredMethods.add(ma);
-        				}
-        			}
-	        }
-	        
+	/**
+	 * Analiza un ICompilationUnit y devuelve el análisis de la(s) clase(s) que
+	 * contiene, comparando código actual vs. código refactorizado (si hay una
+	 * extracción viable).
+	 */
+	public ClassAnalysis analyze(CompilationUnit cu, ICompilationUnit icu) throws JavaModelException, IOException {
+		MethodDeclaration targetMethod = null;
+		Set<MethodDeclaration> processedMethods = new LinkedHashSet<>();
+		IProject project = icu.getJavaProject() != null ? icu.getJavaProject().getProject() : null;
+		int threshold = ProjectPreferences.getComplexityThreshold(project);
+		ICompilationUnit icuWorkingCopy = (ICompilationUnit) icu.getWorkingCopy(null);
+		String currentSource = Utils.formatJava(icuWorkingCopy.getSource());
+		String refactoredSource = currentSource;
+		List<MethodAnalysis> currentMethods = new LinkedList<>();
+		List<MethodAnalysis> refactoredMethods = new LinkedList<>();
+		
+		try {
+			// Analyze current state and plan refactorings iteratively
+			Map<String, MethodAnalysis> refactoredMethodsMap = new HashMap<>();
+			
+			while (true) {
+				targetMethod = findNextMethodNeedingRefactor(cu, processedMethods);
+				if (targetMethod == null)
+					break;
+				
+				processedMethods.add(targetMethod);
+				MethodAnalysis currentMethodAnalysis = analyzeMethod(cu, targetMethod);
+				if (currentMethodAnalysis != null) {
+					currentMethods.add(currentMethodAnalysis);
+				}
+				
+				List<MethodAnalysis> planResult = analyzeAndPlanMethod(cu, icuWorkingCopy, targetMethod, threshold);
+				if (!planResult.isEmpty()) {
+					// Store refactored method info with stats and usedILP
+					for (MethodAnalysis refactoredMethod : planResult) {
+						refactoredMethodsMap.put(refactoredMethod.getMethodName(), refactoredMethod);
+					}
+					refactoredSource = Utils.formatJava(icuWorkingCopy.getSource());
+					cu = planResult.getLast().getCompilationUnitRefactored();
+				}
+			}
+			
+			// Build final refactored methods list
+			if (!refactoredMethodsMap.isEmpty()) {
+				refactoredMethods = buildRefactoredMethodsList(cu, refactoredMethodsMap);
 			} else {
-				// No se hicieron extracciones, el estado refactorizado es igual al actual
 				refactoredMethods = currentMethods;
-			}	
-    
-            return ClassAnalysis.builder()
-                    .icu(icu)
-                    .compilationUnit(cu)
-                    .className(icu.getElementName())
-                    .analysisDate(LocalDateTime.now())
-                    .currentMethods(currentMethods)
-                    .refactoredMethods(refactoredMethods)
-                    .currentSource(currentSource)
-                    .refactoredSource(Utils.formatJava(cu.toString()))
-                    .build();
-    
-        } catch (CoreException e) {
-            String methodName = (targetMethod != null && targetMethod.getName() != null)
-                    ? targetMethod.getName().getIdentifier()
-                    : "<unknown>";
-            throw new AnalyzeException("Error analyzing method " + methodName, e);
-        }finally {
-            icu.discardWorkingCopy();
-        }
-    }
-    
-    protected int computeCognitiveComplexity(MethodDeclaration md) {
-        return main.neo.cem.Utils.computeAndAnnotateAccumulativeCognitiveComplexity(md);
-    }
-    
-    private MethodAnalysis analyzeMethod(CompilationUnit cu, MethodDeclaration md) {
-    	if (md == null) {
-        	return null;
-        }
-        
-    	// 1) Analizamos la complejidad cognitiva
-        int cc = computeCognitiveComplexity(md);
-        
-        // 2) Analizamos las LOC (aprox. rango de líneas del método)
-        int startLine = cu.getLineNumber(md.getStartPosition());
-        int endLine = cu.getLineNumber(md.getStartPosition() + md.getLength());
-        int loc = Math.max(0, endLine - startLine + 1);
-        
-        // 3) Mapear al modelo de método
-        return MethodAnalysisMetricsMapper.toMethodAnalysis(md, cc, loc);
-    }
+			}
+			
+			return ClassAnalysis.builder()
+					.icu(icu)
+					.compilationUnit(cu)
+					.className(icu.getElementName())
+					.analysisDate(LocalDateTime.now())
+					.currentMethods(currentMethods)
+					.refactoredMethods(refactoredMethods)
+					.currentSource(currentSource)
+					.refactoredSource(refactoredSource)
+					.complexityThreshold(threshold)
+					.build();
+		} catch (CoreException e) {
+			String methodName = (targetMethod != null && targetMethod.getName() != null)
+					? targetMethod.getName().getIdentifier()
+					: "<unknown>";
+			throw new AnalyzeException("Error analyzing method " + methodName, e);
+		} finally {
+			if (icuWorkingCopy != null) {
+				icuWorkingCopy.discardWorkingCopy();
+			}
+		}
+	}
 
-    private List<MethodAnalysis> analyzeAndPlanMethod(CompilationUnit cu, ICompilationUnit icuWorkingCopy, MethodDeclaration md) throws CoreException, IOException {
-        if (md == null) {
-        	return List.of();
-        }
+	private List<MethodAnalysis> buildRefactoredMethodsList(CompilationUnit cu, Map<String, MethodAnalysis> refactoredMethodsMap) {
+		List<MethodAnalysis> result = new LinkedList<>();
+		
+		var types = cu.types();
+		for (Object tObj : types) {
+			var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
+			for (MethodDeclaration md : typeDecl.getMethods()) {
+				if (md == null || md.getName() == null) {
+					continue;
+				}
+				
+				String methodName = md.getName().getIdentifier();
+				MethodAnalysis baseAnalysis = analyzeMethod(cu, md);
+				
+				if (baseAnalysis == null) {
+					continue;
+				}
+				
+				// Check if this method was refactored and has additional info
+				MethodAnalysis refactoredInfo = refactoredMethodsMap.get(methodName);
+				
+				if (refactoredInfo != null) {
+					// Merge: use complete metrics from baseAnalysis + stats/usedILP from refactoredInfo
+					result.add(mergeMethodAnalysis(baseAnalysis, refactoredInfo));
+				} else {
+					// Method was not refactored, use base analysis
+					result.add(baseAnalysis);
+				}
+			}
+		}
+		
+		return result;
+	}
+	
+	private MethodAnalysis mergeMethodAnalysis(MethodAnalysis base, MethodAnalysis refactored) {
+		return MethodAnalysis.builder()
+				.methodName(base.getMethodName())
+				.cc(base.getCc())
+				.loc(base.getLoc())
+				.reducedComplexity(refactored.getReducedComplexity())
+				.numberOfExtractions(refactored.getNumberOfExtractions())
+				.compilationUnitRefactored(refactored.getCompilationUnitRefactored())
+				.stats(refactored.getStats())
+				.usedILP(refactored.isUsedILP())
+				.build();
+	}
 
-        // 1) LOC (Lineas De Código aprox. rango de líneas del método)
-        int startLine = cu.getLineNumber(md.getStartPosition());
-        int endLine = cu.getLineNumber(md.getStartPosition() + md.getLength());
-        int loc = Math.max(0, endLine - startLine + 1);
+	protected int computeCognitiveComplexity(MethodDeclaration md) {
+		return main.neo.cem.Utils.computeAndAnnotateAccumulativeCognitiveComplexity(md);
+	}
 
-        // 3) Invocar a CodeExtractionEngine (usa NEO internamente) para evaluar posibles extracciones y obtener métricas + plan.
-        List<RefactorComparison> comparison = CodeExtractionEngine.analyseAndPlan(cu, icuWorkingCopy, md,  loc);
+	private MethodAnalysis analyzeMethod(CompilationUnit cu, MethodDeclaration md) {
+		if (md == null) {
+			return null;
+		}
 
-        // 4) Mapear al modelo de método
-        return MethodAnalysisMetricsMapper.toMethodAnalysis(comparison);
-    }
-    
-    private MethodDeclaration findNextMethodNeedingRefactor(CompilationUnit cu, Set<MethodDeclaration> processed) {
-    	// Recorre los métodos en orden de aparición
-        var types = cu.types();
-        for (Object tObj : types) {
-            var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
-            for (MethodDeclaration md : typeDecl.getMethods()) {
-                if (md == null) {
-                	continue;
-                }
-                // Omitir métodos generados por extracción
-                if (md.getName() != null && md.getName().getIdentifier().contains("_ext_")) continue;
-                boolean alreadyProcessed = processed.stream().anyMatch(p -> sameSignature(p, md));
-                if (!alreadyProcessed) {
-                    return md;
-                }
-            }
-        }
-        return null;
-    }
+		// 1) Analizamos la complejidad cognitiva
+		int cc = computeCognitiveComplexity(md);
 
-    private boolean sameSignature(MethodDeclaration a, MethodDeclaration b) {
-        if (a == null || b == null || a.getName() == null || b.getName() == null) return false;
-        if (!a.getName().getIdentifier().equals(b.getName().getIdentifier())) return false;
-        List<String> aParams = parameterTypeKeys(a);
-        List<String> bParams = parameterTypeKeys(b);
-        if (aParams.size() != bParams.size()) return false;
-        for (int i = 0; i < aParams.size(); i++) {
-            if (!aParams.get(i).equals(bParams.get(i))) return false;
-        }
-        return true;
-    }
+		// 2) Analizamos las LOC (aprox. rango de líneas del método)
+		int startLine = cu.getLineNumber(md.getStartPosition());
+		int endLine = cu.getLineNumber(md.getStartPosition() + md.getLength());
+		int loc = Math.max(0, endLine - startLine + 1);
 
-    @SuppressWarnings("unchecked")
-    private List<String> parameterTypeKeys(MethodDeclaration md) {
-        IMethodBinding mb = md.resolveBinding();
-        List<SingleVariableDeclaration> params = md.parameters();
-        if (mb != null) {
-            ITypeBinding[] types = mb.getParameterTypes();
-            List<String> res = new ArrayList<>(types.length);
-            for (int i = 0; i < types.length; i++) {
-                ITypeBinding t = types[i];
-                String name;
-                if (t == null) {
-                    name = "unknown";
-                } else if (t.getErasure() != null && t.getErasure().getQualifiedName() != null && !t.getErasure().getQualifiedName().isEmpty()) {
-                    name = t.getErasure().getQualifiedName();
-                } else if (t.getQualifiedName() != null && !t.getQualifiedName().isEmpty()) {
-                    name = t.getQualifiedName();
-                } else {
-                    name = t.getName();
-                }
-                if (i < params.size() && params.get(i).isVarargs()) {
-                    name += "...";
-                }
-                res.add(name);
-            }
-            return res;
-        }
-        return params.stream()
-            .map(p -> {
-                String t = p.getType() != null ? p.getType().toString() : "unknown";
-                if (p.isVarargs()) t += "...";
-                return t;
-            })
-            .collect(Collectors.toList());
-    }
+		// 3) Mapear al modelo de método
+		return MethodAnalysisMetricsMapper.toMethodAnalysis(md, cc, loc);
+	}
+
+	private List<MethodAnalysis> analyzeAndPlanMethod(CompilationUnit cu, ICompilationUnit icuWorkingCopy, MethodDeclaration md, int threshold) throws CoreException, IOException {
+		if (md == null)
+			return List.of();
+		
+		int startLine = cu.getLineNumber(md.getStartPosition());
+		int endLine = cu.getLineNumber(md.getStartPosition() + md.getLength());
+		int loc = Math.max(0, endLine - startLine + 1);
+		List<RefactorComparison> comparison = CodeExtractionEngine.analyseAndPlan(cu, icuWorkingCopy, md, loc, threshold);
+		return MethodAnalysisMetricsMapper.toMethodAnalysis(comparison);
+	}
+
+	private MethodDeclaration findNextMethodNeedingRefactor(CompilationUnit cu, Set<MethodDeclaration> processed) {
+		// Recorre los métodos en orden de aparición
+		var types = cu.types();
+		for (Object tObj : types) {
+			var typeDecl = (org.eclipse.jdt.core.dom.TypeDeclaration) tObj;
+			for (MethodDeclaration md : typeDecl.getMethods()) {
+				if (md == null) {
+					continue;
+				}
+				// Omitir métodos generados por extracción
+				if (md.getName() != null && md.getName().getIdentifier().contains("_ext_"))
+					continue;
+				boolean alreadyProcessed = processed.stream().anyMatch(p -> sameSignature(p, md));
+				if (!alreadyProcessed) {
+					return md;
+				}
+			}
+		}
+		return null;
+	}
+
+	private boolean sameSignature(MethodDeclaration a, MethodDeclaration b) {
+		if (a == null || b == null || a.getName() == null || b.getName() == null)
+			return false;
+		if (!a.getName().getIdentifier().equals(b.getName().getIdentifier()))
+			return false;
+		List<String> aParams = parameterTypeKeys(a);
+		List<String> bParams = parameterTypeKeys(b);
+		if (aParams.size() != bParams.size())
+			return false;
+		for (int i = 0; i < aParams.size(); i++) {
+			if (!aParams.get(i).equals(bParams.get(i)))
+				return false;
+		}
+		return true;
+	}
+
+	@SuppressWarnings("unchecked")
+	private List<String> parameterTypeKeys(MethodDeclaration md) {
+		IMethodBinding mb = md.resolveBinding();
+		List<SingleVariableDeclaration> params = md.parameters();
+		if (mb != null) {
+			ITypeBinding[] types = mb.getParameterTypes();
+			List<String> res = new ArrayList<>(types.length);
+			for (int i = 0; i < types.length; i++) {
+				ITypeBinding t = types[i];
+				String name;
+				if (t == null) {
+					name = "unknown";
+				} else if (t.getErasure() != null && t.getErasure().getQualifiedName() != null
+						&& !t.getErasure().getQualifiedName().isEmpty()) {
+					name = t.getErasure().getQualifiedName();
+				} else if (t.getQualifiedName() != null && !t.getQualifiedName().isEmpty()) {
+					name = t.getQualifiedName();
+				} else {
+					name = t.getName();
+				}
+				if (i < params.size() && params.get(i).isVarargs()) {
+					name += "...";
+				}
+				res.add(name);
+			}
+			return res;
+		}
+		return params.stream().map(p -> {
+			String t = p.getType() != null ? p.getType().toString() : "unknown";
+			if (p.isVarargs())
+				t += "...";
+			return t;
+		}).collect(Collectors.toList());
+	}
 }

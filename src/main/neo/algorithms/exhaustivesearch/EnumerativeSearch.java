@@ -30,14 +30,14 @@ public class EnumerativeSearch {
 	 * 
 	 * Author: Miguel Valadez Cano
 	 */
-	public Solution run(APPROACH approach, CompilationUnit compilationUnit, RefactoringCache refactoringCache, ASTNode ast)
+	public Solution run(APPROACH approach, CompilationUnit compilationUnit, RefactoringCache refactoringCache, ASTNode ast, int threshold)
 			throws IOException {
 		bestSolution = null;
 
 		ExhaustiveEnumerationAlgorithm eea = new ExhaustiveEnumerationAlgorithm(refactoringCache, ast, approach);
 		try {
 			eea.run(solution -> {
-				Solution sol = new Solution(solution, compilationUnit, ast);
+				Solution sol = new Solution(solution, compilationUnit, ast, threshold);
 				sol.evaluate(refactoringCache);
 				if (bestSolution == null || sol.getFitness() < bestSolution.getFitness()) {
 					bestSolution = sol;

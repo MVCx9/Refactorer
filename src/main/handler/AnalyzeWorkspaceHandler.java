@@ -64,11 +64,11 @@ public class AnalyzeWorkspaceHandler extends AbstractHandler {
             SessionAnalysisStore.getInstance().register(ActionType.WORKSPACE, workspaceMetrics);
 
             if (workspaceMetrics.getMethodExtractionCount() == 0) {
-                new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
+                new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics, null).open();
                 return null;
             }
 
-            new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics).open();
+            new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.WORKSPACE, workspaceMetrics, null, null, null).open();
             return null;
 
         } catch (Throwable e) {

@@ -132,6 +132,7 @@ public class WorkspaceMetrics implements Identifiable, ComplexityStats, LocStats
 						.name(p.getName())
 						.analysisDate(p.getAnalysisDate())
 						.classes(trimmedClasses)
+						.complexityThreshold(p.getComplexityThreshold())
 						.build();
 			})
 			.filter(p -> p != null)

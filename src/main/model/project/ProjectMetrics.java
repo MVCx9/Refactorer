@@ -18,12 +18,14 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 	private final String name;
 	private final LocalDateTime analysisDate;
 	private final List<ClassMetrics> classes;
+	private final int complexityThreshold;
 
 	public ProjectMetrics(ProjectMetricsBuilder projectMetricsBuilder) {
 		super();
 		this.name = projectMetricsBuilder.name;
 		this.analysisDate = projectMetricsBuilder.analysisDate;
 		this.classes = projectMetricsBuilder.classes;
+		this.complexityThreshold = projectMetricsBuilder.complexityThreshold;
 	}
 
 	public static ProjectMetricsBuilder builder() {
@@ -34,7 +36,7 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 	public String getName() {
 		return name;
 	}
-	
+
 	public LocalDateTime getAnalysisDate() {
 		return analysisDate;
 	}
@@ -43,26 +45,26 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 	public int getCurrentLoc() {
 		return classes.stream().mapToInt(ClassMetrics::getCurrentLoc).sum();
 	}
-	
+
 	@Override
 	public int getCurrentCc() {
 		return classes.stream().mapToInt(ClassMetrics::getCurrentCc).sum();
 	}
-	
+
 	@Override
 	public int getRefactoredLoc() {
 		return classes.stream().mapToInt(ClassMetrics::getRefactoredLoc).sum();
 	}
-	
+
 	@Override
 	public int getRefactoredCc() {
 		return classes.stream().mapToInt(ClassMetrics::getRefactoredCc).sum();
 	}
-	
+
 	public int getAverageCurrentLoc() {
 		return average(ClassMetrics::getAverageCurrentLoc);
 	}
-	
+
 	public int getAverageCurrentCc() {
 		return average(ClassMetrics::getAverageCurrentCc);
 	}
@@ -70,11 +72,11 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 	public int getAverageRefactoredLoc() {
 		return average(ClassMetrics::getAverageRefactoredLoc);
 	}
-	
+
 	public int getAverageRefactoredCc() {
 		return average(ClassMetrics::getAverageRefactoredCc);
 	}
-	
+
 	public int getClassCount() {
 		return classes.size();
 	}
@@ -86,19 +88,19 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 	public int getCurrentMethodCount() {
 		return classes.stream().mapToInt(ClassMetrics::getCurrentMethodCount).sum();
 	}
-	
+
 	public int getRefactoredMethodCount() {
 		return classes.stream().mapToInt(ClassMetrics::getRefactoredMethodCount).sum();
 	}
-	
+
 	public int getAverageCurrentMethodCount() {
 		return average(ClassMetrics::getCurrentMethodCount);
 	}
-	
+
 	public int getAverageRefactoredMethodCount() {
 		return average(ClassMetrics::getRefactoredMethodCount);
 	}
-	
+
 	public int getAverageReducedComplexity() {
 		return getAverageCurrentCc() - getAverageRefactoredCc();
 	}
@@ -106,7 +108,7 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 	public int getAverageReducedLoc() {
 		return getAverageCurrentLoc() - getAverageRefactoredLoc();
 	}
-	
+
 	public int getReducedComplexity() {
 		return getCurrentCc() - getRefactoredCc();
 	}
@@ -114,48 +116,42 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 	public int getReducedLoc() {
 		return getCurrentLoc() - getRefactoredLoc();
 	}
-	
+
 	public int getMethodExtractionCount() {
 		return getRefactoredMethodCount() - getCurrentMethodCount();
 	}
-	
+
 	private int average(java.util.function.ToIntFunction<ClassMetrics> mapper) {
 		return (int) Math.round(classes.stream().mapToInt(mapper).average().orElse(0.0));
 	}
-	
+
+	public int getComplexityThreshold() {
+		return complexityThreshold;
+	}
+
 	public List<ClassMetrics> getMethodsWithRefactors() {
-		return classes.stream()
-			.filter(c -> c.getMethodExtractionCount() > 0)
-			.map(originalClass -> {
-				List<MethodMetrics> extractedMethods = originalClass.getRefactoredMethods().stream()
-						.filter(m -> m.getName() != null && m.getName().contains("_ext_"))
-						.collect(Collectors.toList());
-				Set<String> baseNames = extractedMethods.stream()
-						.map(m -> {
-							String name = m.getName();
-							int idx = name.indexOf("_ext_");
-							return idx > -1 ? name.substring(0, idx) : name;
-						})
-						.collect(Collectors.toSet());
-				List<MethodMetrics> originalBaseMethods = originalClass.getCurrentMethods().stream()
-						.filter(m -> baseNames.contains(m.getName()))
-						.collect(Collectors.toList());
-				return ClassMetrics.builder()
-						.name(originalClass.getName())
-						.analysisDate(originalClass.getAnalysisDate())
-						.currentSource(originalClass.getCurrentSource())
-						.refactoredSource(originalClass.getRefactoredSource())
-						.currentMethods(originalBaseMethods)
-						.refactoredMethods(extractedMethods)
-						.build();
-			})
-			.collect(Collectors.toList());
+		return classes.stream().filter(c -> c.getMethodExtractionCount() > 0).map(originalClass -> {
+			List<MethodMetrics> extractedMethods = originalClass.getRefactoredMethods().stream()
+					.filter(m -> m.getName() != null && m.getName().contains("_ext_")).collect(Collectors.toList());
+			Set<String> baseNames = extractedMethods.stream().map(m -> {
+				String name = m.getName();
+				int idx = name.indexOf("_ext_");
+				return idx > -1 ? name.substring(0, idx) : name;
+			}).collect(Collectors.toSet());
+			List<MethodMetrics> originalBaseMethods = originalClass.getCurrentMethods().stream()
+					.filter(m -> baseNames.contains(m.getName())).collect(Collectors.toList());
+			return ClassMetrics.builder().name(originalClass.getName()).analysisDate(originalClass.getAnalysisDate())
+					.currentSource(originalClass.getCurrentSource())
+					.refactoredSource(originalClass.getRefactoredSource()).currentMethods(originalBaseMethods)
+					.refactoredMethods(extractedMethods).complexityThreshold(originalClass.getComplexityThreshold()).build();
+		}).collect(Collectors.toList());
 	}
 
 	public static class ProjectMetricsBuilder {
 		private String name = "<unnamed>";
 		private LocalDateTime analysisDate = LocalDateTime.now();
 		private List<ClassMetrics> classes = Collections.emptyList();
+		private int complexityThreshold = 15;
 
 		public ProjectMetricsBuilder() {
 		}
@@ -164,7 +160,7 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 			this.name = name;
 			return this;
 		}
-		
+
 		public ProjectMetricsBuilder analysisDate(LocalDateTime analysisDate) {
 			this.analysisDate = analysisDate;
 			return this;
@@ -175,6 +171,11 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 			return this;
 		}
 
+		public ProjectMetricsBuilder complexityThreshold(int v) {
+			this.complexityThreshold = v;
+			return this;
+		}
+
 		public ProjectMetrics build() {
 			return new ProjectMetrics(this);
 		}
@@ -182,7 +183,7 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(analysisDate, classes, name);
+		return Objects.hash(analysisDate, classes, name, complexityThreshold);
 	}
 
 	@Override
@@ -195,11 +196,12 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 			return false;
 		ProjectMetrics other = (ProjectMetrics) obj;
 		return Objects.equals(analysisDate, other.analysisDate) && Objects.equals(classes, other.classes)
-				&& Objects.equals(name, other.name);
+				&& Objects.equals(name, other.name) && complexityThreshold == other.complexityThreshold;
 	}
 
 	@Override
 	public String toString() {
-		return "ProjectMetrics [name=" + name + ", analysisDate=" + analysisDate + ", classes=" + classes + "]";
+		return "ProjectMetrics [name=" + name + ", analysisDate=" + analysisDate + ", classes=" + classes
+				+ ", complexityThreshold=" + complexityThreshold + "]";
 	}
 }

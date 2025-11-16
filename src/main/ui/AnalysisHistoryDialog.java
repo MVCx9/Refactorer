@@ -35,7 +35,7 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
     @Override
     protected void configureShell(Shell newShell) {
         super.configureShell(newShell);
-        newShell.setText("Historial de análisis de complejidad cognitiva");
+        newShell.setText("Previous Cognitive Complexity Analyses");
         newShell.setMinimumSize(1000, 500);
     }
 
@@ -45,11 +45,11 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
         container.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
         container.setLayout(new GridLayout(1, false));
 
-        setTitle("Historial de análisis de complejidad cognitiva");
+        setTitle("Previous Cognitive Complexity Analyses");
 
         if (history == null || history.isEmpty()) {
             Label l = new Label(container, SWT.WRAP);
-            l.setText("No se encuentran análisis de complejidad cognitiva");
+            l.setText("No cognitive complexity analyses found");
             l.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
             return container;
         }
@@ -60,22 +60,22 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
         table.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
         TableColumn colTipo = new TableColumn(table, SWT.LEFT);
-        colTipo.setText("Tipo");
+        colTipo.setText("Type");
         colTipo.setWidth(180);
         colTipo.setResizable(false);
 
         TableColumn colFecha = new TableColumn(table, SWT.LEFT);
-        colFecha.setText("Fecha");
+        colFecha.setText("Date");
         colFecha.setWidth(220);
         colFecha.setResizable(false);
 
         TableColumn colNombre = new TableColumn(table, SWT.LEFT);
-        colNombre.setText("Nombre");
+        colNombre.setText("Name");
         colNombre.setWidth(400);
         colNombre.setResizable(false);
 
         TableColumn colAcciones = new TableColumn(table, SWT.CENTER);
-        colAcciones.setText("Acciones");
+        colAcciones.setText("Actions");
         colAcciones.setWidth(160);
         colAcciones.setResizable(false);
 
@@ -96,7 +96,7 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
             editor.grabHorizontal = true;
             editor.grabVertical = true;
             Button btn = new Button(table, SWT.PUSH);
-            btn.setText("Ver análisis");
+            btn.setText("View Analysis");
             btn.addListener(SWT.Selection, ev -> {
             	if(e.getActionType() == ActionType.CLASS) {
             		ClassMetrics metrics1 = (ClassMetrics) e.getMetrics();
@@ -105,11 +105,13 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
             				e.getActionType(), 
             				metrics, 
             				metrics1.getCurrentSource(), 
-            				metrics1.getRefactoredSource() != null ? metrics1.getRefactoredSource() : metrics1.getCurrentSource());
+            				metrics1.getRefactoredSource() != null ? metrics1.getRefactoredSource() : metrics1.getCurrentSource())
+            				.setReadOnly(true);
             		d.open();
             	} else {
             		Object metrics1 = e.getMetrics();
-            		AnalysisMetricsDialog d = new AnalysisMetricsDialog(getShell(), e.getActionType(), metrics1);
+            		AnalysisMetricsDialog d = new AnalysisMetricsDialog(getShell(), e.getActionType(), metrics1)
+            				.setReadOnly(true);
             		d.open();
             	}
             });
@@ -124,14 +126,14 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
 
     @Override
     protected void createButtonsForButtonBar(Composite parent) {
-        createButton(parent, OK, "Cerrar", true);
+        createButton(parent, OK, "Close", true);
     }
 
     private String toTipo(ActionType type) {
         if (type == null) return "";
         switch (type) {
-            case CLASS: return "Clase";
-            case PROJECT: return "Proyecto";
+            case CLASS: return "Class";
+            case PROJECT: return "Project";
             case WORKSPACE: return "Workspace";
             default: return type.name();
         }

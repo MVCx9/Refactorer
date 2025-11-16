@@ -12,6 +12,7 @@ public class MethodAnalysis {
 	private final int numberOfExtractions;
 	private final CompilationUnit compilationUnitRefactored;
 	private final CodeExtractionMetricsStats stats;
+	private final boolean usedILP;
 
 	public static Builder builder() {
 		return new Builder();
@@ -25,12 +26,13 @@ public class MethodAnalysis {
 		this.numberOfExtractions = b.numberOfExtractions;
 		this.compilationUnitRefactored = b.compilationUnitRefactored;
 		this.stats = b.stats;
+		this.usedILP = b.usedILP;
 	}
 
 	public String getMethodName() {
 		return methodName;
 	}
-	
+
 	public int getCc() {
 		return cc;
 	}
@@ -38,21 +40,25 @@ public class MethodAnalysis {
 	public int getLoc() {
 		return loc;
 	}
-	
+
 	public int getReducedComplexity() {
 		return reducedComplexity;
 	}
-	
+
 	public int getNumberOfExtractions() {
 		return numberOfExtractions;
 	}
-	
+
 	public CompilationUnit getCompilationUnitRefactored() {
 		return compilationUnitRefactored;
 	}
 
 	public CodeExtractionMetricsStats getStats() {
 		return stats;
+	}
+
+	public boolean isUsedILP() {
+		return usedILP;
 	}
 
 	public static class Builder {
@@ -63,12 +69,13 @@ public class MethodAnalysis {
 		private int numberOfExtractions;
 		private CompilationUnit compilationUnitRefactored;
 		private CodeExtractionMetricsStats stats = null;
+		private boolean usedILP = false;
 
 		public Builder methodName(String v) {
 			this.methodName = v;
 			return this;
 		}
-		
+
 		public Builder cc(int v) {
 			this.cc = v;
 			return this;
@@ -78,17 +85,17 @@ public class MethodAnalysis {
 			this.loc = v;
 			return this;
 		}
-		
+
 		public Builder reducedComplexity(int v) {
 			this.reducedComplexity = v;
 			return this;
 		}
-		
+
 		public Builder numberOfExtractions(int v) {
 			this.numberOfExtractions = v;
 			return this;
 		}
-		
+
 		public Builder compilationUnitRefactored(CompilationUnit v) {
 			this.compilationUnitRefactored = v;
 			return this;
@@ -96,6 +103,11 @@ public class MethodAnalysis {
 
 		public Builder stats(CodeExtractionMetricsStats v) {
 			this.stats = v;
+			return this;
+		}
+
+		public Builder usedILP(boolean v) {
+			this.usedILP = v;
 			return this;
 		}
 

@@ -25,6 +25,11 @@ public class Constants {
 
 	public static final String EXHAUSTIVE_SEARCH_LONG_SEQUENCES_FIRST = "ES-LSF";
 	public static final String EXHAUSTIVE_SEARCH_SHORT_SEQUENCES_FIRST = "ES-SSF";
+	public static final String INTEGER_LINEAR_PROGRAMMING = "ILP";
+
+	public static final int MAX_EVALS = 10000;
+	public static final int CPLEX_POPULATION_FACTOR = 10;
+	public static final int CPLEX_TIME_LIMIT = 300;
 
 	public static final String[] PROPERTIES = new String[] { 
 		Constants.CONTRIBUTION_TO_COMPLEXITY,
@@ -36,6 +41,4 @@ public class Constants {
 		Constants.ACCUMULATED_COMPLEXITY,
 		Constants.COMPLEXITY_WHEN_EXTRACTING 
 	};
-
-	public static final int MAX_EVALS = 10000;
 }

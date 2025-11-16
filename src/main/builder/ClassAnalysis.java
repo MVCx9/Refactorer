@@ -19,6 +19,7 @@ public class ClassAnalysis {
 	private final List<MethodAnalysis> refactoredMethods;
 	private final String currentSource;
 	private final String refactoredSource;
+	private final int complexityThreshold;
 
 	public static Builder builder() {
 		return new Builder();
@@ -34,6 +35,7 @@ public class ClassAnalysis {
 		this.refactoredMethods = Collections.unmodifiableList(b.refactoredMethods);
 		this.refactoredSource = b.refactoredSource;
 		this.currentSource = b.currentSource;
+		this.complexityThreshold = b.complexityThreshold;
 	}
 
 	public ICompilationUnit getIcu() {
@@ -43,7 +45,7 @@ public class ClassAnalysis {
 	public CompilationUnit getCompilationUnit() {
 		return cu;
 	}
-	
+
 	public IFile getFile() {
 		return file;
 	}
@@ -51,7 +53,7 @@ public class ClassAnalysis {
 	public String getClassName() {
 		return className;
 	}
-	
+
 	public LocalDateTime getAnalysisDate() {
 		return analysisDate;
 	}
@@ -59,17 +61,21 @@ public class ClassAnalysis {
 	public List<MethodAnalysis> getCurrentMethods() {
 		return Collections.unmodifiableList(currentMethods);
 	}
-	
+
 	public List<MethodAnalysis> getRefactoredMethods() {
 		return Collections.unmodifiableList(refactoredMethods);
 	}
-	
+
 	public String getCurrentSource() {
 		return currentSource;
 	}
-	
+
 	public String getRefactoredSource() {
 		return refactoredSource;
+	}
+
+	public int getComplexityThreshold() {
+		return complexityThreshold;
 	}
 
 	public static class Builder {
@@ -82,6 +88,7 @@ public class ClassAnalysis {
 		private List<MethodAnalysis> refactoredMethods = List.of();
 		private String currentSource;
 		private String refactoredSource;
+		private int complexityThreshold = 15;
 
 		public Builder icu(ICompilationUnit v) {
 			this.icu = v;
@@ -92,7 +99,7 @@ public class ClassAnalysis {
 			this.cu = v;
 			return this;
 		}
-		
+
 		public Builder file(IFile v) {
 			this.file = v;
 			return this;
@@ -102,7 +109,7 @@ public class ClassAnalysis {
 			this.className = v;
 			return this;
 		}
-		
+
 		public Builder analysisDate(LocalDateTime v) {
 			this.analysisDate = v;
 			return this;
@@ -112,19 +119,24 @@ public class ClassAnalysis {
 			this.currentMethods = v;
 			return this;
 		}
-		
+
 		public Builder refactoredMethods(List<MethodAnalysis> v) {
 			this.refactoredMethods = v;
 			return this;
 		}
-		
+
 		public Builder currentSource(String v) {
 			this.currentSource = v;
 			return this;
 		}
-		
+
 		public Builder refactoredSource(String v) {
 			this.refactoredSource = v;
+			return this;
+		}
+
+		public Builder complexityThreshold(int v) {
+			this.complexityThreshold = v;
 			return this;
 		}
 

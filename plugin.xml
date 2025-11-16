@@ -14,7 +14,7 @@
 			    name="Analizar la Clase"/>
 		<command
 				id="refactorer.commands.getHistory"
-				name="Consultar historico"/>
+				name="Consultar analisis"/>
 	</extension>
 	
 	<extension point="org.eclipse.ui.handlers">
@@ -44,7 +44,7 @@
 				/>
 				<command 
 					commandId="refactorer.commands.getHistory"
-					label="Ver histórico de Análisis de Complejidad"
+					label="Ver análisis anteriores de Complejidad"
 					style="push"
 				/>
 	         </menu>
@@ -84,5 +84,15 @@
 
 	</extension>
 
+   <extension point="org.eclipse.ui.propertyPages">
+      <page
+            class="main.preferences.ComplexityThresholdPropertyPage"
+            id="refactorer.propertyPages.complexityThreshold"
+            name="Refactorer Plugin Threshold">
+         <enabledWhen>
+            <adapt type="org.eclipse.core.resources.IProject"/>
+         </enabledWhen>
+      </page>
+   </extension>
 
 </plugin>

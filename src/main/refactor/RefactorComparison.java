@@ -10,6 +10,7 @@ public class RefactorComparison {
 	private final int reducedComplexity;
 	private final int numberOfExtractions;
 	private final CodeExtractionMetricsStats stats;
+	private final boolean usedILP;
 
 	public static Builder builder() {
 		return new Builder();
@@ -21,6 +22,7 @@ public class RefactorComparison {
 		this.reducedComplexity = b.reducedComplexity;
 		this.numberOfExtractions = b.numberOfExtractions;
 		this.stats = b.stats;
+		this.usedILP = b.usedILP;
 	}
 
 	public String getName() {
@@ -43,12 +45,17 @@ public class RefactorComparison {
 		return stats;
 	}
 
+	public boolean isUsedILP() {
+		return usedILP;
+	}
+
 	public static class Builder {
 		private String name;
 		private int reducedComplexity;
 		private int numberOfExtractions;
 		private CompilationUnit compilationUnitRefactored;
 		private CodeExtractionMetricsStats stats;
+		private boolean usedILP = false;
 
 		public Builder name(String v) {
 			this.name = v;
@@ -72,6 +79,11 @@ public class RefactorComparison {
 
 		public Builder stats(CodeExtractionMetricsStats v) {
 			this.stats = v;
+			return this;
+		}
+
+		public Builder usedILP(boolean v) {
+			this.usedILP = v;
 			return this;
 		}
 

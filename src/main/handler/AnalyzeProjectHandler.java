@@ -91,11 +91,11 @@ public class AnalyzeProjectHandler extends AbstractHandler {
 		SessionAnalysisStore.getInstance().register(ActionType.PROJECT, metrics);
         
 		if (metrics.getMethodExtractionCount() == 0) {
-            new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.PROJECT, metrics).open();
+            new AnalysisNoRefactorDialog(HandlerUtil.getActiveShell(event), ActionType.PROJECT, metrics, project).open();
             return null;
         }
 		
-		new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.PROJECT, metrics).open();
+		new AnalysisMetricsDialog(HandlerUtil.getActiveShell(event), ActionType.PROJECT, metrics, null, null, project).open();
 		return null;
 		
 		} catch (Throwable e) {

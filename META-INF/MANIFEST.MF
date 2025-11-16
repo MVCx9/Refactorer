@@ -25,6 +25,7 @@ Bundle-ClassPath: .,
  lib/jgrapht-core-1.5.0.jar,
  lib/jgrapht-ext-1.5.0.jar,
  lib/jgrapht-io-1.5.0.jar,
- lib/jgrapht-opt-1.5.0.jar
+ lib/jgrapht-opt-1.5.0.jar,
+ lib/cplex.jar
 Automatic-Module-Name: Refactorer
 Bundle-RequiredExecutionEnvironment: JavaSE-21
