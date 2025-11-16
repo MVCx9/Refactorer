@@ -347,7 +347,7 @@ public final class Messages {
 	public static String getHistoryTitle(IProject project) {
 		return isEnglish(project)
 			? "Analysis History"
-			: "Historial de Análisis";
+			: "Análisis anteriores";
 	}
 	
 	public static String getHistoryEmptyMessage(IProject project) {
@@ -385,7 +385,7 @@ public final class Messages {
 	}
 	
 	public static String getHistoryButtonClear(IProject project) {
-		return isEnglish(project) ? "Clear History" : "Limpiar Historial";
+		return isEnglish(project) ? "Clear History" : "Limpiar análisis anteriores";
 	}
 	
 	// ==================== ERRORES DETALLADOS ====================
