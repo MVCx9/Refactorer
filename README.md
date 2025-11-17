@@ -35,6 +35,12 @@ Este proyecto es el Trabajo Fin de Grado (TFG) de Miguel, y consiste en el desar
     - Muestra métricas antes y después de la refactorización (complejidad cognitiva, longitud de métodos, duplicidad de lógica, etc.).
     - Registro de las acciones realizadas para su posterior análisis.
 
+## Requisitos
+
+- **Eclipse IDE** (versión 2023-12 o superior)
+- **Java 21** o superior
+- **IBM ILOG CPLEX** (Community Edition o superior) - Necesario para los algoritmos de optimización ILP
+
 ## Instalación
 
 1. Clona este repositorio:
@@ -42,7 +48,10 @@ Este proyecto es el Trabajo Fin de Grado (TFG) de Miguel, y consiste en el desar
     git clone https://github.com/tu-usuario/refactorer.git
     ```
 2. Importa el proyecto en Eclipse como un plugin.
-3. Sigue las instrucciones del archivo `INSTALL.md` para completar la instalación.
+3. **Configura CPLEX** siguiendo las instrucciones en `CPLEX_SETUP.md`:
+   - **macOS**: Ejecuta `./setup_cplex_macos.sh` para configuración automática
+   - **Manual**: Configura la variable de entorno `CPLEX_LIBRARY_PATH`
+4. Sigue las instrucciones del archivo `INSTALL.md` para completar la instalación.
 
 ## Uso
 
