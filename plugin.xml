@@ -15,6 +15,9 @@
 		<command
 				id="refactorer.commands.getHistory"
 				name="Consultar analisis"/>
+		<command
+				id="refactorer.commands.configuration"
+				name="Configuración"/>
 	</extension>
 	
 	<extension point="org.eclipse.ui.handlers">
@@ -30,7 +33,10 @@
 	        commandId="refactorer.commands.analyzeSingleFile"/>
 	     <handler
 	        class="main.handler.GetAnalysisHistory"
-	        commandId="refactorer.commands.getHistory"/>  
+	        commandId="refactorer.commands.getHistory"/>
+	     <handler
+	        class="main.handler.ConfigurationHandler"
+	        commandId="refactorer.commands.configuration"/>
 	</extension>
 	
 	<extension point="org.eclipse.ui.menus">
@@ -45,6 +51,11 @@
 				<command 
 					commandId="refactorer.commands.getHistory"
 					label="Ver análisis anteriores de Complejidad"
+					style="push"
+				/>
+				<command 
+					commandId="refactorer.commands.configuration"
+					label="Configuración"
 					style="push"
 				/>
 	         </menu>
