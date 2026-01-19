@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IResourceVisitor;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -57,35 +56,32 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
     private static final int BREAK_EXTRACT_ID = 1002;
 
     private final ActionType actionType;
-    private final Object metrics; // ClassMetrics | ProjectMetrics | WorkspaceMetrics
-    private final String leftSource;  // only for CLASS
-    private final String rightSource; // only for CLASS
-    private final IProject project; // For i18n, null for WORKSPACE
+    private final Object metrics;
+    private final String leftSource;
+    private final String rightSource;
 
-    // Diff highlight colors (initialized only for CLASS view)
-    private Color delColor;    // deleted
-    private Color insColor;    // inserted
-    private Color modColor;    // modified
+    private Color delColor;
+    private Color insColor;
+    private Color modColor;
     private final Color black = org.eclipse.swt.widgets.Display.getCurrent().getSystemColor(SWT.COLOR_BLACK);
 
-    private boolean readOnly = false; // when true (history), no code modification buttons
+    private boolean readOnly = false;
 
     public AnalysisMetricsDialog(Shell parentShell, ActionType actionType, Object metrics) {
-        this(parentShell, actionType, metrics, null, null, null);
+        this(parentShell, actionType, metrics, null, null);
     }
 
     public AnalysisMetricsDialog(Shell parentShell, ActionType actionType, Object metrics, String leftSource, String rightSource) {
-        this(parentShell, actionType, metrics, leftSource, rightSource, null);
-    }
-    
-    public AnalysisMetricsDialog(Shell parentShell, ActionType actionType, Object metrics, String leftSource, String rightSource, IProject project) {
         super(parentShell);
         this.actionType = actionType;
         this.metrics = metrics;
         this.leftSource = leftSource;
         this.rightSource = rightSource;
-        this.project = project;
         setHelpAvailable(false);
+    }
+    
+    public AnalysisMetricsDialog(Shell parentShell, ActionType actionType, Object metrics, String leftSource, String rightSource, Object ignored) {
+        this(parentShell, actionType, metrics, leftSource, rightSource);
     }
 
     /** Mark dialog as read-only (used when opened from history). */
@@ -101,8 +97,8 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
 
         String title;
         switch (actionType) {
-            case CLASS: title = Messages.getDialogTitleClass(project); break;
-            case PROJECT: title = Messages.getDialogTitleProject(project); break;
+            case CLASS: title = Messages.getDialogTitleClass(); break;
+            case PROJECT: title = Messages.getDialogTitleProject(); break;
             case WORKSPACE: title = Messages.getDialogTitleWorkspace(); break;
             default: title = "Analysis"; break;
         }
@@ -110,8 +106,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
 
         String name = (metrics instanceof Identifiable) ? ((Identifiable) metrics).getName() : "<unnamed>";
         String fecha = getFechaAnalisis(metrics);
-        String analyzedOn = actionType == ActionType.WORKSPACE ? "Analyzed on" : Messages.getAnalyzedOn(project);
-        setMessage(fecha != null ? name + " — " + analyzedOn + " " + fecha : name);
+        setMessage(fecha != null ? name + " — " + Messages.getAnalyzedOn() + " " + fecha : name);
 
         if (actionType == ActionType.CLASS && leftSource != null && rightSource != null) {
             SashForm root = new SashForm(container, SWT.VERTICAL);
@@ -126,7 +121,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             Composite codeLeft = new Composite(codeSash, SWT.NONE);
             codeLeft.setLayout(new GridLayout(1, false));
             Label codeLeftTitle = new Label(codeLeft, SWT.NONE);
-            codeLeftTitle.setText(Messages.getCodeSectionCurrent(project));
+            codeLeftTitle.setText(Messages.getCodeSectionCurrent());
             codeLeftTitle.setFont(bold(codeLeftTitle));
             StyledText leftText = new StyledText(codeLeft, SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL | SWT.READ_ONLY | SWT.MULTI);
             leftText.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
@@ -136,7 +131,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             Composite codeRight = new Composite(codeSash, SWT.NONE);
             codeRight.setLayout(new GridLayout(1, false));
             Label codeRightTitle = new Label(codeRight, SWT.NONE);
-            codeRightTitle.setText(Messages.getCodeSectionRefactored(project));
+            codeRightTitle.setText(Messages.getCodeSectionRefactored());
             codeRightTitle.setFont(bold(codeRightTitle));
             StyledText rightText = new StyledText(codeRight, SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL | SWT.READ_ONLY | SWT.MULTI);
             rightText.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
@@ -145,7 +140,6 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
 
             codeSash.setWeights(new int[] { 1, 1 });
 
-            // Initialize more vivid colors for diff
             createDiffColors(container);
 
             // Apply diff highlighting between current and refactored sources
@@ -190,7 +184,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         Composite left = new Composite(parent, SWT.NONE);
         left.setLayout(new GridLayout(2, false));
         Label leftTitle = new Label(left, SWT.NONE);
-        leftTitle.setText(actionType == ActionType.WORKSPACE ? "Current" : Messages.getCodeSectionCurrent(project));
+        leftTitle.setText(Messages.getCodeSectionCurrent());
         leftTitle.setFont(bold(leftTitle));
         GridData leftTitleGD = new GridData(SWT.LEFT, SWT.CENTER, false, false);
         leftTitleGD.horizontalSpan = 2;
@@ -202,7 +196,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         Composite right = new Composite(parent, SWT.NONE);
         right.setLayout(new GridLayout(2, false));
         Label rightTitle = new Label(right, SWT.NONE);
-        rightTitle.setText(actionType == ActionType.WORKSPACE ? "Refactored" : Messages.getCodeSectionRefactored(project));
+        rightTitle.setText(Messages.getCodeSectionRefactored());
         rightTitle.setFont(bold(rightTitle));
         GridData rightTitleGD = new GridData(SWT.LEFT, SWT.CENTER, false, false);
         rightTitleGD.horizontalSpan = 2;
@@ -212,52 +206,49 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
 
     private void fillMetrics(Composite left, Composite right) {
         
-        // Fill common metrics (LOC / CC)
         if (metrics instanceof LocStats && metrics instanceof ComplexityStats) {
             LocStats ls = (LocStats) metrics;
             ComplexityStats cs = (ComplexityStats) metrics;
-            String locLabel = actionType == ActionType.WORKSPACE ? "Lines of code (LOC)" : Messages.getMetricLOC(project);
-            String ccLabel = actionType == ActionType.WORKSPACE ? "Cognitive complexity (CC)" : Messages.getMetricCC(project);
-            metric(left, locLabel, String.valueOf(ls.getCurrentLoc()));
-            metric(left, ccLabel, String.valueOf(cs.getCurrentCc()));
-            metric(right, locLabel, String.valueOf(ls.getRefactoredLoc()));
-            metric(right, ccLabel, String.valueOf(cs.getRefactoredCc()));
+            metric(left, Messages.getMetricLOC(), String.valueOf(ls.getCurrentLoc()));
+            metric(left, Messages.getMetricCC(), String.valueOf(cs.getCurrentCc()));
+            metric(right, Messages.getMetricLOC(), String.valueOf(ls.getRefactoredLoc()));
+            metric(right, Messages.getMetricCC(), String.valueOf(cs.getRefactoredCc()));
         }
         if (metrics instanceof ClassMetrics cm) {
-            metric(left, Messages.getMetricMethods(project), String.valueOf(cm.getCurrentMethodCount()));
-            metric(left, Messages.getMetricAverageLOCPerMethod(project), String.valueOf(cm.getAverageCurrentLoc()));
-            metric(left, Messages.getMetricAverageCCPerMethod(project), String.valueOf(cm.getAverageCurrentCc()));
-            metric(right, Messages.getMetricMethods(project), String.valueOf(cm.getRefactoredMethodCount()));
-            metric(right, Messages.getMetricAverageLOCPerMethod(project), String.valueOf(cm.getAverageRefactoredLoc()));
-            metric(right, Messages.getMetricAverageCCPerMethod(project), String.valueOf(cm.getAverageRefactoredCc()));
-            metric(right, Messages.getMetricExtractedMethods(project), String.valueOf(cm.getRefactoredMethodCount() - cm.getCurrentMethodCount()));
-            metric(right, Messages.getMetricComplexityThreshold(project), String.valueOf(cm.getComplexityThreshold()));
+            metric(left, Messages.getMetricMethods(), String.valueOf(cm.getCurrentMethodCount()));
+            metric(left, Messages.getMetricAverageLOCPerMethod(), String.valueOf(cm.getAverageCurrentLoc()));
+            metric(left, Messages.getMetricAverageCCPerMethod(), String.valueOf(cm.getAverageCurrentCc()));
+            metric(right, Messages.getMetricMethods(), String.valueOf(cm.getRefactoredMethodCount()));
+            metric(right, Messages.getMetricAverageLOCPerMethod(), String.valueOf(cm.getAverageRefactoredLoc()));
+            metric(right, Messages.getMetricAverageCCPerMethod(), String.valueOf(cm.getAverageRefactoredCc()));
+            metric(right, Messages.getMetricExtractedMethods(), String.valueOf(cm.getRefactoredMethodCount() - cm.getCurrentMethodCount()));
+            metric(right, Messages.getMetricComplexityThreshold(), String.valueOf(cm.getComplexityThreshold()));
         } else if (metrics instanceof ProjectMetrics pm) {
-            metric(left, Messages.getMetricClasses(project), String.valueOf(pm.getClassCount()));
-            metric(left, Messages.getMetricMethods(project), String.valueOf(pm.getCurrentMethodCount()));
-            metric(left, Messages.getMetricAverageMethodsPerClass(project), String.valueOf(pm.getAverageCurrentMethodCount()));
-            metric(left, Messages.getMetricAverageLOCPerClass(project), String.valueOf(pm.getAverageCurrentLoc()));
-            metric(left, Messages.getMetricAverageCCPerClass(project), String.valueOf(pm.getAverageCurrentCc()));
-            metric(right, Messages.getMetricClasses(project), String.valueOf(pm.getClassCount()));
-            metric(right, Messages.getMetricMethods(project), String.valueOf(pm.getRefactoredMethodCount()));
-            metric(right, Messages.getMetricAverageMethodsPerClass(project), String.valueOf(pm.getAverageRefactoredMethodCount()));
-            metric(right, Messages.getMetricAverageLOCPerClass(project), String.valueOf(pm.getAverageRefactoredLoc()));
-            metric(right, Messages.getMetricAverageCCPerClass(project), String.valueOf(pm.getAverageRefactoredCc()));
-            metric(right, Messages.getMetricExtractedMethods(project), String.valueOf(pm.getRefactoredMethodCount() - pm.getCurrentMethodCount()));
-            metric(right, Messages.getMetricComplexityThreshold(project), String.valueOf(pm.getComplexityThreshold()));
+            metric(left, Messages.getMetricClasses(), String.valueOf(pm.getClassCount()));
+            metric(left, Messages.getMetricMethods(), String.valueOf(pm.getCurrentMethodCount()));
+            metric(left, Messages.getMetricAverageMethodsPerClass(), String.valueOf(pm.getAverageCurrentMethodCount()));
+            metric(left, Messages.getMetricAverageLOCPerClass(), String.valueOf(pm.getAverageCurrentLoc()));
+            metric(left, Messages.getMetricAverageCCPerClass(), String.valueOf(pm.getAverageCurrentCc()));
+            metric(right, Messages.getMetricClasses(), String.valueOf(pm.getClassCount()));
+            metric(right, Messages.getMetricMethods(), String.valueOf(pm.getRefactoredMethodCount()));
+            metric(right, Messages.getMetricAverageMethodsPerClass(), String.valueOf(pm.getAverageRefactoredMethodCount()));
+            metric(right, Messages.getMetricAverageLOCPerClass(), String.valueOf(pm.getAverageRefactoredLoc()));
+            metric(right, Messages.getMetricAverageCCPerClass(), String.valueOf(pm.getAverageRefactoredCc()));
+            metric(right, Messages.getMetricExtractedMethods(), String.valueOf(pm.getRefactoredMethodCount() - pm.getCurrentMethodCount()));
+            metric(right, Messages.getMetricComplexityThreshold(), String.valueOf(pm.getComplexityThreshold()));
         } else if (metrics instanceof WorkspaceMetrics wm) {
-            metric(left, "Projects", String.valueOf(wm.getProjectCount()));
-            metric(left, "Classes", String.valueOf(wm.getClassCount()));
-            metric(left, "Methods", String.valueOf(wm.getCurrentMethodCount()));
-            metric(left, "Average methods per project", String.valueOf(wm.getAverageCurrentMethodCount()));
-            metric(left, "Average LOC per project", String.valueOf(wm.getAverageCurrentLoc()));
-            metric(left, "Average CC per project", String.valueOf(wm.getAverageCurrentCc()));
-            metric(right, "Projects", String.valueOf(wm.getProjectCount()));
-            metric(right, "Classes", String.valueOf(wm.getClassCount()));
-            metric(right, "Methods", String.valueOf(wm.getRefactoredMethodCount()));
-            metric(right, "Average methods per project", String.valueOf(wm.getAverageRefactoredMethodCount()));
-            metric(right, "Average LOC per project", String.valueOf(wm.getAverageRefactoredLoc()));
-            metric(right, "Average CC per project", String.valueOf(wm.getAverageRefactoredCc()));
+            metric(left, Messages.getMetricProjects(), String.valueOf(wm.getProjectCount()));
+            metric(left, Messages.getMetricClasses(), String.valueOf(wm.getClassCount()));
+            metric(left, Messages.getMetricMethods(), String.valueOf(wm.getCurrentMethodCount()));
+            metric(left, Messages.getMetricAverageMethodsPerProject(), String.valueOf(wm.getAverageCurrentMethodCount()));
+            metric(left, Messages.getMetricAverageLOCPerProject(), String.valueOf(wm.getAverageCurrentLoc()));
+            metric(left, Messages.getMetricAverageCCPerProject(), String.valueOf(wm.getAverageCurrentCc()));
+            metric(right, Messages.getMetricProjects(), String.valueOf(wm.getProjectCount()));
+            metric(right, Messages.getMetricClasses(), String.valueOf(wm.getClassCount()));
+            metric(right, Messages.getMetricMethods(), String.valueOf(wm.getRefactoredMethodCount()));
+            metric(right, Messages.getMetricAverageMethodsPerProject(), String.valueOf(wm.getAverageRefactoredMethodCount()));
+            metric(right, Messages.getMetricAverageLOCPerProject(), String.valueOf(wm.getAverageRefactoredLoc()));
+            metric(right, Messages.getMetricAverageCCPerProject(), String.valueOf(wm.getAverageRefactoredCc()));
         }
     }
 
@@ -266,8 +257,8 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         super.configureShell(newShell);
         String title;
         switch (actionType) {
-            case CLASS: title = Messages.getDialogTitleClass(project); break;
-            case PROJECT: title = Messages.getDialogTitleProject(project); break;
+            case CLASS: title = Messages.getDialogTitleClass(); break;
+            case PROJECT: title = Messages.getDialogTitleProject(); break;
             case WORKSPACE: title = Messages.getDialogTitleWorkspace(); break;
             default: title = "Analysis"; break;
         }
@@ -281,13 +272,10 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
 
     @Override
     protected void createButtonsForButtonBar(Composite parent) {
-        String closeLabel = actionType == ActionType.WORKSPACE ? "Close" : Messages.getButtonClose(project);
-        createButton(parent, OK, closeLabel, true);
-        if (!readOnly) { // only allow modifying code when not in history mode
-            String undoLabel = actionType == ActionType.WORKSPACE ? "Undo code extractions" : Messages.getButtonUndoExtractions(project);
-            String applyLabel = actionType == ActionType.WORKSPACE ? "Apply code extractions" : Messages.getButtonApplyExtractions(project);
-            createButton(parent, BREAK_EXTRACT_ID, undoLabel, false);
-            createButton(parent, APPLY_EXTRACT_ID, applyLabel, false);
+        createButton(parent, OK, Messages.getButtonClose(), true);
+        if (!readOnly) {
+            createButton(parent, BREAK_EXTRACT_ID, Messages.getButtonUndoExtractions(), false);
+            createButton(parent, APPLY_EXTRACT_ID, Messages.getButtonApplyExtractions(), false);
         }
     }
 
@@ -535,9 +523,9 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         legend.setLayout(gl);
         legend.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 
-        addLegendEntry(legend, delColor, Messages.getLegendDeleted(project));
-        addLegendEntry(legend, insColor, Messages.getLegendAdded(project));
-        addLegendEntry(legend, modColor, Messages.getLegendModified(project));
+        addLegendEntry(legend, delColor, Messages.getLegendDeleted());
+        addLegendEntry(legend, insColor, Messages.getLegendAdded());
+        addLegendEntry(legend, modColor, Messages.getLegendModified());
     }
 
     private void addLegendEntry(Composite parent, Color color, String text) {
@@ -587,8 +575,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
 
     private void createRefactorsTableSection(Composite parent) {
         Label sepTitle = new Label(parent, SWT.NONE);
-        String titleText = actionType == ActionType.WORKSPACE ? "Details of refactored methods" : Messages.getTableTitleRefactoredMethods(project);
-        sepTitle.setText(titleText);
+        sepTitle.setText(Messages.getTableTitleRefactoredMethods());
         sepTitle.setFont(bold(sepTitle));
         sepTitle.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         String summaryText = "";
@@ -597,17 +584,18 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             int classesAffected = trimmedProjects.stream().mapToInt(p -> p.getClasses().size()).sum();
             int methodsAffected = trimmedProjects.stream().flatMap(p -> p.getClasses().stream())
                     .mapToInt(c -> c.getCurrentMethods().size()).sum();
-            summaryText = "Classes affected: " + classesAffected + "    Original methods with refactor: " + methodsAffected;
+            summaryText = Messages.getTableSummaryClassesAffected() + " " + classesAffected + "    " + 
+                         Messages.getTableSummaryMethodsAffected() + " " + methodsAffected;
         }else if (actionType == ActionType.PROJECT && metrics instanceof ProjectMetrics pm) {
             List<ClassMetrics> trimmed = pm.getMethodsWithRefactors();
             int classesAffected = trimmed.size();
             int methodsAffected = trimmed.stream().mapToInt(c -> c.getCurrentMethods().size()).sum();
-            summaryText = Messages.getTableSummaryClassesAffected(project) + " " + classesAffected + "    " + 
-                         Messages.getTableSummaryMethodsAffected(project) + " " + methodsAffected;
+            summaryText = Messages.getTableSummaryClassesAffected() + " " + classesAffected + "    " + 
+                         Messages.getTableSummaryMethodsAffected() + " " + methodsAffected;
         } else if (actionType == ActionType.CLASS && metrics instanceof ClassMetrics cm){
             List<ClassMetrics> trimmed = cm.getMethodsWithRefactors();
             int methodsAffected = trimmed.stream().mapToInt(c -> c.getCurrentMethods().size()).sum();
-            summaryText = Messages.getTableSummaryMethodsAffected(project) + " " + methodsAffected;
+            summaryText = Messages.getTableSummaryMethodsAffected() + " " + methodsAffected;
         }
         if (!summaryText.isEmpty()) {
             Label summary = new Label(parent, SWT.NONE);
@@ -625,41 +613,39 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         table.setLinesVisible(true);
         table.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
         if (actionType == ActionType.WORKSPACE) {
-            createColumn(table, "No.", 50);
-            createColumn(table, "Project", 130);
-            createColumn(table, "Threshold", 80);
-            createColumn(table, "Class", 150);
-            createColumn(table, "Original method", 150);
-            createColumn(table, "Original method CC", 120);
-            createColumn(table, "Refactored method", 240);
-            createColumn(table, "Refactored method CC", 150);
-            createColumn(table, "Algorithm", 80);
+            createColumn(table, Messages.getTableColumnNumber(), 50);
+            createColumn(table, Messages.getTableColumnProject(), 130);
+            createColumn(table, Messages.getTableColumnThreshold(), 80);
+            createColumn(table, Messages.getTableColumnClass(), 150);
+            createColumn(table, Messages.getTableColumnOriginalMethod(), 150);
+            createColumn(table, Messages.getTableColumnOriginalCC(), 120);
+            createColumn(table, Messages.getTableColumnRefactoredMethod(), 240);
+            createColumn(table, Messages.getTableColumnRefactoredCC(), 150);
+            createColumn(table, Messages.getTableColumnAlgorithm(), 80);
             populateWorkspaceTable(table, (WorkspaceMetrics) metrics);
         }else if (actionType == ActionType.PROJECT) {
-            createColumn(table, Messages.getTableColumnNumber(project), 50);
-            createColumn(table, Messages.getTableColumnClass(project), 150);
-            createColumn(table, Messages.getTableColumnOriginalMethod(project), 150);
-            createColumn(table, Messages.getTableColumnOriginalCC(project), 120);
-            createColumn(table, Messages.getTableColumnRefactoredMethod(project), 240);
-            createColumn(table, Messages.getTableColumnRefactoredCC(project), 150);
-            createColumn(table, Messages.getTableColumnAlgorithm(project), 80);
+            createColumn(table, Messages.getTableColumnNumber(), 50);
+            createColumn(table, Messages.getTableColumnClass(), 150);
+            createColumn(table, Messages.getTableColumnOriginalMethod(), 150);
+            createColumn(table, Messages.getTableColumnOriginalCC(), 120);
+            createColumn(table, Messages.getTableColumnRefactoredMethod(), 240);
+            createColumn(table, Messages.getTableColumnRefactoredCC(), 150);
+            createColumn(table, Messages.getTableColumnAlgorithm(), 80);
             populateProjectTable(table, (ProjectMetrics) metrics);
         } else if (actionType == ActionType.CLASS){
-            createColumn(table, Messages.getTableColumnNumber(project), 50);
-            createColumn(table, Messages.getTableColumnOriginalMethod(project), 160);
-            createColumn(table, Messages.getTableColumnOriginalCC(project), 130);
-            createColumn(table, Messages.getTableColumnRefactoredMethod(project), 240);
-            createColumn(table, Messages.getTableColumnRefactoredCC(project), 150);
-            createColumn(table, Messages.getTableColumnAlgorithm(project), 80);
+            createColumn(table, Messages.getTableColumnNumber(), 50);
+            createColumn(table, Messages.getTableColumnOriginalMethod(), 160);
+            createColumn(table, Messages.getTableColumnOriginalCC(), 130);
+            createColumn(table, Messages.getTableColumnRefactoredMethod(), 240);
+            createColumn(table, Messages.getTableColumnRefactoredCC(), 150);
+            createColumn(table, Messages.getTableColumnAlgorithm(), 80);
             populateClassTable(table, (ClassMetrics) metrics);
         }
         
-        // Ajustar las columnas al tamaño de la tabla
         adjustTableColumns(table);
         
         Button exportBtn = new Button(tableContainer, SWT.PUSH);
-        String exportLabel = actionType == ActionType.WORKSPACE ? "Export to CSV file" : Messages.getButtonExportCSV(project);
-        exportBtn.setText(exportLabel);
+        exportBtn.setText(Messages.getButtonExportCSV());
         GridData btnGD = new GridData(SWT.RIGHT, SWT.CENTER, true, false);
         exportBtn.setLayoutData(btnGD);
         exportBtn.addListener(SWT.Selection, e -> exportTableToCsv(table));
@@ -905,14 +891,12 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
     private void exportTableToCsv(Table table) {
         if (table.isDisposed()) return;
         FileDialog dialog = new FileDialog(table.getShell(), SWT.SAVE);
-        String dialogTitle = actionType == ActionType.WORKSPACE ? "Export table to CSV" : Messages.getCSVExportDialogTitle(project);
-        String filterName = actionType == ActionType.WORKSPACE ? "CSV (comma separated)" : Messages.getCSVFilterName(project);
-        dialog.setText(dialogTitle);
+        dialog.setText(Messages.getCSVExportDialogTitle());
         dialog.setFilterExtensions(new String[] {"*.csv"});
-        dialog.setFilterNames(new String[] {filterName});
+        dialog.setFilterNames(new String[] {Messages.getCSVFilterName()});
         dialog.setFileName(buildDefaultCsvFileName());
         String pathStr = dialog.open();
-        if (pathStr == null) return; // usuario canceló
+        if (pathStr == null) return;
         if (!pathStr.toLowerCase().endsWith(".csv")) {
             pathStr += ".csv";
         }
@@ -920,15 +904,13 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
 
         int colCount = table.getColumnCount();
         try (BufferedWriter bw = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
-            // Encabezados
             for (int c=0;c<colCount;c++) {
                 bw.write(csvEscape(table.getColumn(c).getText()));
                 if (c < colCount - 1) bw.write(',');
             }
             bw.write('\n');
-            // Filas
             for (TableItem item : table.getItems()) {
-                if (isSeparator(item, colCount)) continue; // saltar separadores
+                if (isSeparator(item, colCount)) continue;
                 boolean allBlank = true;
                 for (int c=0;c<colCount;c++) {
                     String cell = item.getText(c);
@@ -939,16 +921,12 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                 if (!allBlank) bw.write('\n');
             }
         } catch (IOException ex) {
-            String errorTitle = actionType == ActionType.WORKSPACE ? "Error" : Messages.getErrorTitle(project);
-            String errorMsg = actionType == ActionType.WORKSPACE ? "Could not export file: " + ex.getMessage() : 
-                             Messages.getCSVExportError(project) + " " + ex.getMessage();
-            MessageDialog.openError(table.getShell(), errorTitle, errorMsg);
+            MessageDialog.openError(table.getShell(), Messages.getErrorTitle(), 
+                                   Messages.getCSVExportError() + " " + ex.getMessage());
             return;
         }
-        String successTitle = actionType == ActionType.WORKSPACE ? "Export completed" : Messages.getCSVExportSuccess(project);
-        String successMsg = actionType == ActionType.WORKSPACE ? "CSV file exported to: " + path.toString() :
-                           Messages.getCSVExportSuccessMessage(project, path.toString());
-        MessageDialog.openInformation(table.getShell(), successTitle, successMsg);
+        MessageDialog.openInformation(table.getShell(), Messages.getCSVExportSuccess(), 
+                                      Messages.getCSVExportSuccessMessage(path.toString()));
     }
 
     private String buildDefaultCsvFileName() {
