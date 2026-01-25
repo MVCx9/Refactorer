@@ -17,6 +17,7 @@ import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
 
+import main.common.languaje.Messages;
 import main.model.clazz.ClassMetrics;
 import main.model.common.Identifiable;
 import main.session.ActionType;
@@ -35,7 +36,7 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
     @Override
     protected void configureShell(Shell newShell) {
         super.configureShell(newShell);
-        newShell.setText("Previous Cognitive Complexity Analyses");
+        newShell.setText(Messages.getHistoryTitle());
         newShell.setMinimumSize(1000, 500);
     }
 
@@ -45,11 +46,11 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
         container.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
         container.setLayout(new GridLayout(1, false));
 
-        setTitle("Previous Cognitive Complexity Analyses");
+        setTitle(Messages.getHistoryTitle());
 
         if (history == null || history.isEmpty()) {
             Label l = new Label(container, SWT.WRAP);
-            l.setText("No cognitive complexity analyses found");
+            l.setText(Messages.getHistoryEmptyMessage());
             l.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
             return container;
         }
@@ -60,22 +61,22 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
         table.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
         TableColumn colTipo = new TableColumn(table, SWT.LEFT);
-        colTipo.setText("Type");
+        colTipo.setText(Messages.getHistoryColumnType());
         colTipo.setWidth(180);
         colTipo.setResizable(false);
 
         TableColumn colFecha = new TableColumn(table, SWT.LEFT);
-        colFecha.setText("Date");
+        colFecha.setText(Messages.getHistoryColumnDate());
         colFecha.setWidth(220);
         colFecha.setResizable(false);
 
         TableColumn colNombre = new TableColumn(table, SWT.LEFT);
-        colNombre.setText("Name");
+        colNombre.setText(Messages.getHistoryColumnName());
         colNombre.setWidth(400);
         colNombre.setResizable(false);
 
         TableColumn colAcciones = new TableColumn(table, SWT.CENTER);
-        colAcciones.setText("Actions");
+        colAcciones.setText(Messages.getHistoryColumnActions());
         colAcciones.setWidth(160);
         colAcciones.setResizable(false);
 
@@ -96,7 +97,7 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
             editor.grabHorizontal = true;
             editor.grabVertical = true;
             Button btn = new Button(table, SWT.PUSH);
-            btn.setText("View Analysis");
+            btn.setText(Messages.getHistoryButtonView());
             btn.addListener(SWT.Selection, ev -> {
             	if(e.getActionType() == ActionType.CLASS) {
             		ClassMetrics metrics1 = (ClassMetrics) e.getMetrics();
@@ -126,15 +127,15 @@ public class AnalysisHistoryDialog extends TitleAreaDialog {
 
     @Override
     protected void createButtonsForButtonBar(Composite parent) {
-        createButton(parent, OK, "Close", true);
+        createButton(parent, OK, Messages.getButtonClose(), true);
     }
 
     private String toTipo(ActionType type) {
         if (type == null) return "";
         switch (type) {
-            case CLASS: return "Class";
-            case PROJECT: return "Project";
-            case WORKSPACE: return "Workspace";
+            case CLASS: return Messages.getHistoryTypeClass();
+            case PROJECT: return Messages.getHistoryTypeProject();
+            case WORKSPACE: return Messages.getHistoryTypeWorkspace();
             default: return type.name();
         }
     }
