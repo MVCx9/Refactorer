@@ -99,7 +99,7 @@ public final class PluginPreferences {
         path = path.trim();
         
         try {
-        	System.load(path + "libcplex2212.dylib");
+        	System.load(path + "/libcplex2212.dylib");
             
             cplexLoaded = true;
             System.out.println(">> CPLEX: Librería cargada correctamente desde: " + path);

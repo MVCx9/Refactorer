@@ -93,23 +93,13 @@ public class ConfigurationDialog extends TitleAreaDialog {
 
         Label ilpHint = new Label(content, SWT.WRAP);
         String ilpHintText = isEnglish 
-            ? "Example: /Applications/CPLEX_Studio/cplex/bin/x86-64_osx/"
-            : "Ejemplo: /Applications/CPLEX_Studio/cplex/bin/x86-64_osx/";
+            ? "Example: /Applications/CPLEX_Studio/cplex/bin/x86-64_osx"
+            : "Ejemplo: /Applications/CPLEX_Studio/cplex/bin/x86-64_osx";
         ilpHint.setText(ilpHintText);
         ilpHint.setForeground(content.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
         GridData ilpHintGD = new GridData(SWT.FILL, SWT.CENTER, true, false);
         ilpHintGD.horizontalSpan = 3;
         ilpHint.setLayoutData(ilpHintGD);
-        
-        Label ilpNote = new Label(content, SWT.WRAP);
-        String ilpNoteText = isEnglish 
-            ? "Note: The path must end with \"/\""
-            : "Nota: El path debe terminar con \"/\"";
-        ilpNote.setText(ilpNoteText);
-        ilpNote.setForeground(content.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
-        GridData ilpNoteGD = new GridData(SWT.FILL, SWT.CENTER, true, false);
-        ilpNoteGD.horizontalSpan = 3;
-        ilpNote.setLayoutData(ilpNoteGD);
         
         Label ilpStatus = new Label(content, SWT.NONE);
         String statusText = PluginPreferences.isCplexLoaded() 
