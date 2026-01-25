@@ -26,17 +26,29 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
+import org.eclipse.jdt.core.dom.BreakStatement;
+import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ConditionalExpression;
+import org.eclipse.jdt.core.dom.ContinueStatement;
+import org.eclipse.jdt.core.dom.DoStatement;
+import org.eclipse.jdt.core.dom.EnhancedForStatement;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.InfixExpression;
+import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NodeFinder;
+import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.WhileStatement;
 import org.eclipse.jdt.internal.corext.refactoring.code.ExtractMethodRefactoring;
 import org.eclipse.jdt.internal.corext.refactoring.structure.ChangeSignatureProcessor;
 import org.eclipse.jface.text.Document;
@@ -814,6 +826,10 @@ public class Utils {
 		while (current != null && !(current.equals(root))) {
 			child = current;
 			current = current.getParent();
+			
+			if (current == null) {
+				break;
+			}
 
 			switch (current.getNodeType()) {
 			case ASTNode.FOR_STATEMENT:
@@ -822,20 +838,32 @@ public class Utils {
 			case ASTNode.DO_STATEMENT:
 			case ASTNode.CATCH_CLAUSE:
 			case ASTNode.SWITCH_STATEMENT:
-			case ASTNode.LAMBDA_EXPRESSION:
 			case ASTNode.CONDITIONAL_EXPRESSION:
 				nesting++;
 				break;
-			case ASTNode.METHOD_DECLARATION:
-				if (!current.equals(root))
+			case ASTNode.LAMBDA_EXPRESSION:
+				nesting++;
+				break;
+			case ASTNode.ANONYMOUS_CLASS_DECLARATION:
+			case ASTNode.TYPE_DECLARATION:
+				if (isNestedClassInsideMethod(current, root)) {
 					nesting++;
+				}
+				break;
+			case ASTNode.METHOD_DECLARATION:
+				if (!current.equals(root)) {
+					nesting++;
+				}
 				break;
 			case ASTNode.IF_STATEMENT:
-				if (child.getLocationInParent().equals(IfStatement.THEN_STATEMENT_PROPERTY)) {
-					nesting++;
-				} else if (child.getLocationInParent().equals(IfStatement.ELSE_STATEMENT_PROPERTY)) {
-					if (!(child instanceof IfStatement)) {
+				StructuralPropertyDescriptor location = child.getLocationInParent();
+				if (location != null) {
+					if (location.equals(IfStatement.THEN_STATEMENT_PROPERTY)) {
 						nesting++;
+					} else if (location.equals(IfStatement.ELSE_STATEMENT_PROPERTY)) {
+						if (!(child instanceof IfStatement)) {
+							nesting++;
+						}
 					}
 				}
 				break;
@@ -843,6 +871,17 @@ public class Utils {
 		}
 
 		return nesting;
+	}
+	
+	private static boolean isNestedClassInsideMethod(ASTNode classNode, ASTNode methodRoot) {
+		ASTNode parent = classNode.getParent();
+		while (parent != null && parent != methodRoot) {
+			if (parent instanceof MethodDeclaration) {
+				return true;
+			}
+			parent = parent.getParent();
+		}
+		return false;
 	}
 
 	/**
@@ -908,55 +947,68 @@ public class Utils {
 	 * ACCUMULATED_COMPLEXITY already reflects nesting for the method total).
 	 */
 	private static void annotateBaseCognitiveComplexityContributions(MethodDeclaration ast) {
+		String methodName = ast.getName().getIdentifier();
+		
 		ast.accept(new ASTVisitor() {
 
 			@Override
 			public boolean visit(IfStatement node) {
-				// Base contribution (+1) incluyendo nesting component
-				addContribution(node, 1, true);
-				// IF the if statement has else/elseif parts, add +1 without nesting component.
-				if (node.getElseStatement() != null) {
-					addContribution(node, 1, false); // inherent only, no nesting component
+				if (!isElseIf(node)) {
+					addContribution(node, 1, true);
+				} else {
+					addContribution(node, 1, false);
 				}
 				return true;
+			}
+			
+			@Override
+			public void endVisit(IfStatement node) {
+				if (node.getElseStatement() != null && !(node.getElseStatement() instanceof IfStatement)) {
+					addContribution(node, 1, false);
+				}
+			}
+			
+			private boolean isElseIf(IfStatement node) {
+				ASTNode parent = node.getParent();
+				if (parent instanceof IfStatement) {
+					IfStatement parentIf = (IfStatement) parent;
+					return node.equals(parentIf.getElseStatement());
+				}
+				return false;
 			}
 
 			@Override
 			public boolean visit(SwitchStatement node) {
-				// NOTE: For switch statements we count exactly 1 for the whole construct, NOT for each case.
-				// Therefore we only add contribution on SwitchStatement visit and ignore SwitchCase nodes.
-				addContribution(node, 1, true); // single point for the entire switch
-				return true; // still visit inside to process nested structures
-			}
-
-			// SwitchCase nodes DO NOT contribute inherent complexity.
-			// Any nested control flow inside the switch will be handled by their own visitors.
-			@Override
-			public boolean visit(org.eclipse.jdt.core.dom.ForStatement node) {
 				addContribution(node, 1, true);
 				return true;
 			}
 
 			@Override
-			public boolean visit(org.eclipse.jdt.core.dom.EnhancedForStatement node) {
+			public boolean visit(ForStatement node) {
 				addContribution(node, 1, true);
 				return true;
 			}
 
 			@Override
-			public boolean visit(org.eclipse.jdt.core.dom.WhileStatement node) {
+			public boolean visit(EnhancedForStatement node) {
 				addContribution(node, 1, true);
 				return true;
 			}
 
 			@Override
-			public boolean visit(org.eclipse.jdt.core.dom.DoStatement node) {
+			public boolean visit(WhileStatement node) {
 				addContribution(node, 1, true);
 				return true;
 			}
 
 			@Override
-			public boolean visit(TryStatement node) {
+			public boolean visit(DoStatement node) {
+				addContribution(node, 1, true);
+				return true;
+			}
+
+			@Override
+			public boolean visit(CatchClause node) {
 				addContribution(node, 1, true);
 				return true;
 			}
@@ -966,30 +1018,157 @@ public class Utils {
 				addContribution(node, 1, true);
 				return true;
 			}
-
+			
 			@Override
-			public boolean visit(InfixExpression node) {
-				int logicalOps = countLogicalOperators(node);
-				if (logicalOps > 0) {
-					addContribution(node, logicalOps, false);
-					return false; // no need to traverse deeper for logical ops counting
+			public boolean visit(BreakStatement node) {
+				if (node.getLabel() != null) {
+					addContribution(node, 1, false);
 				}
 				return true;
 			}
+			
+			@Override
+			public boolean visit(ContinueStatement node) {
+				if (node.getLabel() != null) {
+					addContribution(node, 1, false);
+				}
+				return true;
+			}
+			
+			@Override
+			public boolean visit(MethodInvocation node) {
+				if (node.getName().getIdentifier().equals(methodName)) {
+					if (isRecursiveCall(node, ast)) {
+						addContribution(node, 1, false);
+					}
+				}
+				return true;
+			}
+			
+			private boolean isRecursiveCall(MethodInvocation invocation, MethodDeclaration method) {
+				Expression expr = invocation.getExpression();
+				if (expr == null) {
+					return true;
+				}
+				if (expr.toString().equals("this")) {
+					return true;
+				}
+				return false;
+			}
 
-			private int countLogicalOperators(InfixExpression node) {
-				int count = 0;
-				if (node.getOperator() == InfixExpression.Operator.CONDITIONAL_AND
-						|| node.getOperator() == InfixExpression.Operator.CONDITIONAL_OR)
-					count++;
-				if (node.getLeftOperand() instanceof InfixExpression)
-					count += countLogicalOperators((InfixExpression) node.getLeftOperand());
-				if (node.getRightOperand() instanceof InfixExpression)
-					count += countLogicalOperators((InfixExpression) node.getRightOperand());
-				for (Object ext : node.extendedOperands())
-					if (ext instanceof InfixExpression)
-						count += countLogicalOperators((InfixExpression) ext);
-				return count;
+			@Override
+			public boolean visit(InfixExpression node) {
+				if (isTopLevelLogicalExpression(node)) {
+					int sequences = countLogicalSequences(node);
+					if (sequences > 0) {
+						addContribution(node, sequences, false);
+					}
+				}
+				return true;
+			}
+			
+			private boolean isTopLevelLogicalExpression(InfixExpression node) {
+				if (!isLogicalOperator(node.getOperator())) {
+					return false;
+				}
+				ASTNode parent = node.getParent();
+				while (parent instanceof ParenthesizedExpression) {
+					parent = parent.getParent();
+				}
+				if (parent instanceof InfixExpression) {
+					InfixExpression parentInfix = (InfixExpression) parent;
+					if (isLogicalOperator(parentInfix.getOperator())) {
+						return false;
+					}
+				}
+				return true;
+			}
+			
+			private boolean isLogicalOperator(InfixExpression.Operator op) {
+				return op == InfixExpression.Operator.CONDITIONAL_AND 
+					|| op == InfixExpression.Operator.CONDITIONAL_OR;
+			}
+			
+			private int countLogicalSequences(InfixExpression node) {
+				List<OperatorInfo> flatOps = new ArrayList<>();
+				flattenLogicalExpression(node, flatOps);
+				
+				if (flatOps.isEmpty()) {
+					return 0;
+				}
+				
+				int sequences = 1;
+				InfixExpression.Operator lastOp = flatOps.get(0).operator;
+				
+				for (int i = 1; i < flatOps.size(); i++) {
+					InfixExpression.Operator currentOp = flatOps.get(i).operator;
+					if (currentOp != lastOp) {
+						sequences++;
+						lastOp = currentOp;
+					}
+				}
+				
+				return sequences;
+			}
+			
+			private void flattenLogicalExpression(Expression expr, List<OperatorInfo> result) {
+				if (expr instanceof ParenthesizedExpression) {
+					flattenLogicalExpression(((ParenthesizedExpression) expr).getExpression(), result);
+					return;
+				}
+				
+				if (expr instanceof InfixExpression) {
+					InfixExpression infix = (InfixExpression) expr;
+					if (isLogicalOperator(infix.getOperator())) {
+						flattenLogicalExpression(infix.getLeftOperand(), result);
+						result.add(new OperatorInfo(infix.getOperator()));
+						flattenLogicalExpression(infix.getRightOperand(), result);
+						
+						for (Object extOp : infix.extendedOperands()) {
+							result.add(new OperatorInfo(infix.getOperator()));
+							flattenLogicalExpression((Expression) extOp, result);
+						}
+					}
+				}
+			}
+			
+			class OperatorInfo {
+				InfixExpression.Operator operator;
+				OperatorInfo(InfixExpression.Operator op) {
+					this.operator = op;
+				}
+			}
+
+			@Override
+			public boolean visit(LambdaExpression node) {
+				return true;
+			}
+			
+			@Override
+			public boolean visit(AnonymousClassDeclaration node) {
+				return true;
+			}
+			
+			@Override
+			public boolean visit(TypeDeclaration node) {
+				if (node.getParent() instanceof MethodDeclaration || isLocalClass(node)) {
+					return true;
+				}
+				return true;
+			}
+			
+			private boolean isLocalClass(TypeDeclaration node) {
+				ASTNode parent = node.getParent();
+				while (parent != null) {
+					if (parent instanceof MethodDeclaration) {
+						return true;
+					}
+					if (parent instanceof TypeDeclaration && !((TypeDeclaration) parent).isLocalTypeDeclaration()) {
+						return false;
+					}
+					parent = parent.getParent();
+				}
+				return false;
 			}
 
 			private void addContribution(ASTNode node, int delta, boolean addNesting) {
