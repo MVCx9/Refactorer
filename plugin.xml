@@ -106,4 +106,9 @@
       </page>
    </extension>
 
+   <!-- Startup extension para cargar CPLEX cuando el workbench esté listo -->
+   <extension point="org.eclipse.ui.startup">
+      <startup class="main.boot.Activator"/>
+   </extension>
+
 </plugin>
