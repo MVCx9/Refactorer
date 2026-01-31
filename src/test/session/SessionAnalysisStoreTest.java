@@ -3,8 +3,8 @@ package test.session;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.Duration;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -132,6 +132,4 @@ class SessionAnalysisStoreTest {
 	void given_nullMetrics_when_registerWorkspaceMetrics_throws_NullPointerException() {
 		assertThrows(NullPointerException.class, () -> this.store.register(ActionType.WORKSPACE, (WorkspaceMetrics) null));
 	}
-
-	private void assertTrue(boolean condition) { org.junit.jupiter.api.Assertions.assertTrue(condition); }
 }

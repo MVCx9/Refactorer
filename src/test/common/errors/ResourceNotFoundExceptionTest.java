@@ -2,18 +2,23 @@ package test.common.errors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import main.common.error.PluginException;
 import main.common.error.ResourceNotFoundException;
 
 class ResourceNotFoundExceptionTest {
 	private final String message = "resource missing";
 	private final Throwable cause = new IllegalArgumentException("missing");
 
-	private void toStrictEqual(Object expected, Object actual) { assertEquals(expected, actual); }
+	private void toStrictEqual(Object expected, Object actual) {
+		assertEquals(expected, actual);
+	}
 
 	@Test
 	@DisplayName("given_message_when_constructResourceNotFoundException_should_setMessage")
@@ -29,5 +34,51 @@ class ResourceNotFoundExceptionTest {
 		final ResourceNotFoundException ex = new ResourceNotFoundException(this.message, this.cause);
 		toStrictEqual(this.message, ex.getMessage());
 		assertSame(this.cause, ex.getCause());
+	}
+
+	@Test
+	@DisplayName("given_resourceNotFoundException_when_checkInheritance_should_extendPluginException")
+	void given_resourceNotFoundException_when_checkInheritance_should_extendPluginException() {
+		final ResourceNotFoundException ex = new ResourceNotFoundException(this.message);
+		assertTrue(ex instanceof PluginException);
+	}
+
+	@Test
+	@DisplayName("given_resourceNotFoundException_when_checkInheritance_should_extendRuntimeException")
+	void given_resourceNotFoundException_when_checkInheritance_should_extendRuntimeException() {
+		final ResourceNotFoundException ex = new ResourceNotFoundException(this.message);
+		assertTrue(ex instanceof RuntimeException);
+	}
+
+	@Test
+	@DisplayName("given_nullMessage_when_constructResourceNotFoundException_should_acceptNullMessage")
+	void given_nullMessage_when_constructResourceNotFoundException_should_acceptNullMessage() {
+		final ResourceNotFoundException ex = new ResourceNotFoundException(null);
+		assertNull(ex.getMessage());
+	}
+
+	@Test
+	@DisplayName("given_nullCause_when_constructResourceNotFoundException_should_acceptNullCause")
+	void given_nullCause_when_constructResourceNotFoundException_should_acceptNullCause() {
+		final ResourceNotFoundException ex = new ResourceNotFoundException(this.message, null);
+		toStrictEqual(this.message, ex.getMessage());
+		assertNull(ex.getCause());
+	}
+
+	@Test
+	@DisplayName("given_emptyMessage_when_constructResourceNotFoundException_should_acceptEmptyMessage")
+	void given_emptyMessage_when_constructResourceNotFoundException_should_acceptEmptyMessage() {
+		final ResourceNotFoundException ex = new ResourceNotFoundException("");
+		toStrictEqual("", ex.getMessage());
+	}
+
+	@Test
+	@DisplayName("given_nestedCause_when_constructResourceNotFoundException_should_preserveCauseChain")
+	void given_nestedCause_when_constructResourceNotFoundException_should_preserveCauseChain() {
+		final Throwable rootCause = new IllegalStateException("root");
+		final Throwable middleCause = new RuntimeException("middle", rootCause);
+		final ResourceNotFoundException ex = new ResourceNotFoundException(this.message, middleCause);
+		assertSame(middleCause, ex.getCause());
+		assertSame(rootCause, ex.getCause().getCause());
 	}
 }
