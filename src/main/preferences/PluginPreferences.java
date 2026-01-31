@@ -105,6 +105,13 @@ public final class PluginPreferences {
             System.out.println(">> CPLEX: Librería cargada correctamente desde: " + path);
             return true;
         } catch (UnsatisfiedLinkError e) {
+            String message = e.getMessage();
+            // Si el error indica que la librería ya está cargada, consideramos éxito
+            if (message != null && (message.contains("already loaded") || message.contains("Native Library"))) {
+                cplexLoaded = true;
+                System.out.println(">> CPLEX: Librería ya estaba cargada en la JVM: " + path);
+                return true;
+            }
         	cplexLoaded = false;
             System.err.println(">> CPLEX: Error al cargar la librería: " + e.getMessage());
             return false;
