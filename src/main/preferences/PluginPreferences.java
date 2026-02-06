@@ -9,7 +9,7 @@ public final class PluginPreferences {
     
     private static final String KEY_LANGUAGE = "pluginLanguage";
     private static final String KEY_ILP_PATH = "ilpExecutablePath";
-    private static final String DEFAULT_LANGUAGE = "Castellano";
+    private static final String DEFAULT_LANGUAGE = "English";
     private static final String DEFAULT_ILP_PATH = "";
     
     private static boolean cplexLoaded = false;
