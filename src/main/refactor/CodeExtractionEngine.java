@@ -203,7 +203,7 @@ public final class CodeExtractionEngine {
 		
 		solutions.add(main.neo.algorithms.utils.Utils.indexOfInsertionToKeepListSorted(solution, solutions), solution);
 		
-		// Aplicar la primera solución
+		// Aplicar la mejor solución
 		final Solution sol = getBestSolution(solutions);
 		cu = sol.applyExtractMethodsToCompilationUnit(true, cu, icuWorkingCopy);
 		result.add(RefactorComparison.builder()
@@ -219,17 +219,13 @@ public final class CodeExtractionEngine {
 	}
 
 	private static Solution getBestSolution(List<Solution> solutions) {
-		if (solutions == null || solutions.isEmpty()) {
-			return null;
-		}
-		
 		if (solutions.size() == 1) {
-			return solutions.get(0);
+			return solutions.getFirst();
 		}
 		
 		return solutions.stream()
-				.min((s1, s2) -> Double.compare(s1.getFitness(), s2.getFitness()))
-				.orElse(null);
+			.min((s1, s2) -> Double.compare(s1.getFitness(), s2.getFitness()))
+			.orElse(null);
 	}
 
 }
