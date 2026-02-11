@@ -45,17 +45,17 @@
 	         <menu id="refactorer.menu" label="Refactorer">
 				<command 
 					commandId="refactorer.commands.analyzeWorkspace"
-					label="Analizar Complejidad Cognitiva del WorkSpace"
+					label="Analyze Cognitive Complexity from WorkSpace"
 					style="push"
 				/>
 				<command 
 					commandId="refactorer.commands.getHistory"
-					label="Ver análisis anteriores de Complejidad"
+					label="Cognitive Complexity History"
 					style="push"
 				/>
 				<command 
 					commandId="refactorer.commands.configuration"
-					label="Configuración"
+					label="Configuration"
 					style="push"
 				/>
 	         </menu>
@@ -65,7 +65,7 @@
 	    <menuContribution locationURI="popup:org.eclipse.ui.popup.any">
 		    <command
 		        commandId="refactorer.commands.analyzeProject"
-		        label="Analizar Complejidad del Proyecto"
+		        label="Analyze Cognitive Complexity from Project"
 		        style="push">
 		        <visibleWhen checkEnabled="true">
 		            <with variable="selection">
@@ -81,7 +81,7 @@
 	   <menuContribution locationURI="popup:org.eclipse.ui.popup.any">
 		    <command
 		        commandId="refactorer.commands.analyzeSingleFile"
-		        label="Analizar Complejidad de esta Clase"
+		        label="Analyze Cognitive Complexity from class"
 		        style="push">
 		        <visibleWhen checkEnabled="true">
 		            <with variable="selection">
@@ -104,6 +104,11 @@
             <adapt type="org.eclipse.core.resources.IProject"/>
          </enabledWhen>
       </page>
+   </extension>
+
+   <!-- Startup extension para cargar CPLEX cuando el workbench esté listo -->
+   <extension point="org.eclipse.ui.startup">
+      <startup class="main.boot.Activator"/>
    </extension>
 
 </plugin>

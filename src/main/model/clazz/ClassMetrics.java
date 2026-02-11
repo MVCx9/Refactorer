@@ -21,6 +21,7 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	private final String currentSource;
 	private final String refactoredSource;
 	private final int complexityThreshold;
+	private final String path;
 
 	public ClassMetrics(ClassMetricsBuilder classMetricsBuilder) {
 		super();
@@ -33,6 +34,7 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		this.refactoredSource = classMetricsBuilder.refactoredSource;
 		this.currentSource = classMetricsBuilder.currentSource;
 		this.complexityThreshold = classMetricsBuilder.complexityThreshold;
+		this.path = classMetricsBuilder.path;
 	}
 
 	public static ClassMetricsBuilder builder() {
@@ -131,6 +133,10 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 	public int getComplexityThreshold() {
 		return complexityThreshold;
 	}
+	
+	public String getPath() {
+		return path;
+	}
 
 	public List<ClassMetrics> getMethodsWithRefactors() {
 		if (getMethodExtractionCount() <= 0) {
@@ -170,6 +176,7 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		private String currentSource = "";
 		private String refactoredSource = "";
 		private int complexityThreshold = 15;
+		private String path = "";
 
 		public ClassMetricsBuilder() {
 		}
@@ -209,6 +216,11 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 			return this;
 		}
 
+		public ClassMetricsBuilder path(String path) {
+			this.path = path;
+			return this;
+		}
+		
 		public ClassMetrics build() {
 			return new ClassMetrics(this);
 		}
@@ -233,14 +245,16 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 				&& Objects.equals(currentSource, other.currentSource) && Objects.equals(name, other.name)
 				&& Objects.equals(refactoredMethods, other.refactoredMethods)
 				&& Objects.equals(refactoredSource, other.refactoredSource)
-				&& complexityThreshold == other.complexityThreshold;
+				&& complexityThreshold == other.complexityThreshold
+				&& Objects.equals(path, other.path);
 	}
 
 	@Override
 	public String toString() {
 		return "ClassMetrics [name=" + name + ", analysisDate=" + analysisDate + ", currentMethods=" + currentMethods
 				+ ", refactoredMethods=" + refactoredMethods + ", currentSource=" + currentSource
-				+ ", refactoredSource=" + refactoredSource + ", complexityThreshold=" + complexityThreshold + "]";
+				+ ", refactoredSource=" + refactoredSource + ", complexityThreshold=" + complexityThreshold 
+				+ ", path=" + path + "]";
 	}
 
 }

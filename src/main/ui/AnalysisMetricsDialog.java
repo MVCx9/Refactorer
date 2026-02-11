@@ -9,7 +9,9 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IResource;
@@ -24,6 +26,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.custom.TableEditor;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.layout.GridData;
@@ -49,6 +52,7 @@ import main.model.method.MethodMetrics;
 import main.model.project.ProjectMetrics;
 import main.model.workspace.WorkspaceMetrics;
 import main.session.ActionType;
+import main.ui.RefactorConfirmationDialog.SelectedClassInfo;
 
 public class AnalysisMetricsDialog extends TitleAreaDialog {
 
@@ -66,6 +70,10 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
     private final Color black = org.eclipse.swt.widgets.Display.getCurrent().getSystemColor(SWT.COLOR_BLACK);
 
     private boolean readOnly = false;
+    
+    private final Map<String, Button> classCheckboxes = new HashMap<>();
+    private final Map<String, SelectedClassInfo> classInfoMap = new HashMap<>();
+    private Table refactorTable;
 
     public AnalysisMetricsDialog(Shell parentShell, ActionType actionType, Object metrics) {
         this(parentShell, actionType, metrics, null, null);
@@ -281,21 +289,70 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
 
     @Override
     protected void buttonPressed(int buttonId) {
-        if (readOnly) { // ignore modification buttons if in read-only (safety)
+        if (readOnly) {
             if (buttonId == OK) {
                 super.buttonPressed(buttonId);
             }
             return;
         }
         if (buttonId == APPLY_EXTRACT_ID) {
-            applyCodeExtractions();
-            return; // keep dialog open after applying
+            if (actionType == ActionType.CLASS) {
+                applyCodeExtractions();
+            } else {
+                handleMultiClassAction(true);
+            }
+            return;
         }
         if(buttonId == BREAK_EXTRACT_ID) {
-            breackCodeExtractions();
+            if (actionType == ActionType.CLASS) {
+                breackCodeExtractions();
+            } else {
+                handleMultiClassAction(false);
+            }
             return;
         }
         super.buttonPressed(buttonId);
+    }
+    
+    private void handleMultiClassAction(boolean isApply) {
+        List<SelectedClassInfo> selectedClasses = getSelectedClasses();
+        
+        if (selectedClasses.isEmpty()) {
+            MessageDialog.openWarning(getShell(), Messages.getWarningTitle(), Messages.getNoClassesSelectedMessage());
+            return;
+        }
+        
+        RefactorConfirmationDialog confirmDialog = new RefactorConfirmationDialog(getShell(), selectedClasses, isApply);
+        int result = confirmDialog.open();
+        
+        if (result == RefactorConfirmationDialog.APPLY_ALL) {
+            applyAllSelectedClasses(selectedClasses, isApply);
+            String message = isApply ? Messages.getChangesAppliedMessage() : Messages.getChangesUndoneMessage();
+            MessageDialog.openInformation(getShell(), Messages.getSuccessTitle(), message);
+        } else if (result == RefactorConfirmationDialog.SELECT_INDIVIDUALLY) {
+            IndividualReviewDialog reviewDialog = new IndividualReviewDialog(getShell(), selectedClasses, isApply);
+            reviewDialog.open();
+        }
+    }
+    
+    private List<SelectedClassInfo> getSelectedClasses() {
+        List<SelectedClassInfo> selected = new ArrayList<>();
+        for (Map.Entry<String, Button> entry : classCheckboxes.entrySet()) {
+            if (entry.getValue().getSelection()) {
+                SelectedClassInfo info = classInfoMap.get(entry.getKey());
+                if (info != null) {
+                    selected.add(info);
+                }
+            }
+        }
+        return selected;
+    }
+    
+    private void applyAllSelectedClasses(List<SelectedClassInfo> selectedClasses, boolean isApply) {
+        for (SelectedClassInfo info : selectedClasses) {
+            String source = isApply ? info.classMetrics.getRefactoredSource() : info.classMetrics.getCurrentSource();
+            applyForClass(info.classMetrics, source);
+        }
     }
 
     private void breackCodeExtractions() {
@@ -340,21 +397,34 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
 
     private void applyForClass(ClassMetrics cm, String ref) {
         if (ref == null || ref.isEmpty()) return;
+        
+        String classPath = cm.getPath();
+        if (classPath != null && !classPath.isBlank()) {
+            ICompilationUnit icu = findCompilationUnitByPath(classPath);
+            if (icu != null) {
+                applySourceToUnit(icu, Utils.formatJava(ref));
+                return;
+            }
+        }
+        
         String fileName = cm.getName();
         if (fileName == null || fileName.isBlank()) return;
         if (!fileName.endsWith(".java")) fileName = fileName + ".java";
-
-        List<ICompilationUnit> units = findCompilationUnitsByFileName(fileName);
-        String formatted = Utils.formatJava(ref);
-        for (ICompilationUnit icu : units) {
-            try {
-                icu.becomeWorkingCopy(null);
-                icu.getBuffer().setContents(formatted);
-                icu.commitWorkingCopy(true, null);
-            } catch (Exception ignore) {
-            } finally {
-                try { icu.discardWorkingCopy(); } catch (Exception ex) { }
-            }
+        
+        ICompilationUnit icu = findCompilationUnitByFileName(fileName);
+        if (icu != null) {
+            applySourceToUnit(icu, Utils.formatJava(ref));
+        }
+    }
+    
+    private void applySourceToUnit(ICompilationUnit icu, String source) {
+        try {
+            icu.becomeWorkingCopy(null);
+            icu.getBuffer().setContents(source);
+            icu.commitWorkingCopy(true, null);
+        } catch (Exception ignore) {
+        } finally {
+            try { icu.discardWorkingCopy(); } catch (Exception ex) { }
         }
     }
 
@@ -457,23 +527,60 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         list.add(sr);
     }
 
-    private List<ICompilationUnit> findCompilationUnitsByFileName(String fileName) {
-        List<ICompilationUnit> result = new ArrayList<>();
+    private ICompilationUnit findCompilationUnitByPath(String classPath) {
+        if (classPath == null || classPath.isBlank()) return null;
+        
+        try {
+            org.eclipse.core.runtime.IPath path = org.eclipse.core.runtime.Path.fromOSString(classPath);
+            IFile file = ResourcesPlugin.getWorkspace().getRoot().getFileForLocation(path);
+            if (file != null && file.exists()) {
+                var el = JavaCore.create(file);
+                if (el instanceof ICompilationUnit icu) {
+                    return icu;
+                }
+            }
+            
+            String normalizedPath = classPath.replace('\\', '/');
+            final ICompilationUnit[] found = { null };
+            ResourcesPlugin.getWorkspace().getRoot().accept((IResourceVisitor) res -> {
+                if (found[0] != null) return false;
+                if (res.getType() == IResource.FILE) {
+                    String resPath = res.getLocation().toOSString().replace('\\', '/');
+                    if (resPath.equals(normalizedPath) || resPath.endsWith(normalizedPath)) {
+                        IFile f = (IFile) res;
+                        var el = JavaCore.create(f);
+                        if (el instanceof ICompilationUnit icu) {
+                            found[0] = icu;
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+            return found[0];
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    private ICompilationUnit findCompilationUnitByFileName(String fileName) {
+        final ICompilationUnit[] found = { null };
         try {
             ResourcesPlugin.getWorkspace().getRoot().accept((IResourceVisitor) res -> {
+                if (found[0] != null) return false;
                 if (res.getType() == IResource.FILE && fileName.equals(res.getName())) {
                     IFile file = (IFile) res;
                     var el = JavaCore.create(file);
                     if (el instanceof ICompilationUnit icu) {
-                        result.add(icu);
+                        found[0] = icu;
+                        return false;
                     }
                 }
                 return true;
             });
         } catch (Exception e) {
-            // ignore
         }
-        return result;
+        return found[0];
     }
 
     private void metric(Composite parent, String label, String value) {
@@ -602,53 +709,84 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             summary.setText(summaryText);
             summary.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         }
+        
+        boolean showCheckboxes = !readOnly && (actionType == ActionType.PROJECT || actionType == ActionType.WORKSPACE);
+        
+        if (showCheckboxes) {
+            Composite selectButtonsContainer = new Composite(parent, SWT.NONE);
+            selectButtonsContainer.setLayout(new GridLayout(2, false));
+            selectButtonsContainer.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false));
+            
+            Button selectAllBtn = new Button(selectButtonsContainer, SWT.PUSH);
+            selectAllBtn.setText(Messages.getButtonSelectAll());
+            selectAllBtn.addListener(SWT.Selection, e -> setAllCheckboxes(true));
+            
+            Button deselectAllBtn = new Button(selectButtonsContainer, SWT.PUSH);
+            deselectAllBtn.setText(Messages.getButtonDeselectAll());
+            deselectAllBtn.addListener(SWT.Selection, e -> setAllCheckboxes(false));
+        }
+        
         Composite tableContainer = new Composite(parent, SWT.NONE);
         tableContainer.setLayout(new GridLayout(1, false));
         GridData tcGD = new GridData(SWT.FILL, SWT.FILL, true, false);
         tcGD.heightHint = actionType == ActionType.CLASS ? 140 : 180;
         tableContainer.setLayoutData(tcGD);
         int style = SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL;
-        Table table = new Table(tableContainer, style);
-        table.setHeaderVisible(true);
-        table.setLinesVisible(true);
-        table.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+        refactorTable = new Table(tableContainer, style);
+        refactorTable.setHeaderVisible(true);
+        refactorTable.setLinesVisible(true);
+        refactorTable.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
         if (actionType == ActionType.WORKSPACE) {
-            createColumn(table, Messages.getTableColumnNumber(), 50);
-            createColumn(table, Messages.getTableColumnProject(), 130);
-            createColumn(table, Messages.getTableColumnThreshold(), 80);
-            createColumn(table, Messages.getTableColumnClass(), 150);
-            createColumn(table, Messages.getTableColumnOriginalMethod(), 150);
-            createColumn(table, Messages.getTableColumnOriginalCC(), 120);
-            createColumn(table, Messages.getTableColumnRefactoredMethod(), 240);
-            createColumn(table, Messages.getTableColumnRefactoredCC(), 150);
-            createColumn(table, Messages.getTableColumnAlgorithm(), 80);
-            populateWorkspaceTable(table, (WorkspaceMetrics) metrics);
+            if (showCheckboxes) {
+                createColumn(refactorTable, Messages.getTableColumnSelect(), 70);
+            }
+            createColumn(refactorTable, Messages.getTableColumnNumber(), 50);
+            createColumn(refactorTable, Messages.getTableColumnProject(), 130);
+            createColumn(refactorTable, Messages.getTableColumnThreshold(), 80);
+            createColumn(refactorTable, Messages.getTableColumnClass(), 150);
+            createColumn(refactorTable, Messages.getTableColumnOriginalMethod(), 150);
+            createColumn(refactorTable, Messages.getTableColumnOriginalCC(), 120);
+            createColumn(refactorTable, Messages.getTableColumnRefactoredMethod(), 240);
+            createColumn(refactorTable, Messages.getTableColumnRefactoredCC(), 150);
+            createColumn(refactorTable, Messages.getTableColumnAlgorithm(), 80);
+            populateWorkspaceTable(refactorTable, (WorkspaceMetrics) metrics, showCheckboxes);
         }else if (actionType == ActionType.PROJECT) {
-            createColumn(table, Messages.getTableColumnNumber(), 50);
-            createColumn(table, Messages.getTableColumnClass(), 150);
-            createColumn(table, Messages.getTableColumnOriginalMethod(), 150);
-            createColumn(table, Messages.getTableColumnOriginalCC(), 120);
-            createColumn(table, Messages.getTableColumnRefactoredMethod(), 240);
-            createColumn(table, Messages.getTableColumnRefactoredCC(), 150);
-            createColumn(table, Messages.getTableColumnAlgorithm(), 80);
-            populateProjectTable(table, (ProjectMetrics) metrics);
+            if (showCheckboxes) {
+                createColumn(refactorTable, Messages.getTableColumnSelect(), 70);
+            }
+            createColumn(refactorTable, Messages.getTableColumnNumber(), 50);
+            createColumn(refactorTable, Messages.getTableColumnClass(), 150);
+            createColumn(refactorTable, Messages.getTableColumnOriginalMethod(), 150);
+            createColumn(refactorTable, Messages.getTableColumnOriginalCC(), 120);
+            createColumn(refactorTable, Messages.getTableColumnRefactoredMethod(), 240);
+            createColumn(refactorTable, Messages.getTableColumnRefactoredCC(), 150);
+            createColumn(refactorTable, Messages.getTableColumnAlgorithm(), 80);
+            populateProjectTable(refactorTable, (ProjectMetrics) metrics, showCheckboxes);
         } else if (actionType == ActionType.CLASS){
-            createColumn(table, Messages.getTableColumnNumber(), 50);
-            createColumn(table, Messages.getTableColumnOriginalMethod(), 160);
-            createColumn(table, Messages.getTableColumnOriginalCC(), 130);
-            createColumn(table, Messages.getTableColumnRefactoredMethod(), 240);
-            createColumn(table, Messages.getTableColumnRefactoredCC(), 150);
-            createColumn(table, Messages.getTableColumnAlgorithm(), 80);
-            populateClassTable(table, (ClassMetrics) metrics);
+            createColumn(refactorTable, Messages.getTableColumnNumber(), 50);
+            createColumn(refactorTable, Messages.getTableColumnOriginalMethod(), 160);
+            createColumn(refactorTable, Messages.getTableColumnOriginalCC(), 130);
+            createColumn(refactorTable, Messages.getTableColumnRefactoredMethod(), 240);
+            createColumn(refactorTable, Messages.getTableColumnRefactoredCC(), 150);
+            createColumn(refactorTable, Messages.getTableColumnAlgorithm(), 80);
+            populateClassTable(refactorTable, (ClassMetrics) metrics);
         }
         
-        adjustTableColumns(table);
+        adjustTableColumns(refactorTable);
         
         Button exportBtn = new Button(tableContainer, SWT.PUSH);
         exportBtn.setText(Messages.getButtonExportCSV());
         GridData btnGD = new GridData(SWT.RIGHT, SWT.CENTER, true, false);
         exportBtn.setLayoutData(btnGD);
-        exportBtn.addListener(SWT.Selection, e -> exportTableToCsv(table));
+        exportBtn.addListener(SWT.Selection, e -> exportTableToCsv(refactorTable));
+    }
+    
+    private void setAllCheckboxes(boolean selected) {
+        for (Button checkbox : classCheckboxes.values()) {
+            if (!checkbox.isDisposed()) {
+                checkbox.setSelection(selected);
+            }
+        }
     }
 
 	private void createColumn(Table table, String text, int width) {
@@ -696,17 +834,21 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         table.getParent().layout(true, true);
     }
 
-    private void populateProjectTable(Table table, ProjectMetrics pm) {
-        java.util.Map<String, ClassMetrics> fullByName = pm.getClasses().stream()
-                .collect(java.util.stream.Collectors.toMap(ClassMetrics::getName, c -> c, (a,b)->a));
+    private void populateProjectTable(Table table, ProjectMetrics pm, boolean showCheckboxes) {
         int[] rowNum = {1};
+        int[] classUniqueId = {0};
         List<ClassMetrics> trimmedList = pm.getMethodsWithRefactors();
-        for (int classIdx = 0; classIdx < trimmedList.size(); classIdx++) { // fixed loop condition
-            ClassMetrics trimmed = trimmedList.get(classIdx);
-            ClassMetrics full = fullByName.get(trimmed.getName());
+        List<ClassMetrics> fullClasses = pm.getClasses();
+        String projectName = pm.getName();
+        
+        for (ClassMetrics trimmed : trimmedList) {
+            ClassMetrics full = findMatchingFullClass(fullClasses, trimmed);
             if (full == null) continue;
-            for (int origIdx=0; origIdx<trimmed.getCurrentMethods().size(); origIdx++) {
-                MethodMetrics original = trimmed.getCurrentMethods().get(origIdx);
+            
+            String classKey = projectName + "::class_" + (classUniqueId[0]++);
+            boolean isFirstMethodOfClass = true;
+            
+            for (MethodMetrics original : trimmed.getCurrentMethods()) {
                 String baseName = original.getName();
                 if (baseName == null) continue;
                 List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
@@ -724,50 +866,78 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                     MethodMetrics ref = refactoredAll.get(idx);
                     TableItem item = new TableItem(table, SWT.NONE);
                     String algorithm = ref.isUsedILP() ? "ILP" : "ESH";
+                    
+                    int colOffset = showCheckboxes ? 1 : 0;
+                    
                     if (idx == 0) {
-                        item.setText(new String[] {
-                                Integer.toString(rowNum[0]++),
-                                trimmed.getName(),
-                                baseName,
-                                Integer.toString(original.getCc()),
-                                ref.getName(),
-                                Integer.toString(ref.getCc()),
-                                algorithm
-                        });
+                        if (showCheckboxes && isFirstMethodOfClass) {
+                            Button checkbox = new Button(table, SWT.CHECK);
+                            checkbox.setSelection(true);
+                            checkbox.pack();
+                            
+                            TableEditor editor = new TableEditor(table);
+                            editor.minimumWidth = checkbox.getSize().x;
+                            editor.horizontalAlignment = SWT.CENTER;
+                            editor.setEditor(checkbox, item, 0);
+                            
+                            classCheckboxes.put(classKey, checkbox);
+                            classInfoMap.put(classKey, new SelectedClassInfo(projectName, full));
+                            isFirstMethodOfClass = false;
+                        }
+                        
+                        item.setText(colOffset, Integer.toString(rowNum[0]++));
+                        item.setText(colOffset + 1, trimmed.getName());
+                        item.setText(colOffset + 2, baseName);
+                        item.setText(colOffset + 3, Integer.toString(original.getCc()));
+                        item.setText(colOffset + 4, ref.getName());
+                        item.setText(colOffset + 5, Integer.toString(ref.getCc()));
+                        item.setText(colOffset + 6, algorithm);
                     } else {
-                        item.setText(new String[] {
-                                "",
-                                "",
-                                "",
-                                "",
-                                ref.getName(),
-                                Integer.toString(ref.getCc()),
-                                ""
-                        });
+                        item.setText(colOffset + 4, ref.getName());
+                        item.setText(colOffset + 5, Integer.toString(ref.getCc()));
                     }
                 }
-                // separator after each original method group
                 addSeparatorRow(table);
             }
-            // thicker separator between classes (optional) already handled by method separators
         }
         removeLastSeparatorIfPresent(table);
     }
+    
+    private ClassMetrics findMatchingFullClass(List<ClassMetrics> fullClasses, ClassMetrics trimmed) {
+        for (ClassMetrics full : fullClasses) {
+            if (full.getName().equals(trimmed.getName()) && 
+                full.getCurrentSource() != null && 
+                trimmed.getCurrentSource() != null &&
+                full.getCurrentSource().equals(trimmed.getCurrentSource())) {
+                return full;
+            }
+        }
+        for (ClassMetrics full : fullClasses) {
+            if (full.getName().equals(trimmed.getName())) {
+                return full;
+            }
+        }
+        return null;
+    }
 
-    private void populateWorkspaceTable(Table table, WorkspaceMetrics wm) {
-        java.util.Map<String, ProjectMetrics> fullProjects = wm.getProjects().stream()
-                .collect(java.util.stream.Collectors.toMap(ProjectMetrics::getName, p -> p, (a,b)->a));
+    private void populateWorkspaceTable(Table table, WorkspaceMetrics wm, boolean showCheckboxes) {
         int[] rowNum = {1};
+        int[] classUniqueId = {0};
         List<ProjectMetrics> trimmedProjects = wm.getProjectsWithRefactors();
-        for (int pIdx=0; pIdx<trimmedProjects.size(); pIdx++) {
-            ProjectMetrics trimmedProject = trimmedProjects.get(pIdx);
-            ProjectMetrics fullProject = fullProjects.get(trimmedProject.getName());
+        List<ProjectMetrics> fullProjects = wm.getProjects();
+        
+        for (ProjectMetrics trimmedProject : trimmedProjects) {
+            ProjectMetrics fullProject = findMatchingFullProject(fullProjects, trimmedProject);
             if (fullProject == null) continue;
-            java.util.Map<String, ClassMetrics> fullClasses = fullProject.getClasses().stream()
-                    .collect(java.util.stream.Collectors.toMap(ClassMetrics::getName, c -> c, (a,b)->a));
+            List<ClassMetrics> fullClasses = fullProject.getClasses();
+            
             for (ClassMetrics trimmed : trimmedProject.getClasses()) {
-                ClassMetrics full = fullClasses.get(trimmed.getName());
+                ClassMetrics full = findMatchingFullClass(fullClasses, trimmed);
                 if (full == null) continue;
+                
+                String classKey = trimmedProject.getName() + "::class_" + (classUniqueId[0]++);
+                boolean isFirstMethodOfClass = true;
+                
                 for (MethodMetrics original : trimmed.getCurrentMethods()) {
                     String baseName = original.getName();
                     if (baseName == null) continue;
@@ -780,30 +950,37 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                         MethodMetrics ref = refactoredAll.get(idx);
                         TableItem item = new TableItem(table, SWT.NONE);
                         String algorithm = ref.isUsedILP() ? "ILP" : "ESH";
+                        
+                        int colOffset = showCheckboxes ? 1 : 0;
+                        
                         if (idx == 0) {
-                            item.setText(new String[] {
-                                    Integer.toString(rowNum[0]++),
-                                    trimmedProject.getName(),
-                                    Integer.toString(fullProject.getComplexityThreshold()),
-                                    trimmed.getName(),
-                                    baseName,
-                                    Integer.toString(original.getCc()),
-                                    ref.getName(),
-                                    Integer.toString(ref.getCc()),
-                                    algorithm
-                            });
+                            if (showCheckboxes && isFirstMethodOfClass) {
+                                Button checkbox = new Button(table, SWT.CHECK);
+                                checkbox.setSelection(true);
+                                checkbox.pack();
+                                
+                                TableEditor editor = new TableEditor(table);
+                                editor.minimumWidth = checkbox.getSize().x;
+                                editor.horizontalAlignment = SWT.CENTER;
+                                editor.setEditor(checkbox, item, 0);
+                                
+                                classCheckboxes.put(classKey, checkbox);
+                                classInfoMap.put(classKey, new SelectedClassInfo(trimmedProject.getName(), full));
+                                isFirstMethodOfClass = false;
+                            }
+                            
+                            item.setText(colOffset, Integer.toString(rowNum[0]++));
+                            item.setText(colOffset + 1, trimmedProject.getName());
+                            item.setText(colOffset + 2, Integer.toString(fullProject.getComplexityThreshold()));
+                            item.setText(colOffset + 3, trimmed.getName());
+                            item.setText(colOffset + 4, baseName);
+                            item.setText(colOffset + 5, Integer.toString(original.getCc()));
+                            item.setText(colOffset + 6, ref.getName());
+                            item.setText(colOffset + 7, Integer.toString(ref.getCc()));
+                            item.setText(colOffset + 8, algorithm);
                         } else {
-                            item.setText(new String[] { 
-                        		"", 
-                        		"", 
-                        		"", 
-                        		"", 
-                        		"", 
-                        		"", 
-                        		ref.getName(), 
-                        		Integer.toString(ref.getCc()), 
-                        		"" 
-                            });
+                            item.setText(colOffset + 6, ref.getName());
+                            item.setText(colOffset + 7, Integer.toString(ref.getCc()));
                         }
                     }
                     addSeparatorRow(table);
@@ -811,6 +988,15 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             }
         }
         removeLastSeparatorIfPresent(table);
+    }
+    
+    private ProjectMetrics findMatchingFullProject(List<ProjectMetrics> fullProjects, ProjectMetrics trimmed) {
+        for (ProjectMetrics full : fullProjects) {
+            if (full.getName().equals(trimmed.getName())) {
+                return full;
+            }
+        }
+        return null;
     }
 
     private void populateClassTable(Table table, ClassMetrics full) {
