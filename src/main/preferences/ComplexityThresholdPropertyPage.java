@@ -11,6 +11,8 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 
+import main.common.languaje.Messages;
+
 public class ComplexityThresholdPropertyPage extends PropertyPage {
 
 	private Text thresholdText;
@@ -21,13 +23,13 @@ public class ComplexityThresholdPropertyPage extends PropertyPage {
 		container.setLayout(new GridLayout(2, false));
 
 		Label label = new Label(container, SWT.NONE);
-		label.setText("Umbral de Complejidad Cognitiva:");
+		label.setText(Messages.getThresholdPageLabel());
 
 		thresholdText = new Text(container, SWT.BORDER);
 		thresholdText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 
 		Label recommended = new Label(container, SWT.NONE);
-		recommended.setText("Valor recomendado: 15");
+		recommended.setText(Messages.getThresholdPageRecommended());
 		GridData recGD = new GridData(SWT.LEFT, SWT.CENTER, false, false);
 		recGD.horizontalSpan = 2;
 		recommended.setLayoutData(recGD);
