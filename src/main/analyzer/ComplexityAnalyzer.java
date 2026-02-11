@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -47,6 +48,7 @@ public class ComplexityAnalyzer {
 		String refactoredSource = currentSource;
 		List<MethodAnalysis> currentMethods = new LinkedList<>();
 		List<MethodAnalysis> refactoredMethods = new LinkedList<>();
+		String classPath = icu.getPath().toString();
 		
 		try {
 			// Analyze current state and plan refactorings iteratively
@@ -91,6 +93,7 @@ public class ComplexityAnalyzer {
 					.currentSource(currentSource)
 					.refactoredSource(refactoredSource)
 					.complexityThreshold(threshold)
+					.path(classPath)
 					.build();
 		} catch (CoreException e) {
 			String methodName = (targetMethod != null && targetMethod.getName() != null)
