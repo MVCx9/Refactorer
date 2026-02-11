@@ -177,41 +177,91 @@ public class IndividualReviewDialog extends TitleAreaDialog {
     
     private void applyForClass(ClassMetrics cm, String source) {
         if (source == null || source.isEmpty()) return;
+        
+        String classPath = cm.getPath();
+        if (classPath != null && !classPath.isBlank()) {
+            ICompilationUnit icu = findCompilationUnitByPath(classPath);
+            if (icu != null) {
+                applySourceToUnit(icu, Utils.formatJava(source));
+                return;
+            }
+        }
+        
         String fileName = cm.getName();
         if (fileName == null || fileName.isBlank()) return;
         if (!fileName.endsWith(".java")) fileName = fileName + ".java";
 
-        List<ICompilationUnit> units = findCompilationUnitsByFileName(fileName);
-        String formatted = Utils.formatJava(source);
-        for (ICompilationUnit icu : units) {
-            try {
-                icu.becomeWorkingCopy(null);
-                icu.getBuffer().setContents(formatted);
-                icu.commitWorkingCopy(true, null);
-            } catch (Exception ignore) {
-            } finally {
-                try { icu.discardWorkingCopy(); } catch (Exception ex) { }
-            }
+        ICompilationUnit icu = findCompilationUnitByFileName(fileName);
+        if (icu != null) {
+            applySourceToUnit(icu, Utils.formatJava(source));
         }
     }
     
-    private List<ICompilationUnit> findCompilationUnitsByFileName(String fileName) {
-        List<ICompilationUnit> result = new ArrayList<>();
+    private void applySourceToUnit(ICompilationUnit icu, String source) {
+        try {
+            icu.becomeWorkingCopy(null);
+            icu.getBuffer().setContents(source);
+            icu.commitWorkingCopy(true, null);
+        } catch (Exception ignore) {
+        } finally {
+            try { icu.discardWorkingCopy(); } catch (Exception ex) { }
+        }
+    }
+    
+    private ICompilationUnit findCompilationUnitByPath(String classPath) {
+        if (classPath == null || classPath.isBlank()) return null;
+        
+        try {
+            org.eclipse.core.runtime.IPath path = org.eclipse.core.runtime.Path.fromOSString(classPath);
+            IFile file = ResourcesPlugin.getWorkspace().getRoot().getFileForLocation(path);
+            if (file != null && file.exists()) {
+                var el = JavaCore.create(file);
+                if (el instanceof ICompilationUnit icu) {
+                    return icu;
+                }
+            }
+            
+            String normalizedPath = classPath.replace('\\', '/');
+            final ICompilationUnit[] found = { null };
+            ResourcesPlugin.getWorkspace().getRoot().accept((IResourceVisitor) res -> {
+                if (found[0] != null) return false;
+                if (res.getType() == IResource.FILE) {
+                    String resPath = res.getLocation().toOSString().replace('\\', '/');
+                    if (resPath.equals(normalizedPath) || resPath.endsWith(normalizedPath)) {
+                        IFile f = (IFile) res;
+                        var el = JavaCore.create(f);
+                        if (el instanceof ICompilationUnit icu) {
+                            found[0] = icu;
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+            return found[0];
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    private ICompilationUnit findCompilationUnitByFileName(String fileName) {
+        final ICompilationUnit[] found = { null };
         try {
             ResourcesPlugin.getWorkspace().getRoot().accept((IResourceVisitor) res -> {
+                if (found[0] != null) return false;
                 if (res.getType() == IResource.FILE && fileName.equals(res.getName())) {
                     IFile file = (IFile) res;
                     var el = JavaCore.create(file);
                     if (el instanceof ICompilationUnit icu) {
-                        result.add(icu);
+                        found[0] = icu;
+                        return false;
                     }
                 }
                 return true;
             });
         } catch (Exception e) {
-            // ignore
         }
-        return result;
+        return found[0];
     }
     
     private Font bold(Control c) {
