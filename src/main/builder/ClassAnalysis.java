@@ -19,6 +19,7 @@ public class ClassAnalysis {
 	private final List<MethodAnalysis> refactoredMethods;
 	private final String currentSource;
 	private final String refactoredSource;
+	private final String path;
 	private final int complexityThreshold;
 
 	public static Builder builder() {
@@ -36,6 +37,7 @@ public class ClassAnalysis {
 		this.refactoredSource = b.refactoredSource;
 		this.currentSource = b.currentSource;
 		this.complexityThreshold = b.complexityThreshold;
+		this.path = b.path;
 	}
 
 	public ICompilationUnit getIcu() {
@@ -77,6 +79,10 @@ public class ClassAnalysis {
 	public int getComplexityThreshold() {
 		return complexityThreshold;
 	}
+	
+	public String getPath() {
+		return path;
+	}
 
 	public static class Builder {
 		private ICompilationUnit icu;
@@ -88,6 +94,7 @@ public class ClassAnalysis {
 		private List<MethodAnalysis> refactoredMethods = List.of();
 		private String currentSource;
 		private String refactoredSource;
+		private String path;
 		private int complexityThreshold = 15;
 
 		public Builder icu(ICompilationUnit v) {
@@ -140,8 +147,14 @@ public class ClassAnalysis {
 			return this;
 		}
 
+		public Builder path(String classPath) {
+			this.path = classPath;
+			return this;
+		}
+		
 		public ClassAnalysis build() {
 			return new ClassAnalysis(this);
 		}
+
 	}
 }

@@ -506,4 +506,136 @@ public final class Messages {
 	public static String getMetricCCAvgProjects() {
 		return isEnglish() ? "CC (avg projects)" : "CC (media proyectos)";
 	}
+	
+	// ==================== PÁGINA DE PROPIEDADES DE UMBRAL ====================
+	
+	public static String getThresholdPageLabel() {
+		return isEnglish()
+			? "Cognitive Complexity Threshold:"
+			: "Umbral de Complejidad Cognitiva:";
+	}
+	
+	public static String getThresholdPageRecommended() {
+		return isEnglish()
+			? "Recommended value: 15"
+			: "Valor recomendado: 15";
+	}
+	
+	// ==================== SELECCIÓN DE CLASES PARA REFACTORIZACIÓN ====================
+	
+	public static String getButtonSelectAll() {
+		return isEnglish() ? "Select all" : "Marcar todos";
+	}
+	
+	public static String getButtonDeselectAll() {
+		return isEnglish() ? "Deselect all" : "Desmarcar todos";
+	}
+	
+	public static String getTableColumnSelect() {
+		return isEnglish() ? "Select" : "Seleccionar";
+	}
+	
+	// ==================== DIÁLOGO DE CONFIRMACIÓN DE REFACTORIZACIÓN ====================
+	
+	public static String getConfirmRefactorTitle() {
+		return isEnglish()
+			? "Apply refactoring changes"
+			: "Aplicar cambios de refactorización";
+	}
+	
+	public static String getConfirmUndoTitle() {
+		return isEnglish()
+			? "Undo refactoring changes"
+			: "Deshacer cambios de refactorización";
+	}
+	
+	public static String getConfirmRefactorMessage() {
+		return isEnglish()
+			? "Do you want to apply the refactors to all selected classes or view the differences for each class individually?"
+			: "¿Desea aplicar los refactors a todas las clases seleccionadas o visualizar las diferencias de cada clase de forma individual?";
+	}
+	
+	public static String getConfirmUndoMessage() {
+		return isEnglish()
+			? "Do you want to undo the refactors for all selected classes or view the differences for each class individually?"
+			: "¿Desea deshacer los refactors de todas las clases seleccionadas o visualizar las diferencias de cada clase de forma individual?";
+	}
+	
+	public static String getButtonApplyAll() {
+		return isEnglish() ? "Apply all changes" : "Aplicar todos los cambios";
+	}
+	
+	public static String getButtonUndoAll() {
+		return isEnglish() ? "Undo all changes" : "Deshacer todos los cambios";
+	}
+	
+	public static String getButtonSelectIndividually() {
+		return isEnglish() ? "Select individually" : "Seleccionar individualmente";
+	}
+	
+	public static String getSelectedClassesHeader() {
+		return isEnglish() ? "Selected classes:" : "Clases seleccionadas:";
+	}
+	
+	public static String getChangesAppliedMessage() {
+		return isEnglish()
+			? "Changes have been applied to all selected classes."
+			: "Se han aplicado los cambios a todas las clases seleccionadas.";
+	}
+	
+	public static String getChangesUndoneMessage() {
+		return isEnglish()
+			? "Changes have been reverted for all selected classes."
+			: "Se han deshecho los cambios de todas las clases seleccionadas.";
+	}
+	
+	public static String getSuccessTitle() {
+		return isEnglish() ? "Success" : "Éxito";
+	}
+	
+	// ==================== DIÁLOGO DE REVISIÓN INDIVIDUAL ====================
+	
+	public static String getIndividualReviewTitle() {
+		return isEnglish()
+			? "Individual class review"
+			: "Revisión individual de clases";
+	}
+	
+	public static String getIndividualReviewProgress(int current, int total) {
+		return isEnglish()
+			? "Class " + current + " of " + total
+			: "Clase " + current + " de " + total;
+	}
+	
+	public static String getButtonNext() {
+		return isEnglish() ? "Next" : "Siguiente";
+	}
+	
+	public static String getButtonApplyAndNext() {
+		return isEnglish() ? "Apply and Next" : "Aplicar y Siguiente";
+	}
+	
+	public static String getButtonUndoAndNext() {
+		return isEnglish() ? "Undo and Next" : "Deshacer y Siguiente";
+	}
+	
+	public static String getAllClassesReviewedMessage() {
+		return isEnglish()
+			? "All selected classes have been reviewed."
+			: "Se han revisado todas las clases seleccionadas.";
+	}
+	
+	public static String getInfoTitle() {
+		return isEnglish() ? "Information" : "Información";
+	}
+	
+	public static String getNoClassesSelectedMessage() {
+		return isEnglish()
+			? "No classes have been selected. Please select at least one class."
+			: "No se han seleccionado clases. Por favor, seleccione al menos una clase.";
+	}
+	
+	public static String getWarningTitle() {
+		return isEnglish() ? "Warning" : "Aviso";
+	}
 }
