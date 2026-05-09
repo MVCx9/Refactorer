@@ -23,6 +23,7 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 
 import main.builder.ClassAnalysis;
+import main.builder.CognitiveComplexityCalculator;
 import main.builder.MethodAnalysis;
 import main.common.error.AnalyzeException;
 import main.common.utils.Utils;
@@ -155,7 +156,7 @@ public class ComplexityAnalyzer {
 	}
 
 	protected int computeCognitiveComplexity(MethodDeclaration md) {
-		return main.neo.cem.Utils.computeAndAnnotateAccumulativeCognitiveComplexity(md);
+		return CognitiveComplexityCalculator.compute(md);
 	}
 
 	private MethodAnalysis analyzeMethod(CompilationUnit cu, MethodDeclaration md) {
