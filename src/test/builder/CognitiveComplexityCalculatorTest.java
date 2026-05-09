@@ -34,7 +34,7 @@ class CognitiveComplexityCalculatorTest {
 		parser.setSource(source.toCharArray());
 		parser.setResolveBindings(false);
 		CompilationUnit cu = (CompilationUnit) parser.createAST(null);
-		var type = (org.eclipse.jdt.core.dom.TypeDeclaration) cu.types().getFirst();
+		org.eclipse.jdt.core.dom.TypeDeclaration type = (org.eclipse.jdt.core.dom.TypeDeclaration) cu.types().getFirst();
 		return type.getMethods()[0];
 	}
 }
