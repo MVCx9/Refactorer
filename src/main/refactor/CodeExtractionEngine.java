@@ -21,13 +21,11 @@ import org.jgrapht.graph.SimpleDirectedWeightedGraph;
 import org.jgrapht.graph.SimpleGraph;
 
 import main.model.method.MethodMetrics;
-import main.neo.algorithms.Solution;
-import main.neo.algorithms.exhaustivesearch.EnumerativeSearch;
-import main.neo.algorithms.ilp.ILP;
-import main.neo.graphs.ExtractionVertex;
-import main.neo.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
-import main.neo.refactoringcache.RefactoringCache;
-import main.neo.refactoringcache.RefactoringCacheFiller;
+import main.neo.core.Solution;
+import main.neo.core.graphs.ExtractionVertex;
+import main.neo.core.refactoringcache.RefactoringCache;
+import main.neo.core.refactoringcache.RefactoringCacheFiller;
+
 
 /**
  * Orquestador principal que invoca la lógica de NEO (paquete

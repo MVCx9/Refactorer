@@ -2,7 +2,8 @@ package main.builder;
 
 import org.eclipse.jdt.core.dom.CompilationUnit;
 
-import main.neo.cem.CodeExtractionMetricsStats;
+import main.neo.core.jdt.CodeExtractionMetricsStats;
+
 
 public class MethodAnalysis {
 	private final String methodName;

@@ -2,7 +2,7 @@ package main.refactor;
 
 import org.eclipse.jdt.core.dom.CompilationUnit;
 
-import main.neo.cem.CodeExtractionMetricsStats;
+import main.neo.core.jdt.CodeExtractionMetricsStats;
 
 public class RefactorComparison {
 	private final String name;
