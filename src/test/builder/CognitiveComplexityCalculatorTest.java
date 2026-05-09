@@ -1,6 +1,7 @@
 package test.builder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
@@ -34,7 +35,8 @@ class CognitiveComplexityCalculatorTest {
 		parser.setSource(source.toCharArray());
 		parser.setResolveBindings(false);
 		CompilationUnit cu = (CompilationUnit) parser.createAST(null);
-		org.eclipse.jdt.core.dom.TypeDeclaration type = (org.eclipse.jdt.core.dom.TypeDeclaration) cu.types().getFirst();
+		assertFalse(cu.types().isEmpty());
+		org.eclipse.jdt.core.dom.TypeDeclaration type = (org.eclipse.jdt.core.dom.TypeDeclaration) cu.types().get(0);
 		return type.getMethods()[0];
 	}
 }
