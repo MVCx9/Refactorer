@@ -12,6 +12,8 @@ public class MethodAnalysis {
 	private final int reducedComplexity;
 	private final int numberOfExtractions;
 	private final CompilationUnit compilationUnitRefactored;
+	/** Full source text (with comments/Javadocs preserved) after simulation. */
+	private final String refactoredSource;
 	private final CodeExtractionMetricsStats stats;
 	private final boolean usedILP;
 
@@ -26,6 +28,7 @@ public class MethodAnalysis {
 		this.reducedComplexity = b.reducedComplexity;
 		this.numberOfExtractions = b.numberOfExtractions;
 		this.compilationUnitRefactored = b.compilationUnitRefactored;
+		this.refactoredSource = b.refactoredSource;
 		this.stats = b.stats;
 		this.usedILP = b.usedILP;
 	}
@@ -54,6 +57,14 @@ public class MethodAnalysis {
 		return compilationUnitRefactored;
 	}
 
+	/**
+	 * Returns the full source text of the refactored compilation unit,
+	 * preserving all comments and Javadocs.
+	 */
+	public String getRefactoredSource() {
+		return refactoredSource;
+	}
+
 	public CodeExtractionMetricsStats getStats() {
 		return stats;
 	}
@@ -69,6 +80,7 @@ public class MethodAnalysis {
 		private int reducedComplexity;
 		private int numberOfExtractions;
 		private CompilationUnit compilationUnitRefactored;
+		private String refactoredSource;
 		private CodeExtractionMetricsStats stats = null;
 		private boolean usedILP = false;
 
@@ -99,6 +111,14 @@ public class MethodAnalysis {
 
 		public Builder compilationUnitRefactored(CompilationUnit v) {
 			this.compilationUnitRefactored = v;
+			return this;
+		}
+
+		/**
+		 * Sets the full source text (with comments/Javadocs) of the refactored unit.
+		 */
+		public Builder refactoredSource(String v) {
+			this.refactoredSource = v;
 			return this;
 		}
 

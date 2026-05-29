@@ -847,6 +847,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             
             String classKey = projectName + "::class_" + (classUniqueId[0]++);
             boolean isFirstMethodOfClass = true;
+            int currentClassRowNum = rowNum[0]++;
             
             for (MethodMetrics original : trimmed.getCurrentMethods()) {
                 String baseName = original.getName();
@@ -882,11 +883,13 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                             
                             classCheckboxes.put(classKey, checkbox);
                             classInfoMap.put(classKey, new SelectedClassInfo(projectName, full));
-                            isFirstMethodOfClass = false;
                         }
                         
-                        item.setText(colOffset, Integer.toString(rowNum[0]++));
-                        item.setText(colOffset + 1, trimmed.getName());
+                        if (isFirstMethodOfClass) {
+                            item.setText(colOffset, Integer.toString(currentClassRowNum));
+                            item.setText(colOffset + 1, trimmed.getName());
+                            isFirstMethodOfClass = false;
+                        }
                         item.setText(colOffset + 2, baseName);
                         item.setText(colOffset + 3, Integer.toString(original.getCc()));
                         item.setText(colOffset + 4, ref.getName());
@@ -937,6 +940,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                 
                 String classKey = trimmedProject.getName() + "::class_" + (classUniqueId[0]++);
                 boolean isFirstMethodOfClass = true;
+                int currentClassRowNum = rowNum[0]++;
                 
                 for (MethodMetrics original : trimmed.getCurrentMethods()) {
                     String baseName = original.getName();
@@ -966,13 +970,15 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                                 
                                 classCheckboxes.put(classKey, checkbox);
                                 classInfoMap.put(classKey, new SelectedClassInfo(trimmedProject.getName(), full));
-                                isFirstMethodOfClass = false;
                             }
                             
-                            item.setText(colOffset, Integer.toString(rowNum[0]++));
-                            item.setText(colOffset + 1, trimmedProject.getName());
-                            item.setText(colOffset + 2, Integer.toString(fullProject.getComplexityThreshold()));
-                            item.setText(colOffset + 3, trimmed.getName());
+                            if (isFirstMethodOfClass) {
+                                item.setText(colOffset, Integer.toString(currentClassRowNum));
+                                item.setText(colOffset + 1, trimmedProject.getName());
+                                item.setText(colOffset + 2, Integer.toString(fullProject.getComplexityThreshold()));
+                                item.setText(colOffset + 3, trimmed.getName());
+                                isFirstMethodOfClass = false;
+                            }
                             item.setText(colOffset + 4, baseName);
                             item.setText(colOffset + 5, Integer.toString(original.getCc()));
                             item.setText(colOffset + 6, ref.getName());

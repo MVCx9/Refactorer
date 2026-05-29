@@ -51,7 +51,7 @@ public class Utils {
 	}
     
     public static String formatJava(String source) {
-        if (source == null || source.isEmpty()) return source;
+    	if (source == null || source.isEmpty()) return source;
         CodeFormatter formatter = ToolFactory.createCodeFormatter(JavaCore.getOptions());
         TextEdit edit = formatter.format(CodeFormatter.K_COMPILATION_UNIT, source, 0, source.length(), 0, System.lineSeparator());
         if (edit == null) return source; // probablemente hay errores de sintaxis; deja como está

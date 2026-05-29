@@ -1,7 +1,5 @@
 package main.neo.core.graphs;
 
-import java.io.FileWriter;
-import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.ArrayList;
@@ -121,34 +119,25 @@ public class Utils {
 	/**
 	 * Renders a weighted directed graph to a DOT file at the specified location.
 	 *
-	 * @param g        the graph to export
-	 * @param path     the directory path (ending with separator)
-	 * @param fileName the name of the file
-	 * @throws IOException if writing to the file fails
+	 * @deprecated Disk export of graphs has been removed; the plugin no longer
+	 *             writes auxiliary artefacts.
 	 */
+	@Deprecated
 	public static void renderGraphInDotFormatInFile(
-			SimpleDirectedWeightedGraph<ExtractionVertex, DefaultWeightedEdge> g, String path, String fileName)
-			throws IOException {
-		String dotInfo = renderGraphInDotFormat(g);
-		try (FileWriter fw = new FileWriter(path + fileName, false)) {
-			fw.append(dotInfo);
-		}
+			SimpleDirectedWeightedGraph<ExtractionVertex, DefaultWeightedEdge> g, String path, String fileName) {
+		// no-op
 	}
 
 	/**
 	 * Renders a conflict graph to a DOT file at the specified location.
 	 *
-	 * @param g        the graph to export
-	 * @param path     the directory path
-	 * @param fileName the name of the file
-	 * @throws IOException if writing to the file fails
+	 * @deprecated Disk export of graphs has been removed; the plugin no longer
+	 *             writes auxiliary artefacts.
 	 */
+	@Deprecated
 	public static void renderConflictGraphInDotFormatInFile(Graph<ExtractionVertex, DefaultEdge> g, String path,
-			String fileName) throws IOException {
-		String dotInfo = renderConflictGraphInDotFormat(g);
-		try (FileWriter fw = new FileWriter(path + fileName, false)) {
-			fw.append(dotInfo);
-		}
+			String fileName) {
+		// no-op
 	}
 
 	// =========================================================================

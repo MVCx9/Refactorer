@@ -4,7 +4,6 @@ import ilog.concert.IloException;
 import ilog.concert.IloLinearNumExpr;
 import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;
-import main.neo.app.Constants;
 import main.neo.core.Sequence;
 import main.neo.core.Solution;
 import main.neo.core.graphs.ExtractionVertex;
@@ -59,6 +58,9 @@ public class Model<V extends ExtractionVertex, E> {
     private final Map<ExtractionVertex, Integer> vertexToIndexMap;
     private final int numExtractions;
 
+    /** Cognitive complexity threshold to enforce in the ILP constraints. */
+    private final int threshold;
+
     // --- Decision Variables ---
     /** Array of X variables (1 per vertex). */
     private IloNumVar[] decisionVariables;
@@ -78,11 +80,13 @@ public class Model<V extends ExtractionVertex, E> {
      */
     public Model(SimpleGraph<ExtractionVertex, DefaultEdge> conflicts, 
                  SimpleDirectedGraph<V, E> noConflicts,
-                 SimpleDirectedGraph<V, E> graph) throws IloException {
+                 SimpleDirectedGraph<V, E> graph,
+                 int threshold) throws IloException {
 
         this.conflictGraph = conflicts;
         this.graphNoConflicts = noConflicts;
         this.fullGraph = graph;
+        this.threshold = threshold;
         
         // Pre-process vertices: Sort lexicographically for consistent indexing
         this.sortedVertices = Utils.getVerticesSortedByTheirLexicographicPosition((Graph<ExtractionVertex, E>) fullGraph);
@@ -177,7 +181,7 @@ public class Model<V extends ExtractionVertex, E> {
             // Base complexity reduction of extracting vertex I
             int complexityDelta = vertexI.getAccumulatedInherentComponent() 
                                 + vertexI.getAccumulatedNestingComponent()
-                                - Constants.COGNITIVE_COMPLEXITY_THRESHOLD;
+                                - this.threshold;
             
             expr.addTerm(complexityDelta, this.decisionVariables[i]);
             
@@ -320,75 +324,47 @@ public class Model<V extends ExtractionVertex, E> {
      * prints all solutions found in the pool to Standard Output.
      */
     public void showSolutionPop() throws IloException {
-        int numSolutions = cplex.getSolnPoolNsolns();
-        for (int i = 0; i < numSolutions; i++) {
-            showSolution(i);
-        }
+        // Intentionally left blank: stdout reporting was removed in favour of in-memory results.
     }
     
     public void showSolution(int index) {
-        try {
-            System.out.println("--- Solution " + index + " ---");
-            System.out.println("Objective Value: " + (cplex.getObjValue(index) - 1));
-
-            for (int i = 1; i < sortedVertices.size(); i++) {
-                double val = cplex.getValue(decisionVariables[i], index);
-                if (val > 0.9 && val < 1.1) {
-                    System.out.println("  Extracted: " + sortedVertices.get(i));
-                }
-            }
-        } catch (IloException e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
+        // Intentionally left blank: stdout reporting was removed in favour of in-memory results.
     }
 
     /**
-     * Counts and displays the number of *unique* optimal solutions found.
-     * <p>
-     * CPLEX may return multiple solutions with the same objective value. 
-     * This method filters them based on the actual set of selected vertices.
-     * </p>
-     * * @return The count of unique optimal solutions.
+     * Counts the number of <i>unique</i> optimal solutions in the CPLEX pool
+     * without printing anything to standard output.
+     *
+     * @return the number of distinct optimal solutions found
      */
-    public int showSolutionPopOptima() throws IloException {
+    public int collectOptimalSolutions() throws IloException {
         uniqueSolutions.clear();
-        double bestObjValue = cplex.getObjValue(); // Get best objective found
-        
+        if (cplex.getSolnPoolNsolns() == 0) {
+            return 0;
+        }
+        double bestObjValue = cplex.getObjValue();
+
         for (int x = 0; x < cplex.getSolnPoolNsolns(); x++) {
-            // Check if this solution is optimal
             if (Math.abs(cplex.getObjValue(x) - bestObjValue) < 1E-6) {
-                
-                // Build a binary string signature of the solution
                 StringBuilder signature = new StringBuilder();
-                signature.append('0'); // Index 0 is always fixed/ignored in signature
-                
+                signature.append('0');
                 for (int i = 1; i < sortedVertices.size(); i++) {
                     double val = cplex.getValue(decisionVariables[i], x);
-                    if (val > 0.9 && val < 1.1) {
-                        signature.append('1');
-                    } else {
-                        signature.append('0');
-                    }
+                    signature.append((val > 0.9 && val < 1.1) ? '1' : '0');
                 }
                 uniqueSolutions.add(signature.toString());
             }
         }
-        
-        // Print unique optimal solutions
-        int counter = 1;
-        for (String s : uniqueSolutions) {
-            System.out.println("Unique Optimal Solution #" + counter);
-            // System.out.println("Signature: " + s); 
-            for (int j = 1; j < s.length(); j++) {
-                if (s.charAt(j) == '1') {
-                    System.out.println("  Extracted Node " + j + ": " + sortedVertices.get(j));
-                }
-            }
-            counter++;
-        }
-        
         return uniqueSolutions.size();
+    }
+
+    /**
+     * @deprecated kept for backwards compatibility; delegates to
+     *             {@link #collectOptimalSolutions()}.
+     */
+    @Deprecated
+    public int showSolutionPopOptima() throws IloException {
+        return collectOptimalSolutions();
     }
 
     public void clearModel() {

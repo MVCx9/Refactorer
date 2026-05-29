@@ -3,98 +3,74 @@ package main.neo.core.solvers;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 
-import main.neo.app.Config;
+import main.neo.app.Constants;
 import main.neo.core.graphs.GraphBundle;
-import main.neo.core.jdt.CompilationUnitPathExtractor;
 import main.neo.core.jdt.JavaMethodProcessor.MethodComplexityRecord;
 import main.neo.core.jdt.Utils;
 
 /**
- * A Data Transfer Object (DTO) that encapsulates the environment and state 
- * required by a {@link neo.reducecognitivecomplexity.core.solvers.RefactoringSolver}.
+ * Encapsulates the environment and state required by a {@link RefactoringSolver}.
  * <p>
- * This class holds references to the AST, the configuration, and optional resources
- * like pre-computed graphs. It implements {@link AutoCloseable} to ensure
- * heavy resources (like Graphs) are cleaned up after the solver finishes.
+ * Holds references to the AST, the selected solver type and the cognitive
+ * complexity threshold (per project). It implements {@link AutoCloseable} to
+ * guarantee that heavy resources (like JGraphT graphs) are cleaned up after the
+ * solver finishes.
  * </p>
  */
 public class SolverContext implements AutoCloseable {
-    
-    // AST & Metadata
-    public final MethodDeclaration ast;
-    public final CompilationUnit compilationUnit;
-    public final MethodComplexityRecord record;
-    
-    // Configuration & Paths
-    public final String algorithm;
-    public final String project;
-    public final String folder;
-    public final String packageInProject;
-    public final String classInPackage;
 
-    // Heavy Resources (Managed)
-    private GraphBundle graphs;
+	// AST & metadata
+	public final MethodDeclaration ast;
+	public final CompilationUnit compilationUnit;
+	public final MethodComplexityRecord record;
 
-    /**
-     * Creates a new solver context.
-     * * @param unit   The compilation unit containing the method.
-     * @param record The complexity record identifying the method.
-     * @param config The application configuration.
-     */
-    public SolverContext(CompilationUnit unit, MethodComplexityRecord record, Config config) {
-        this.ast = record.methodDeclaration;
-        // Ensure we have the root CU. If 'unit' is null, try to derive it from AST.
-        this.compilationUnit = (unit != null) ? unit : Utils.getCompilationUnit(ast);
-        this.record = record;
-        this.algorithm = config.getSolver();
+	/** Solver identifier (e.g. {@link SolverType#getKey()}). */
+	public final String algorithm;
 
-        // Extract path components for file naming and logging
-        CompilationUnitPathExtractor.PathComponents components = 
-                CompilationUnitPathExtractor.computeAllComponents(this.compilationUnit);
+	/** Cognitive complexity threshold to enforce (per project). */
+	public final int threshold;
 
-        this.project = components.getProjectName();
-        this.folder = components.getSourceFolder();
-        this.packageInProject = components.getPackageName();
-        this.classInPackage = components.getClassName();
-    }
+	// Heavy resources (managed)
+	private GraphBundle graphs;
 
-    /**
-     * Stores pre-computed graphs to avoid rebuilding them inside the solver.
-     */
-    public void setPrecomputedGraphs(GraphBundle graphs) {
-        this.graphs = graphs;
-    }
+	/**
+	 * Creates a new solver context.
+	 *
+	 * @param unit       the compilation unit containing the method
+	 * @param record     the complexity record identifying the method
+	 * @param solverKey  identifier of the solver (or {@code null})
+	 * @param threshold  cognitive complexity threshold to enforce
+	 */
+	public SolverContext(CompilationUnit unit, MethodComplexityRecord record, String solverKey, int threshold) {
+		this.ast = record.methodDeclaration;
+		this.compilationUnit = (unit != null) ? unit : Utils.getCompilationUnit(ast);
+		this.record = record;
+		this.algorithm = solverKey;
+		this.threshold = threshold;
+	}
 
-    /**
-     * @return The pre-computed graphs, or null if not available.
-     */
-    public GraphBundle getGraphs() {
-        return graphs;
-    }
+	/**
+	 * Convenience overload using {@link Constants#COGNITIVE_COMPLEXITY_THRESHOLD}.
+	 */
+	public SolverContext(CompilationUnit unit, MethodComplexityRecord record, String solverKey) {
+		this(unit, record, solverKey, Constants.COGNITIVE_COMPLEXITY_THRESHOLD);
+	}
 
-    /**
-     * Generates a standardized file prefix for solver outputs (Solutions, LP files, etc.).
-     * <p>
-     * Format: {@code ProjectName@SourceFolder-Package-File-MethodName-LineNumber}
-     * </p>
-     */
-    public String generatePrefixForSolverFileNames() {
-        // Re-compute components (lightweight) or use stored fields. 
-        // Using stored fields to ensure consistency.
-        return project + "@" + 
-               folder.replace('/', '.') + "-" + 
-               packageInProject.replace('/', '.') + "-" + 
-               classInPackage + "-" + 
-               record.methodName + "-" + 
-               record.lineNumber;
-    }
+	/** Stores pre-computed graphs to avoid rebuilding them inside the solver. */
+	public void setPrecomputedGraphs(GraphBundle graphs) {
+		this.graphs = graphs;
+	}
 
-    @Override
-    public void close() {
-        // Automatically clear graphs to free memory when the try-with-resources block ends
-        if (graphs != null) {
-            graphs.clear();
-            graphs = null;
-        }
-    }
+	/** @return the pre-computed graphs, or {@code null} if not available. */
+	public GraphBundle getGraphs() {
+		return graphs;
+	}
+
+	@Override
+	public void close() {
+		if (graphs != null) {
+			graphs.clear();
+			graphs = null;
+		}
+	}
 }

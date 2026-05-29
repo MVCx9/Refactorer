@@ -1,15 +1,12 @@
 package main.neo.core.refactoringcache;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -143,40 +140,12 @@ public class RefactoringCache {
 	/**
 	 * Write the refactoring cache to a CSV file.
 	 *
-	 * @param path     Directory path.
-	 * @param fileName File name.
-	 * @throws IOException If writing fails.
+	 * @deprecated CSV reporting was removed; the plugin now surfaces all metrics
+	 *             in the analysis dialogs.
 	 */
+	@Deprecated
 	public void writeToCSV(String path, String fileName) throws IOException {
-		try (BufferedWriter writer = new BufferedWriter(new FileWriter(path + fileName, false))) {
-			writer.write(
-					"A, B, feasible, reason, parameters, extractedLOC, reductionCC, extractedMethodCC, accumulatedInherentComponent, accumulatedNestingComponent, numberNestingContributors, nesting, runtime");
-			writer.newLine();
-
-			for (Entry<ExtractionTextRange, CodeExtractionMetrics> entry : cache.entrySet()) {
-				CodeExtractionMetrics metrics = entry.getValue();
-				String reason = metrics.getReason();
-
-				if (!metrics.isFeasible()) {
-					reason = reason.replaceAll(System.lineSeparator(), " ");
-				}
-
-				StringBuilder line = new StringBuilder();
-				line.append(entry.getKey().getStart()).append(", ").append(entry.getKey().getEnd()).append(", ")
-						.append(metrics.isFeasible() ? "1" : "0").append(", ").append("\"").append(reason)
-						.append("\", ").append(metrics.getNumberOfParametersInExtractedMethod()).append(", ")
-						.append(metrics.getNumberOfExtractedLinesOfCode()).append(", ")
-						.append(metrics.getReductionOfCognitiveComplexity()).append(", ")
-						.append(metrics.getCognitiveComplexityOfNewExtractedMethod()).append(", ")
-						.append(metrics.getAccumulatedInherentComponent()).append(", ")
-						.append(metrics.getAccumulatedNestingComponent()).append(", ")
-						.append(metrics.getNumberNestingContributors()).append(", ").append(metrics.getNesting())
-						.append(", ").append(metrics.getRuntime());
-
-				writer.write(line.toString());
-				writer.newLine();
-			}
-		}
+		// no-op: persistence has been removed in favour of in-memory analysis results
 	}
 
 	/**
