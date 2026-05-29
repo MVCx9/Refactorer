@@ -39,6 +39,7 @@ public final class MethodAnalysisMetricsMapper {
 			.numberOfExtractions(c.getNumberOfExtractions())
 			.reducedComplexity(c.getReducedComplexity())
 			.compilationUnitRefactored(c.getCompilationUnitRefactored())
+			.refactoredSource(c.getRefactoredSource())
 			.stats(c.getStats())
 			.usedILP(c.isUsedILP())
 			.build();

@@ -1,231 +1,139 @@
 package main.refactor;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.graph.DefaultWeightedEdge;
-import org.jgrapht.graph.SimpleDirectedWeightedGraph;
-import org.jgrapht.graph.SimpleGraph;
 
-import main.model.method.MethodMetrics;
-import main.neo.algorithms.Solution;
-import main.neo.algorithms.exhaustivesearch.EnumerativeSearch;
-import main.neo.algorithms.ilp.ILP;
-import main.neo.graphs.ExtractionVertex;
-import main.neo.refactoringcache.ConsecutiveSequenceIterator.APPROACH;
-import main.neo.refactoringcache.RefactoringCache;
-import main.neo.refactoringcache.RefactoringCacheFiller;
+import main.neo.core.Solution;
+import main.neo.core.Solution.SimulationResult;
+import main.neo.core.graphs.GraphBundle;
+import main.neo.core.graphs.GraphService;
+import main.neo.core.jdt.JavaMethodProcessor.MethodComplexityRecord;
+import main.neo.core.refactoringcache.RefactoringCache;
+import main.neo.core.refactoringcache.RefactoringCacheFiller;
+import main.neo.core.solvers.RefactoringSolver;
+import main.neo.core.solvers.SolverContext;
+import main.neo.core.solvers.SolverFactory;
+import main.neo.core.solvers.SolverType;
 
 /**
- * Orquestador principal que invoca la lógica de NEO (paquete
- * <code>neo.*</code>) y traduce los resultados al modelo de dominio
- * (<code>model.*</code>).
+ * Orchestrator that drives the {@code main.neo} refactoring pipeline (cache
+ * generation, graph construction, solver execution and in-memory simulation)
+ * and adapts the result to the plugin's {@link RefactorComparison} domain
+ * model.
+ * <p>
+ * The engine never persists artefacts to disk: solver outputs, refactoring
+ * caches and applied extractions are kept in memory and surfaced through the
+ * UI.
+ * </p>
  */
 public final class CodeExtractionEngine {
 
+	private static final Logger LOGGER = Logger.getLogger(CodeExtractionEngine.class.getName());
+
+	private CodeExtractionEngine() {
+		// utility class
+	}
+
 	/**
-	 * Analiza un método, busca posibles extracciones de código con la heurística de
-	 * NEO y devuelve un {@link MethodMetrics} rellenado con:
-	 * <ul>
-	 * <li>Complejidad y LOC</li>
-	 * <li>Compilation Unit con los cambios aplicados</li>
-	 * </ul>
-	 * 
-	 * @param cu         unidad de compilación que contiene el método
-	 * @param icuWorkingCopy 
-	 * @param node       declaración del método a analizar
-	 * @param cc  complejidad cognitiva actual del método
-	 * @param loc líneas de código actuales del método
-	 * @param loc 
-	 * @return métricas completas para el método
-	 * @throws CoreException propagadas desde el modelo de refactorización de
-	 *                       Eclipse
-	 * @throws IOException 
+	 * Analyses a method and returns the best refactoring plan found, simulated in
+	 * memory so the user can review it before applying it.
+	 *
+	 * @param cu             the compilation unit containing the method
+	 * @param icuWorkingCopy working copy used for in-memory simulation; its file is
+	 *                       <b>not</b> modified
+	 * @param node           the method to refactor
+	 * @param cc             pre-computed cognitive complexity of the method
+	 * @param threshold      project-specific cognitive complexity threshold
+	 * @return a singleton list with the {@link RefactorComparison}, or an empty
+	 *         list if no improving refactoring exists
 	 */
-	public static List<RefactorComparison> analyseAndPlan(CompilationUnit cu, ICompilationUnit icuWorkingCopy, MethodDeclaration node, int loc, int threshold) throws CoreException, IOException {
-		RefactoringCache cache = new RefactoringCache(cu);
-		int cc = main.neo.cem.Utils.computeAndAnnotateAccumulativeCognitiveComplexity(node);
+	public static List<RefactorComparison> analyseAndPlan(CompilationUnit cu, ICompilationUnit icuWorkingCopy,
+			MethodDeclaration node, int cc, int threshold) throws CoreException {
 
 		if (node == null || cu == null || cc <= threshold) {
 			return Collections.emptyList();
 		}
 
-		List<RefactorComparison> result = new LinkedList<>();
-				
-		// Llenar caché de refactorizaciones
+		// 1. Build the cache of feasible refactoring opportunities for this method.
+		RefactoringCache cache = new RefactoringCache(cu, node);
 		RefactoringCacheFiller.exhaustiveEnumerationAlgorithm(cache, node);
-		
-		List<Solution> solutions = new LinkedList<>();
-		Solution solution = new Solution(cu, node, threshold);
-		boolean usedILP = false;
-		
-		// Crear carpeta temporal para archivos .dot dentro del proyecto
-		IProject project = icuWorkingCopy.getJavaProject() != null ? 
-				icuWorkingCopy.getJavaProject().getProject() : null;
-		Path tempDir = null;
-		List<Path> tempFiles = new ArrayList<>();
-		
+
+		// 2. Build the solver context (record + threshold).
+		int lineNumber = cu.getLineNumber(node.getStartPosition());
+		MethodComplexityRecord record = new MethodComplexityRecord(node.getName().getIdentifier(), lineNumber, cc, node);
+
+		Solution solution;
+		boolean usedILP;
 		try {
-			if (project != null) {
-				// Crear carpeta temporal .refactorer-temp en el proyecto
-				tempDir = Paths.get(project.getLocation().toOSString(), ".refactorer-temp");
-				Files.createDirectories(tempDir);
-			}
-		} catch (IOException e) {
-			// Si no se puede crear la carpeta temporal, no ejecutaremos ILP
-			tempDir = null;
-		}
-		
-		
-		// Ejecutar algoritmo ILP con fallback a búsqueda exhaustiva
-		try {
-			/* Initialize graphs 
-			 * -> The one including conflicts
-			 * -> The one excluding conflicts
-			 * -> The one just including conflicts
-			 */
-			ExtractionVertex root = 
-					main.neo.graphs.Utils.getRootForGraphAssociatedToMethodBody(node);
-			SimpleGraph<ExtractionVertex, DefaultEdge> conflictsGraph = 
-					new SimpleGraph<>(DefaultEdge.class);
-			SimpleDirectedWeightedGraph<ExtractionVertex, DefaultWeightedEdge> graphWithoutConflicts = 
-					new SimpleDirectedWeightedGraph<>(DefaultWeightedEdge.class);
-			SimpleDirectedWeightedGraph<ExtractionVertex, DefaultWeightedEdge> graph = 
-					cache.getGraphOfFeasibleRefactorings(root, cc, graphWithoutConflicts, conflictsGraph);
+			SolverContext ctx = new SolverContext(cu, record, SolverType.ILP.getKey(), threshold);
+			GraphBundle graphs = GraphService.buildGraphs(cache, node);
+			ctx.setPrecomputedGraphs(graphs);
 
-			// Renderizar grafos solo si se pudo crear la carpeta temporal
-			if (tempDir != null) {
-				String methodName = node.getName().getIdentifier();
-				String timestamp = String.valueOf(System.currentTimeMillis());
-				
-				// Generar nombres únicos para los archivos
-				String fileNameForGraph = methodName + "-graph-" + timestamp + ".dot";
-				String fileNameForGraphWithoutConflicts = methodName + "-graph-no-conflicts-" + timestamp + ".dot";
-				String fileNameForConflictGraph = methodName + "-conflicts-" + timestamp + ".dot";
-				
-				// render full graph
-				Path graphFile = tempDir.resolve(fileNameForGraph);
-				main.neo.graphs.Utils.renderGraphInDotFormatInFile(
-					graph, 
-					tempDir.toString() + File.separator, 
-					fileNameForGraph
-				);
-				tempFiles.add(graphFile);
-
-				// render graph without conflicts
-				Path graphNoConflictsFile = tempDir.resolve(fileNameForGraphWithoutConflicts);
-				main.neo.graphs.Utils.renderGraphInDotFormatInFile(
-					graphWithoutConflicts, 
-					tempDir.toString() + File.separator, 
-					fileNameForGraphWithoutConflicts
-				);
-				tempFiles.add(graphNoConflictsFile);
-
-				// render conflicts graph
-				Path conflictsFile = tempDir.resolve(fileNameForConflictGraph);
-				main.neo.graphs.Utils.renderConflictGraphInDotFormatInFile(
-					conflictsGraph, 
-					tempDir.toString() + File.separator, 
-					fileNameForConflictGraph
-				);
-				tempFiles.add(conflictsFile);
-			}
-
-			// Ejecutar algoritmo ILP
-			solution = new ILP()
-				.run(
-					cu, 
-					cache,
-					node, 
-					cc, 
-					conflictsGraph, 
-					graphWithoutConflicts,
-					graph,
-					threshold
-				);
-			
-			usedILP = true;
-			
-			// Limpiar grafos para reducir uso de memoria
-			if (graph != null)
-				main.neo.graphs.Utils.clear(graph);
-			if (graphWithoutConflicts != null)
-				main.neo.graphs.Utils.clear(graphWithoutConflicts);
-			if (conflictsGraph != null)
-				main.neo.graphs.Utils.clear(conflictsGraph);
-			
-		} catch (Exception | UnsatisfiedLinkError e) {
-			// En caso de cualquier error durante el ILP, ejecutar algoritmo de búsqueda exhaustiva
+			solution = runSolver(ctx, cache);
+			usedILP = solution != null;
+		} catch(Exception e) {
+			// Fallback to enumerative search if CPLEX is unavailable or failed.
+			SolverContext ctx = new SolverContext(cu, record, SolverType.ES_LONG_SEQUENCE_FIRST.getKey(), threshold);
+			solution = runFallback(ctx, cache);
 			usedILP = false;
-			solution = new EnumerativeSearch()
-					.run(APPROACH.LONG_SEQUENCE_FIRST, cu, cache, node, threshold);
-		} finally {
-			
-			// Eliminar archivos temporales
-			for (Path tempFile : tempFiles) {
-				try {
-					Files.deleteIfExists(tempFile);
-				} catch (IOException e) {
-					// Ignorar errores al eliminar archivos temporales
-				}
-			}
-			
-			// Intentar eliminar la carpeta temporal si está vacía
-			if (tempDir != null) {
-				try {
-					File tempDirFile = tempDir.toFile();
-					if (tempDirFile.exists() && tempDirFile.isDirectory() && 
-						tempDirFile.list().length == 0) {
-						Files.deleteIfExists(tempDir);
-					}
-				} catch (IOException e) {
-					// Ignorar errores al eliminar la carpeta temporal
-				}
-			}
 		}
-		
-		if (null == solution || null == solution.getSequenceList() || solution.getSequenceList().isEmpty()) {
+
+		if (solution == null || solution.getSequenceList() == null || solution.getSequenceList().isEmpty()) {
 			return Collections.emptyList();
 		}
-		
-		solutions.add(main.neo.algorithms.utils.Utils.indexOfInsertionToKeepListSorted(solution, solutions), solution);
-		
-		// Aplicar la mejor solución
-		final Solution sol = getBestSolution(solutions);
-		cu = sol.applyExtractMethodsToCompilationUnit(true, cu, icuWorkingCopy);
-		result.add(RefactorComparison.builder()
-			.name(sol.getMethodName())
-			.compilationUnitRefactored(cu)
-			.reducedComplexity(sol.getReducedComplexity())
-			.numberOfExtractions(sol.getSize())
-			.stats(sol.getExtractionMetricsStats())
-			.usedILP(usedILP)
-			.build());
-		
-		return result;
-	}
 
-	private static Solution getBestSolution(List<Solution> solutions) {
-		if (solutions.size() == 1) {
-			return solutions.getFirst();
+		// 3. Simulate the extractions on a working copy without touching the file.
+		SimulationResult sim = solution.simulateExtractMethods(icuWorkingCopy);
+		if (sim == null) {
+			return Collections.emptyList();
 		}
-		
-		return solutions.stream()
-			.min((s1, s2) -> Double.compare(s1.getFitness(), s2.getFitness()))
-			.orElse(null);
+
+		RefactorComparison comparison = RefactorComparison.builder()
+				.name(solution.getMethodName())
+				.compilationUnitRefactored(sim.getCompilationUnit())
+				.refactoredSource(sim.getSource())
+				.reducedComplexity(solution.getReducedComplexity())
+				.numberOfExtractions(solution.getSize())
+				.stats(solution.getExtractionMetricsStats())
+				.usedILP(usedILP)
+				.build();
+
+		return List.of(comparison);
 	}
 
+	/**
+	 * Runs the configured ILP solver. Any failure (including a missing CPLEX
+	 * native library) is logged and translated into a {@code null} result so the
+	 * caller can fall back to the enumerative search.
+	 */
+	private static Solution runSolver(SolverContext ctx, RefactoringCache cache) {
+		try {
+			RefactoringSolver solver = SolverFactory.getSolver(SolverType.ILP);
+			return solver.solve(ctx, cache);
+		} catch (UnsatisfiedLinkError | Exception e) {
+			LOGGER.log(Level.FINE, "ILP solver unavailable for " + ctx.record.methodName + "; using fallback", e);
+			return null;
+		}
+	}
+
+	/**
+	 * Runs the long-sequence-first enumerative search as a deterministic fallback
+	 * when the ILP solver is not available.
+	 */
+	private static Solution runFallback(SolverContext ctx, RefactoringCache cache) {
+		try {
+			RefactoringSolver solver = SolverFactory.getSolver(SolverType.ES_LONG_SEQUENCE_FIRST);
+			return solver.solve(ctx, cache);
+		} catch (Exception e) {
+			LOGGER.log(Level.WARNING, "Enumerative-search fallback failed for " + ctx.record.methodName, e);
+			return null;
+		}
+	}
 }

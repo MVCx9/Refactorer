@@ -2,11 +2,13 @@ package main.refactor;
 
 import org.eclipse.jdt.core.dom.CompilationUnit;
 
-import main.neo.cem.CodeExtractionMetricsStats;
+import main.neo.core.jdt.CodeExtractionMetricsStats;
 
 public class RefactorComparison {
 	private final String name;
 	private final CompilationUnit compilationUnitRefactored;
+	/** Full source text (with comments/Javadocs preserved) after simulation. */
+	private final String refactoredSource;
 	private final int reducedComplexity;
 	private final int numberOfExtractions;
 	private final CodeExtractionMetricsStats stats;
@@ -19,6 +21,7 @@ public class RefactorComparison {
 	public RefactorComparison(Builder b) {
 		this.name = b.name;
 		this.compilationUnitRefactored = b.compilationUnitRefactored;
+		this.refactoredSource = b.refactoredSource;
 		this.reducedComplexity = b.reducedComplexity;
 		this.numberOfExtractions = b.numberOfExtractions;
 		this.stats = b.stats;
@@ -31,6 +34,14 @@ public class RefactorComparison {
 	
 	public CompilationUnit getCompilationUnitRefactored() {
 		return compilationUnitRefactored;
+	}
+
+	/**
+	 * Returns the full source text of the refactored compilation unit,
+	 * preserving all comments and Javadocs.
+	 */
+	public String getRefactoredSource() {
+		return refactoredSource;
 	}
 	
 	public int getReducedComplexity() {
@@ -54,6 +65,7 @@ public class RefactorComparison {
 		private int reducedComplexity;
 		private int numberOfExtractions;
 		private CompilationUnit compilationUnitRefactored;
+		private String refactoredSource;
 		private CodeExtractionMetricsStats stats;
 		private boolean usedILP = false;
 
@@ -74,6 +86,14 @@ public class RefactorComparison {
 		
 		public Builder compilationUnitRefactored(CompilationUnit v) {
 			this.compilationUnitRefactored = v;
+			return this;
+		}
+
+		/**
+		 * Sets the full source text (with comments/Javadocs) of the refactored unit.
+		 */
+		public Builder refactoredSource(String v) {
+			this.refactoredSource = v;
 			return this;
 		}
 
