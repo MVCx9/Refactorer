@@ -566,6 +566,41 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
     private ICompilationUnit findCompilationUnitByFileName(String fileName) {
         final ICompilationUnit[] found = { null };
         try {
+            org.eclipse.core.runtime.IPath path = org.eclipse.core.runtime.Path.fromOSString(classPath);
+            IFile file = ResourcesPlugin.getWorkspace().getRoot().getFileForLocation(path);
+            if (file != null && file.exists()) {
+                var el = JavaCore.create(file);
+                if (el instanceof ICompilationUnit icu) {
+                    return icu;
+                }
+            }
+            
+            String normalizedPath = classPath.replace('\\', '/');
+            final ICompilationUnit[] found = { null };
+            ResourcesPlugin.getWorkspace().getRoot().accept((IResourceVisitor) res -> {
+                if (found[0] != null) return false;
+                if (res.getType() == IResource.FILE) {
+                    String resPath = res.getLocation().toOSString().replace('\\', '/');
+                    if (resPath.equals(normalizedPath) || resPath.endsWith(normalizedPath)) {
+                        IFile f = (IFile) res;
+                        var el = JavaCore.create(f);
+                        if (el instanceof ICompilationUnit icu) {
+                            found[0] = icu;
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+            return found[0];
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    private ICompilationUnit findCompilationUnitByFileName(String fileName) {
+        final ICompilationUnit[] found = { null };
+        try {
             ResourcesPlugin.getWorkspace().getRoot().accept((IResourceVisitor) res -> {
                 if (found[0] != null) return false;
                 if (res.getType() == IResource.FILE && fileName.equals(res.getName())) {
