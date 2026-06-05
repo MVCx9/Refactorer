@@ -70,7 +70,10 @@
 		        <visibleWhen checkEnabled="true">
 		            <with variable="selection">
 		            	<iterate ifEmpty="false">
-                			<instanceof value="org.eclipse.jdt.core.IJavaProject"/>
+		            		<or>
+		            			<instanceof value="org.eclipse.jdt.core.IJavaProject"/>
+		            			<adapt type="org.eclipse.core.resources.IProject"/>
+		            		</or>
 	                    </iterate>
 		            </with>
 		        </visibleWhen>
