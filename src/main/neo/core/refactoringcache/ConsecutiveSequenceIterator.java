@@ -131,21 +131,20 @@ public class ConsecutiveSequenceIterator {
 
 		// Iterate through potential start points that have complexity
 		for (int i = first; i <= lastWithCC; i++) {
-			int startIndex;
-			int endIndex;
+			// A sequence starting at sentence {@code i} must end somewhere within the
+			// inclusive range [nextWithCC[i], last] so it captures at least one
+			// complexity-contributing statement. The chosen Approach only changes the
+			// order in which that range is explored, never the range itself.
+			int shortestEnd = nextWithCC[i];
+			int longestEnd = last;
 
-			// Determine loop bounds based on the chosen Approach
-			if (approach.equals(Approach.LONG_SEQUENCE_FIRST)) {
-				// Try longest possible sequences first
-				startIndex = last;
-				endIndex = nextWithCC[i];
-			} else {
-				// Try shortest sequences first (expanding outwards)
-				startIndex = nextWithCC[i];
-				endIndex = last;
-			}
+			// LONG_SEQUENCE_FIRST walks the range from the longest sequence (j = last)
+			// down to the shortest; SHORT_SEQUENCE_FIRST walks it the other way around.
+			boolean longSequenceFirst = approach.equals(Approach.LONG_SEQUENCE_FIRST);
+			int startIndex = longSequenceFirst ? longestEnd : shortestEnd;
+			int step = longSequenceFirst ? -1 : 1;
 
-			for (int j = startIndex; j <= endIndex; j++) {
+			for (int j = startIndex; j >= shortestEnd && j <= longestEnd; j += step) {
 				if (sequence.validSequence(i, j)) {
 					los.push(i);
 					los.push(j);
