@@ -81,7 +81,10 @@ public class IteratorYield<T> implements Iterator<T>
 				{
 					if (th != null)
 					{
-						th.stop();
+						// The worker thread is parked in Break()'s wait(); interrupt it so it
+						// unwinds and terminates. Thread.stop() must not be used: it throws
+						// UnsupportedOperationException as of Java 20+.
+						th.interrupt();
 					}
 					th=null;
 					throw new NoSuchElementException();
@@ -121,6 +124,7 @@ public class IteratorYield<T> implements Iterator<T>
 					
 				}
 			};
+			th.setDaemon(true);
 			th.start();
 		}
 		yi.notify();
@@ -149,7 +153,10 @@ public class IteratorYield<T> implements Iterator<T>
 				{
 					if (th != null)
 					{
-						th.stop();
+						// The worker thread is parked in Break()'s wait(); interrupt it so it
+						// unwinds and terminates. Thread.stop() must not be used: it throws
+						// UnsupportedOperationException as of Java 20+.
+						th.interrupt();
 					}
 					th=null;
 					return false;

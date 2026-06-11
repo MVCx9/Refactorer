@@ -71,16 +71,16 @@ public final class CodeExtractionEngine {
 
 		Solution solution;
 		boolean usedILP;
-		try {
-			SolverContext ctx = new SolverContext(cu, record, SolverType.ILP.getKey(), threshold);
-			GraphBundle graphs = GraphService.buildGraphs(cache, node);
-			ctx.setPrecomputedGraphs(graphs);
+		SolverContext ctx = new SolverContext(cu, record, SolverType.ILP.getKey(), threshold);
+		GraphBundle graphs = GraphService.buildGraphs(cache, node);
+		ctx.setPrecomputedGraphs(graphs);
 
-			solution = runSolver(ctx, cache);
-			usedILP = solution != null;
-		} catch(Exception e) {
+		solution = runSolver(ctx, cache);
+		usedILP = solution != null;
+		
+		if(solution == null) {
 			// Fallback to enumerative search if CPLEX is unavailable or failed.
-			SolverContext ctx = new SolverContext(cu, record, SolverType.ES_LONG_SEQUENCE_FIRST.getKey(), threshold);
+			ctx = new SolverContext(cu, record, SolverType.ES_LONG_SEQUENCE_FIRST.getKey(), threshold);
 			solution = runFallback(ctx, cache);
 			usedILP = false;
 		}
