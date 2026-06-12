@@ -156,7 +156,7 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 				.collect(Collectors.toList());
 		ClassMetrics trimmed = ClassMetrics.builder().name(this.name).analysisDate(this.analysisDate)
 				.currentSource(this.currentSource).refactoredSource(this.refactoredSource).currentMethods(originalBase)
-				.refactoredMethods(extracted).complexityThreshold(this.complexityThreshold).build();
+				.refactoredMethods(extracted).complexityThreshold(this.complexityThreshold).path(this.path).build();
 		return Collections.singletonList(trimmed);
 	}
 

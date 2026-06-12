@@ -143,7 +143,8 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 			return ClassMetrics.builder().name(originalClass.getName()).analysisDate(originalClass.getAnalysisDate())
 					.currentSource(originalClass.getCurrentSource())
 					.refactoredSource(originalClass.getRefactoredSource()).currentMethods(originalBaseMethods)
-					.refactoredMethods(extractedMethods).complexityThreshold(originalClass.getComplexityThreshold()).build();
+					.refactoredMethods(extractedMethods).complexityThreshold(originalClass.getComplexityThreshold())
+					.path(originalClass.getPath()).build();
 		}).collect(Collectors.toList());
 	}
 
