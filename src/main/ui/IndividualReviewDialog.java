@@ -3,12 +3,6 @@ package main.ui;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IResourceVisitor;
-import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.jdt.core.ICompilationUnit;
-import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.resource.JFaceResources;
@@ -25,9 +19,10 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 
+import main.common.error.ModifyFilesException;
 import main.common.languaje.Messages;
-import main.common.utils.Utils;
 import main.model.clazz.ClassMetrics;
+import main.refactor.RefactorApplier;
 import main.ui.RefactorConfirmationDialog.SelectedClassInfo;
 
 public class IndividualReviewDialog extends TitleAreaDialog {
@@ -176,92 +171,11 @@ public class IndividualReviewDialog extends TitleAreaDialog {
     }
     
     private void applyForClass(ClassMetrics cm, String source) {
-        if (source == null || source.isEmpty()) return;
-        
-        String classPath = cm.getPath();
-        if (classPath != null && !classPath.isBlank()) {
-            ICompilationUnit icu = findCompilationUnitByPath(classPath);
-            if (icu != null) {
-                applySourceToUnit(icu, Utils.formatJava(source));
-                return;
-            }
-        }
-        
-        String fileName = cm.getName();
-        if (fileName == null || fileName.isBlank()) return;
-        if (!fileName.endsWith(".java")) fileName = fileName + ".java";
-
-        ICompilationUnit icu = findCompilationUnitByFileName(fileName);
-        if (icu != null) {
-            applySourceToUnit(icu, Utils.formatJava(source));
-        }
-    }
-    
-    private void applySourceToUnit(ICompilationUnit icu, String source) {
         try {
-            icu.becomeWorkingCopy(null);
-            icu.getBuffer().setContents(source);
-            icu.commitWorkingCopy(true, null);
-        } catch (Exception ignore) {
-        } finally {
-            try { icu.discardWorkingCopy(); } catch (Exception ex) { }
+            RefactorApplier.apply(cm, source);
+        } catch (ModifyFilesException e) {
+            MessageDialog.openError(getShell(), Messages.getErrorTitle(), e.getMessage());
         }
-    }
-    
-    private ICompilationUnit findCompilationUnitByPath(String classPath) {
-        if (classPath == null || classPath.isBlank()) return null;
-        
-        try {
-            org.eclipse.core.runtime.IPath path = org.eclipse.core.runtime.Path.fromOSString(classPath);
-            IFile file = ResourcesPlugin.getWorkspace().getRoot().getFileForLocation(path);
-            if (file != null && file.exists()) {
-                var el = JavaCore.create(file);
-                if (el instanceof ICompilationUnit icu) {
-                    return icu;
-                }
-            }
-            
-            String normalizedPath = classPath.replace('\\', '/');
-            final ICompilationUnit[] found = { null };
-            ResourcesPlugin.getWorkspace().getRoot().accept((IResourceVisitor) res -> {
-                if (found[0] != null) return false;
-                if (res.getType() == IResource.FILE) {
-                    String resPath = res.getLocation().toOSString().replace('\\', '/');
-                    if (resPath.equals(normalizedPath) || resPath.endsWith(normalizedPath)) {
-                        IFile f = (IFile) res;
-                        var el = JavaCore.create(f);
-                        if (el instanceof ICompilationUnit icu) {
-                            found[0] = icu;
-                            return false;
-                        }
-                    }
-                }
-                return true;
-            });
-            return found[0];
-        } catch (Exception e) {
-            return null;
-        }
-    }
-    
-    private ICompilationUnit findCompilationUnitByFileName(String fileName) {
-        final ICompilationUnit[] found = { null };
-        try {
-            ResourcesPlugin.getWorkspace().getRoot().accept((IResourceVisitor) res -> {
-                if (found[0] != null) return false;
-                if (res.getType() == IResource.FILE && fileName.equals(res.getName())) {
-                    IFile file = (IFile) res;
-                    var el = JavaCore.create(file);
-                    if (el instanceof ICompilationUnit icu) {
-                        found[0] = icu;
-                        return false;
-                    }
-                }
-                return true;
-            });
-        } catch (Exception e) {
-        }
-        return found[0];
     }
     
     private Font bold(Control c) {

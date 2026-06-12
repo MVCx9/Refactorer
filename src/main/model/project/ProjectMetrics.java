@@ -132,18 +132,19 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 	public List<ClassMetrics> getMethodsWithRefactors() {
 		return classes.stream().filter(c -> c.getMethodExtractionCount() > 0).map(originalClass -> {
 			List<MethodMetrics> extractedMethods = originalClass.getRefactoredMethods().stream()
-					.filter(m -> m.getName() != null && m.getName().contains("_ext_")).collect(Collectors.toList());
-			Set<String> baseNames = extractedMethods.stream().map(m -> {
-				String name = m.getName();
-				int idx = name.indexOf("_ext_");
-				return idx > -1 ? name.substring(0, idx) : name;
-			}).collect(Collectors.toSet());
+					.filter(MethodMetrics::isExtracted).collect(Collectors.toList());
+			// Identify refactored host methods and match them to their originals by
+			// overload-aware signature, keeping overloaded methods correctly apart.
+			Set<String> refactoredSignatures = originalClass.getRefactoredMethods().stream()
+					.filter(m -> m.getNumberOfExtractions() > 0).map(MethodMetrics::getSignature)
+					.collect(Collectors.toSet());
 			List<MethodMetrics> originalBaseMethods = originalClass.getCurrentMethods().stream()
-					.filter(m -> baseNames.contains(m.getName())).collect(Collectors.toList());
+					.filter(m -> refactoredSignatures.contains(m.getSignature())).collect(Collectors.toList());
 			return ClassMetrics.builder().name(originalClass.getName()).analysisDate(originalClass.getAnalysisDate())
 					.currentSource(originalClass.getCurrentSource())
 					.refactoredSource(originalClass.getRefactoredSource()).currentMethods(originalBaseMethods)
-					.refactoredMethods(extractedMethods).complexityThreshold(originalClass.getComplexityThreshold()).build();
+					.refactoredMethods(extractedMethods).complexityThreshold(originalClass.getComplexityThreshold())
+					.path(originalClass.getPath()).build();
 		}).collect(Collectors.toList());
 	}
 

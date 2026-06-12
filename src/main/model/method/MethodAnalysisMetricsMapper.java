@@ -20,8 +20,10 @@ public final class MethodAnalysisMetricsMapper {
 		
 		return MethodMetrics.builder()
 			.name(ma.getMethodName())
+			.signature(ma.getSignature())
 			.cc(ma.getCc())
 			.loc(ma.getLoc())
+			.numberOfExtractions(ma.getNumberOfExtractions())
 			.usedILP(ma.isUsedILP())
 			.build();
 	}
@@ -50,9 +52,10 @@ public final class MethodAnalysisMetricsMapper {
 		return result;
 	}
 
-	public static MethodAnalysis toMethodAnalysis(MethodDeclaration md, int cc, int loc) {
+	public static MethodAnalysis toMethodAnalysis(MethodDeclaration md, String signature, int cc, int loc) {
 		return MethodAnalysis.builder()
 			.methodName(md.getName().getIdentifier())
+			.signature(signature)
 			.cc(cc)
 			.loc(loc)
 			.reducedComplexity(0)

@@ -142,21 +142,24 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		if (getMethodExtractionCount() <= 0) {
 			return Collections.emptyList();
 		}
-		List<MethodMetrics> extracted = refactoredMethods.stream()
-				.filter(m -> m.getName() != null && m.getName().contains("_ext_")).collect(Collectors.toList());
+		List<MethodMetrics> extracted = refactoredMethods.stream().filter(MethodMetrics::isExtracted)
+				.collect(Collectors.toList());
 		if (extracted.isEmpty()) {
 			return Collections.emptyList();
 		}
-		Set<String> baseNames = extracted.stream().map(m -> {
-			String n = m.getName();
-			int idx = n.indexOf("_ext_");
-			return idx > -1 ? n.substring(0, idx) : n;
-		}).collect(Collectors.toSet());
-		List<MethodMetrics> originalBase = currentMethods.stream().filter(m -> baseNames.contains(m.getName()))
-				.collect(Collectors.toList());
+		// Match each refactored host method back to its original by overload-aware
+		// signature (not by simple name) so overloaded methods stay separated and
+		// non-refactored overloads are never shown as refactored.
+		Set<String> refactoredSignatures = refactoredMethods.stream().filter(m -> m.getNumberOfExtractions() > 0)
+				.map(MethodMetrics::getSignature).collect(Collectors.toSet());
+		List<MethodMetrics> originalBase = currentMethods.stream()
+				.filter(m -> refactoredSignatures.contains(m.getSignature())).collect(Collectors.toList());
+		if (originalBase.isEmpty()) {
+			return Collections.emptyList();
+		}
 		ClassMetrics trimmed = ClassMetrics.builder().name(this.name).analysisDate(this.analysisDate)
 				.currentSource(this.currentSource).refactoredSource(this.refactoredSource).currentMethods(originalBase)
-				.refactoredMethods(extracted).complexityThreshold(this.complexityThreshold).build();
+				.refactoredMethods(extracted).complexityThreshold(this.complexityThreshold).path(this.path).build();
 		return Collections.singletonList(trimmed);
 	}
 

@@ -13,12 +13,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IResourceVisitor;
-import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.jdt.core.ICompilationUnit;
-import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.resource.JFaceResources;
@@ -43,7 +37,6 @@ import org.eclipse.swt.widgets.TableItem;
 
 import main.common.error.ModifyFilesException;
 import main.common.languaje.Messages;
-import main.common.utils.Utils;
 import main.model.clazz.ClassMetrics;
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
@@ -51,6 +44,7 @@ import main.model.common.LocStats;
 import main.model.method.MethodMetrics;
 import main.model.project.ProjectMetrics;
 import main.model.workspace.WorkspaceMetrics;
+import main.refactor.RefactorApplier;
 import main.session.ActionType;
 import main.ui.RefactorConfirmationDialog.SelectedClassInfo;
 
@@ -326,9 +320,13 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         int result = confirmDialog.open();
         
         if (result == RefactorConfirmationDialog.APPLY_ALL) {
-            applyAllSelectedClasses(selectedClasses, isApply);
-            String message = isApply ? Messages.getChangesAppliedMessage() : Messages.getChangesUndoneMessage();
-            MessageDialog.openInformation(getShell(), Messages.getSuccessTitle(), message);
+            List<String> failures = applyAllSelectedClasses(selectedClasses, isApply);
+            if (failures.isEmpty()) {
+                String message = isApply ? Messages.getChangesAppliedMessage() : Messages.getChangesUndoneMessage();
+                MessageDialog.openInformation(getShell(), Messages.getSuccessTitle(), message);
+            } else {
+                MessageDialog.openError(getShell(), Messages.getErrorTitle(), String.join("\n", failures));
+            }
         } else if (result == RefactorConfirmationDialog.SELECT_INDIVIDUALLY) {
             IndividualReviewDialog reviewDialog = new IndividualReviewDialog(getShell(), selectedClasses, isApply);
             reviewDialog.open();
@@ -348,83 +346,44 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         return selected;
     }
     
-    private void applyAllSelectedClasses(List<SelectedClassInfo> selectedClasses, boolean isApply) {
+    /**
+     * Applies (or reverts) the planned changes for every selected class. A
+     * failure on one class does not abort the batch; the messages of the failed
+     * classes are collected and returned so the caller can report them.
+     *
+     * @return the error messages of the classes that could not be modified (empty
+     *         when every class was processed successfully)
+     */
+    private List<String> applyAllSelectedClasses(List<SelectedClassInfo> selectedClasses, boolean isApply) {
+        List<String> failures = new ArrayList<>();
         for (SelectedClassInfo info : selectedClasses) {
             String source = isApply ? info.classMetrics.getRefactoredSource() : info.classMetrics.getCurrentSource();
-            applyForClass(info.classMetrics, source);
+            try {
+                RefactorApplier.apply(info.classMetrics, source);
+            } catch (ModifyFilesException e) {
+                failures.add(e.getMessage());
+            }
         }
+        return failures;
     }
 
     private void breackCodeExtractions() {
-    	try {
-            if (metrics instanceof ClassMetrics cm) {
-                applyForClass(cm, cm.getCurrentSource());
-            } else if (metrics instanceof ProjectMetrics pm) {
-                for (ClassMetrics cm : pm.getClasses()) {
-                    applyForClass(cm, cm.getCurrentSource());
-                }
-            } else if (metrics instanceof WorkspaceMetrics wm) {
-                for (ProjectMetrics pm : wm.getProjects()) {
-                    for (ClassMetrics cm : pm.getClasses()) {
-                        applyForClass(cm, cm.getCurrentSource());
-                    }
-                }
-            }
-        } catch (Exception e) {
-            throw new ModifyFilesException("Error reverting code extractions", e);
-        }
-	}
-
-	private void applyCodeExtractions() {
-        try {
-            if (metrics instanceof ClassMetrics cm) {
-                applyForClass(cm, cm.getRefactoredSource());
-            } else if (metrics instanceof ProjectMetrics pm) {
-                for (ClassMetrics cm : pm.getClasses()) {
-                    applyForClass(cm, cm.getRefactoredSource());
-                }
-            } else if (metrics instanceof WorkspaceMetrics wm) {
-                for (ProjectMetrics pm : wm.getProjects()) {
-                    for (ClassMetrics cm : pm.getClasses()) {
-                        applyForClass(cm, cm.getRefactoredSource());
-                    }
-                }
-            }
-        } catch (Exception e) {
-            throw new ModifyFilesException("Error applying code extractions", e);
+        if (metrics instanceof ClassMetrics cm) {
+            applyForClass(cm, cm.getCurrentSource());
         }
     }
 
-    private void applyForClass(ClassMetrics cm, String ref) {
-        if (ref == null || ref.isEmpty()) return;
-        
-        String classPath = cm.getPath();
-        if (classPath != null && !classPath.isBlank()) {
-            ICompilationUnit icu = findCompilationUnitByPath(classPath);
-            if (icu != null) {
-                applySourceToUnit(icu, Utils.formatJava(ref));
-                return;
-            }
-        }
-        
-        String fileName = cm.getName();
-        if (fileName == null || fileName.isBlank()) return;
-        if (!fileName.endsWith(".java")) fileName = fileName + ".java";
-        
-        ICompilationUnit icu = findCompilationUnitByFileName(fileName);
-        if (icu != null) {
-            applySourceToUnit(icu, Utils.formatJava(ref));
+    private void applyCodeExtractions() {
+        if (metrics instanceof ClassMetrics cm) {
+            applyForClass(cm, cm.getRefactoredSource());
         }
     }
-    
-    private void applySourceToUnit(ICompilationUnit icu, String source) {
+
+    private void applyForClass(ClassMetrics cm, String source) {
         try {
-            icu.becomeWorkingCopy(null);
-            icu.getBuffer().setContents(source);
-            icu.commitWorkingCopy(true, null);
-        } catch (Exception ignore) {
-        } finally {
-            try { icu.discardWorkingCopy(); } catch (Exception ex) { }
+            RefactorApplier.apply(cm, source);
+        } catch (ModifyFilesException e) {
+            MessageDialog.openError(getShell(), Messages.getErrorTitle(), e.getMessage());
         }
     }
 
@@ -525,62 +484,6 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         sr.background = bg;
         sr.foreground = black; // ensure text is black in highlighted areas
         list.add(sr);
-    }
-
-    private ICompilationUnit findCompilationUnitByPath(String classPath) {
-        if (classPath == null || classPath.isBlank()) return null;
-        
-        try {
-            org.eclipse.core.runtime.IPath path = org.eclipse.core.runtime.Path.fromOSString(classPath);
-            IFile file = ResourcesPlugin.getWorkspace().getRoot().getFileForLocation(path);
-            if (file != null && file.exists()) {
-                var el = JavaCore.create(file);
-                if (el instanceof ICompilationUnit icu) {
-                    return icu;
-                }
-            }
-            
-            String normalizedPath = classPath.replace('\\', '/');
-            final ICompilationUnit[] found = { null };
-            ResourcesPlugin.getWorkspace().getRoot().accept((IResourceVisitor) res -> {
-                if (found[0] != null) return false;
-                if (res.getType() == IResource.FILE) {
-                    String resPath = res.getLocation().toOSString().replace('\\', '/');
-                    if (resPath.equals(normalizedPath) || resPath.endsWith(normalizedPath)) {
-                        IFile f = (IFile) res;
-                        var el = JavaCore.create(f);
-                        if (el instanceof ICompilationUnit icu) {
-                            found[0] = icu;
-                            return false;
-                        }
-                    }
-                }
-                return true;
-            });
-            return found[0];
-        } catch (Exception e) {
-            return null;
-        }
-    }
-    
-    private ICompilationUnit findCompilationUnitByFileName(String fileName) {
-        final ICompilationUnit[] found = { null };
-        try {
-            ResourcesPlugin.getWorkspace().getRoot().accept((IResourceVisitor) res -> {
-                if (found[0] != null) return false;
-                if (res.getType() == IResource.FILE && fileName.equals(res.getName())) {
-                    IFile file = (IFile) res;
-                    var el = JavaCore.create(file);
-                    if (el instanceof ICompilationUnit icu) {
-                    	found[0] = icu;
-                        return false;
-                    }
-                }
-                return true;
-            });
-        } catch (Exception e) {
-        }
-        return found[0];
     }
 
     private void metric(Composite parent, String label, String value) {
@@ -853,7 +756,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                 String baseName = original.getName();
                 if (baseName == null) continue;
                 List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
-                        .filter(m -> m.getName() != null && (m.getName().equals(baseName) || m.getName().startsWith(baseName + "_ext_")))
+                        .filter(m -> m.getName() != null && (isSameHostMethod(m, original) || m.getName().startsWith(baseName + "_ext_")))
                         .sorted((m1,m2)->{
                             boolean b1 = m1.getName().equals(baseName);
                             boolean b2 = m2.getName().equals(baseName);
@@ -907,6 +810,16 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
     }
     
     private ClassMetrics findMatchingFullClass(List<ClassMetrics> fullClasses, ClassMetrics trimmed) {
+        // The workspace-relative path is unique per file, so it disambiguates
+        // classes that share the same simple name across packages or projects.
+        String trimmedPath = trimmed.getPath();
+        if (trimmedPath != null && !trimmedPath.isBlank()) {
+            for (ClassMetrics full : fullClasses) {
+                if (trimmedPath.equals(full.getPath())) {
+                    return full;
+                }
+            }
+        }
         for (ClassMetrics full : fullClasses) {
             if (full.getName().equals(trimmed.getName()) && 
                 full.getCurrentSource() != null && 
@@ -946,7 +859,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                     String baseName = original.getName();
                     if (baseName == null) continue;
                     List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
-                            .filter(m -> m.getName() != null && (m.getName().equals(baseName) || m.getName().startsWith(baseName + "_ext_")))
+                            .filter(m -> m.getName() != null && (isSameHostMethod(m, original) || m.getName().startsWith(baseName + "_ext_")))
                             .sorted((m1,m2)->{ boolean b1 = m1.getName().equals(baseName); boolean b2 = m2.getName().equals(baseName); if (b1 && !b2) return -1; if (!b1 && b2) return 1; return m1.getName().compareTo(m2.getName()); })
                             .collect(java.util.stream.Collectors.toList());
                     if (refactoredAll.isEmpty()) continue;
@@ -1005,6 +918,19 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         return null;
     }
 
+    /**
+     * Returns {@code true} when {@code refactored} is the (reduced) host method
+     * corresponding to {@code original}, matched by overload-aware signature so
+     * that overloaded methods sharing a simple name are not confused.
+     */
+    private boolean isSameHostMethod(MethodMetrics refactored, MethodMetrics original) {
+        String originalSignature = original.getSignature();
+        if (originalSignature != null && !originalSignature.isBlank()) {
+            return originalSignature.equals(refactored.getSignature());
+        }
+        return refactored.getName().equals(original.getName());
+    }
+
     private void populateClassTable(Table table, ClassMetrics full) {
         ClassMetrics trimmed = full.getMethodsWithRefactors().getFirst();
     	int[] rowNum = {1};
@@ -1012,7 +938,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             String baseName = original.getName();
             if (baseName == null) continue;
             List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
-                    .filter(m -> m.getName() != null && (m.getName().equals(baseName) || m.getName().startsWith(baseName + "_ext_")))
+                    .filter(m -> m.getName() != null && (isSameHostMethod(m, original) || m.getName().startsWith(baseName + "_ext_")))
                     .sorted((m1,m2)->{
                         boolean b1 = m1.getName().equals(baseName);
                         boolean b2 = m2.getName().equals(baseName);
