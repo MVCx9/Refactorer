@@ -756,7 +756,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                 String baseName = original.getName();
                 if (baseName == null) continue;
                 List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
-                        .filter(m -> m.getName() != null && (m.getName().equals(baseName) || m.getName().startsWith(baseName + "_ext_")))
+                        .filter(m -> m.getName() != null && (isSameHostMethod(m, original) || m.getName().startsWith(baseName + "_ext_")))
                         .sorted((m1,m2)->{
                             boolean b1 = m1.getName().equals(baseName);
                             boolean b2 = m2.getName().equals(baseName);
@@ -859,7 +859,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                     String baseName = original.getName();
                     if (baseName == null) continue;
                     List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
-                            .filter(m -> m.getName() != null && (m.getName().equals(baseName) || m.getName().startsWith(baseName + "_ext_")))
+                            .filter(m -> m.getName() != null && (isSameHostMethod(m, original) || m.getName().startsWith(baseName + "_ext_")))
                             .sorted((m1,m2)->{ boolean b1 = m1.getName().equals(baseName); boolean b2 = m2.getName().equals(baseName); if (b1 && !b2) return -1; if (!b1 && b2) return 1; return m1.getName().compareTo(m2.getName()); })
                             .collect(java.util.stream.Collectors.toList());
                     if (refactoredAll.isEmpty()) continue;
@@ -918,6 +918,19 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         return null;
     }
 
+    /**
+     * Returns {@code true} when {@code refactored} is the (reduced) host method
+     * corresponding to {@code original}, matched by overload-aware signature so
+     * that overloaded methods sharing a simple name are not confused.
+     */
+    private boolean isSameHostMethod(MethodMetrics refactored, MethodMetrics original) {
+        String originalSignature = original.getSignature();
+        if (originalSignature != null && !originalSignature.isBlank()) {
+            return originalSignature.equals(refactored.getSignature());
+        }
+        return refactored.getName().equals(original.getName());
+    }
+
     private void populateClassTable(Table table, ClassMetrics full) {
         ClassMetrics trimmed = full.getMethodsWithRefactors().getFirst();
     	int[] rowNum = {1};
@@ -925,7 +938,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             String baseName = original.getName();
             if (baseName == null) continue;
             List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
-                    .filter(m -> m.getName() != null && (m.getName().equals(baseName) || m.getName().startsWith(baseName + "_ext_")))
+                    .filter(m -> m.getName() != null && (isSameHostMethod(m, original) || m.getName().startsWith(baseName + "_ext_")))
                     .sorted((m1,m2)->{
                         boolean b1 = m1.getName().equals(baseName);
                         boolean b2 = m2.getName().equals(baseName);

@@ -75,8 +75,9 @@ public class ComplexityAnalyzer {
 
 				List<MethodAnalysis> planResult = analyzeAndPlanMethod(cu, icuWorkingCopy, targetMethod, cc, threshold);
 				if (!planResult.isEmpty()) {
+					String targetSignature = methodSignature(targetMethod);
 					for (MethodAnalysis refactoredMethod : planResult) {
-						refactoredMethodsMap.put(refactoredMethod.getMethodName(), refactoredMethod);
+						refactoredMethodsMap.put(targetSignature, refactoredMethod);
 					}
 					CompilationUnit lastCu = planResult.get(planResult.size() - 1).getCompilationUnitRefactored();
 					if (lastCu != null) {
@@ -133,14 +134,13 @@ public class ComplexityAnalyzer {
 					continue;
 				}
 
-				String methodName = md.getName().getIdentifier();
 				int cc = computeCognitiveComplexity(md);
 				MethodAnalysis baseAnalysis = analyzeMethod(cu, md, cc);
 				if (baseAnalysis == null) {
 					continue;
 				}
 
-				MethodAnalysis refactoredInfo = refactoredMethodsMap.get(methodName);
+				MethodAnalysis refactoredInfo = refactoredMethodsMap.get(methodSignature(md));
 				if (refactoredInfo != null) {
 					result.add(mergeMethodAnalysis(baseAnalysis, refactoredInfo));
 				} else {
@@ -155,6 +155,7 @@ public class ComplexityAnalyzer {
 	private MethodAnalysis mergeMethodAnalysis(MethodAnalysis base, MethodAnalysis refactored) {
 		return MethodAnalysis.builder()
 				.methodName(base.getMethodName())
+				.signature(base.getSignature())
 				.cc(base.getCc())
 				.loc(base.getLoc())
 				.reducedComplexity(refactored.getReducedComplexity())
@@ -180,7 +181,7 @@ public class ComplexityAnalyzer {
 			return null;
 		}
 		int loc = computeLoc(cu, md);
-		return MethodAnalysisMetricsMapper.toMethodAnalysis(md, cc, loc);
+		return MethodAnalysisMetricsMapper.toMethodAnalysis(md, methodSignature(md), cc, loc);
 	}
 
 	private List<MethodAnalysis> analyzeAndPlanMethod(CompilationUnit cu, ICompilationUnit icuWorkingCopy,

@@ -39,7 +39,7 @@ public final class ClassMetricsMother {
 
     public static ClassMetrics withRefactors(final String name) {
         final MethodMetrics original = MethodMetricsMother.withCc("foo", 20);
-        final MethodMetrics base = MethodMetricsMother.withCc("foo", 8);
+        final MethodMetrics base = MethodMetricsMother.reduced("foo", 8, 2);
         final MethodMetrics ext1 = MethodMetricsMother.extracted("foo", 1, 4);
         final MethodMetrics ext2 = MethodMetricsMother.extracted("foo", 2, 5);
         return ClassMetrics.builder()

@@ -7,6 +7,7 @@ import main.neo.core.jdt.CodeExtractionMetricsStats;
 
 public class MethodAnalysis {
 	private final String methodName;
+	private final String signature;
 	private final int cc;
 	private final int loc;
 	private final int reducedComplexity;
@@ -23,6 +24,7 @@ public class MethodAnalysis {
 
 	private MethodAnalysis(Builder b) {
 		this.methodName = b.methodName;
+		this.signature = b.signature;
 		this.cc = b.cc;
 		this.loc = b.loc;
 		this.reducedComplexity = b.reducedComplexity;
@@ -35,6 +37,14 @@ public class MethodAnalysis {
 
 	public String getMethodName() {
 		return methodName;
+	}
+
+	/**
+	 * Returns the overload-aware signature ({@code name(paramType1,paramType2)})
+	 * identifying the method within its class.
+	 */
+	public String getSignature() {
+		return signature;
 	}
 
 	public int getCc() {
@@ -75,6 +85,7 @@ public class MethodAnalysis {
 
 	public static class Builder {
 		private String methodName;
+		private String signature = "";
 		private int cc;
 		private int loc;
 		private int reducedComplexity;
@@ -86,6 +97,11 @@ public class MethodAnalysis {
 
 		public Builder methodName(String v) {
 			this.methodName = v;
+			return this;
+		}
+
+		public Builder signature(String v) {
+			this.signature = v;
 			return this;
 		}
 
