@@ -19,10 +19,12 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.NodeFinder;
-import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jface.text.BadLocationException;
+import org.eclipse.jface.text.BadPositionCategoryException;
+import org.eclipse.jface.text.DefaultPositionUpdater;
 import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IDocument;
+import org.eclipse.jface.text.Position;
 import org.eclipse.ltk.core.refactoring.Change;
 import org.eclipse.text.edits.MalformedTreeException;
 import org.eclipse.text.edits.TextEdit;
@@ -44,6 +46,13 @@ import main.neo.core.jdt.Utils;
 public class Solution {
 
 	private static final Logger LOGGER = Logger.getLogger(Solution.class.getName());
+
+	/**
+	 * Prefix for the JFace position category used to track how extraction range
+	 * offsets move while the source is rewritten. A unique suffix is appended per
+	 * run so concurrent simulations never share a category on the same document.
+	 */
+	private static final String OFFSET_TRACKING_CATEGORY = "main.neo.core.Solution.extractionOffsets.";
 
 	/** List of code sequences to extract, ordered by source position. */
 	private List<Sequence> sequenceList;
@@ -353,9 +362,18 @@ public class Solution {
 	 * {@link Document} that holds the running source code, and a fresh AST is
 	 * parsed before the next extraction so offsets and bindings stay coherent.
 	 * </p>
+	 * <p>
+	 * <b>Non-destructive guarantee:</b> the file backing {@code baseIcu} is never
+	 * written. Only the in-memory buffer of the supplied working copy is updated
+	 * (so bindings resolve for the next step); the caller is responsible for
+	 * discarding that working copy, which drops every simulated change. The actual
+	 * substitution of the file happens later, on explicit user confirmation,
+	 * through a separate apply step ({@code RefactorApplier}). For this reason
+	 * {@code baseIcu} <b>must be a working copy</b> ({@code isWorkingCopy() == true}).
+	 * </p>
 	 *
-	 * @param baseIcu working copy or compilation unit used as the parsing context
-	 *                for resolving bindings during simulation
+	 * @param baseIcu in-memory working copy used as the parsing context for
+	 *                resolving bindings during simulation; its file is not modified
 	 * @return the simulated source and AST after applying every extraction, or
 	 *         {@code null} if any extraction is not feasible in simulation mode
 	 */
@@ -400,116 +418,163 @@ public class Solution {
 	private boolean applyExtractionsInternal(boolean simulate, SimulationContext simCtx)
 			throws CoreException, IOException {
 		boolean extractionsApplied = true;
-		String currentMethodName = null;
-		CodeExtractionMetrics extractionMetrics;
-		ExtractionTextRange current = null, last = null;
 		List<ExtractionTextRange> rangesForExtractions = getRanges();
 		Stack<CodeExtractionMetrics> extractionMetricsStack = new Stack<>();
 
-		int numberImportedLibraries = compilationUnit.imports().size();
-		int lengthPreviousImportedLibraries = Utils.lengthImportDeclaration(compilationUnit);
-		int lengthImportedLibraries = lengthPreviousImportedLibraries;
-		int deltaInLengthImportedLibraries = 0;
-		int deltaInNumberImportedLibraries = 0;
+		// As every extraction rewrites the source, the character offsets of the
+		// ranges still to be processed shift: a containing ("parent") range
+		// shrinks when an inner ("child") range is replaced by a method call, and
+		// every range moves to the right when an import is added. The previous
+		// implementation recomputed those offsets with hand-written arithmetic,
+		// which was brittle and could produce a selection that no longer matched a
+		// statement boundary (raising "the selection is not valid" while
+		// extracting). Instead, we register each range as a JFace Position in the
+		// running document; the DefaultPositionUpdater then moves every position
+		// exactly as the applied TextEdit changes the underlying text.
+		IDocument trackingDocument = obtainTrackingDocument(simulate, simCtx);
+		String positionCategory = OFFSET_TRACKING_CATEGORY + System.nanoTime();
+		List<Position> trackedPositions = registerTrackingPositions(trackingDocument, positionCategory,
+				rangesForExtractions);
 
-		// loop for code extractions: from back to front
-		int indexOfExtraction = rangesForExtractions.size() - 1;
+		try {
+			// loop for code extractions: from back to front so that an already
+			// processed (later) extraction never invalidates the offsets of a range
+			// still to be processed (which always sits earlier in the source).
+			int indexOfExtraction = rangesForExtractions.size() - 1;
 
-		while (indexOfExtraction >= 0 && extractionsApplied) {
-			current = rangesForExtractions.get(indexOfExtraction);
+			while (indexOfExtraction >= 0 && extractionsApplied) {
+				Position current = trackedPositions.get(indexOfExtraction);
 
-			// Handle Nested Extractions
-			if (last != null) {
-				ASTNode lastExtractionCall = null;
-				int auxiliarLength = 0;
-				int indexOfExtractionWhenUpdatingOffsets = indexOfExtraction;
-				ExtractionTextRange currentInNextExtractions = current;
+				// Skip ranges that an earlier extraction has already absorbed.
+				if (current.isDeleted() || current.getLength() == 0) {
+					indexOfExtraction--;
+					continue;
+				}
 
-				while (indexOfExtractionWhenUpdatingOffsets >= 0) {
-					if (last.isContainedIn(currentInNextExtractions)) {
-						if (lastExtractionCall == null) {
-							lastExtractionCall = new NodeFinder(compilationUnit, last.getStart(), 0).getCoveringNode();
-							while (!(lastExtractionCall instanceof SimpleName)
-									|| ((lastExtractionCall instanceof SimpleName)
-											&& !((SimpleName) lastExtractionCall).getIdentifier().equals(currentMethodName))) {
-								auxiliarLength++;
-								lastExtractionCall = new NodeFinder(compilationUnit, last.getStart() + auxiliarLength, 0)
-										.getCoveringNode();
-								if (auxiliarLength > 1000)
-									break;
-							}
-							if (lastExtractionCall instanceof SimpleName
-									&& ((SimpleName) lastExtractionCall).getIdentifier().equals(currentMethodName))
-								lastExtractionCall = lastExtractionCall.getParent();
-						}
+				int selectionStart = current.getOffset();
+				int selectionLength = current.getLength();
 
-						int computedEndPosition = currentInNextExtractions.getEnd() - (last.getEnd() - last.getStart())
-								+ (lastExtractionCall.getLength()) + auxiliarLength + 1;
+				// Generate the name of the method that will hold the extracted code.
+				String currentMethodName = this.methodName + "_ext_" + (indexOfExtraction + 1);
+				currentMethodName = currentMethodName.replaceFirst("^.",
+						currentMethodName.substring(0, 1).toLowerCase());
 
-						if (deltaInNumberImportedLibraries > 0) {
-							computedEndPosition = computedEndPosition - deltaInLengthImportedLibraries
-									- deltaInNumberImportedLibraries;
-						}
-						currentInNextExtractions.setEnd(computedEndPosition);
+				// Perform (or simulate) the extraction against the current source state.
+				CodeExtractionMetrics extractionMetrics = Utils.extractCode(compilationUnit, selectionStart,
+						selectionLength, currentMethodName, simulate);
+				extractionsApplied = extractionMetrics.isFeasible() && (simulate || extractionMetrics.isApplied());
+
+				if (!extractionsApplied) {
+					LOGGER.warning("ERROR extracting sequence " + sequenceList.get(indexOfExtraction) + ": "
+							+ extractionMetrics.getReason());
+					if (!simulate) {
+						while (!extractionMetricsStack.isEmpty())
+							extractionMetricsStack.pop().getUndoChanges().get(0).perform(null);
 					}
-					if (indexOfExtractionWhenUpdatingOffsets > 0)
-						currentInNextExtractions = rangesForExtractions.get(indexOfExtractionWhenUpdatingOffsets - 1);
-					indexOfExtractionWhenUpdatingOffsets--;
+					break;
 				}
-			}
 
-			// Generate Method Name
-			currentMethodName = this.methodName + "_ext_" + (indexOfExtraction + 1);
-			currentMethodName = currentMethodName.replaceFirst("^.", currentMethodName.substring(0, 1).toLowerCase());
-
-			// Perform (or simulate) Extraction
-			int length = current.getEnd() - current.getStart();
-			extractionMetrics = Utils.extractCode(compilationUnit, current.getStart(), length, currentMethodName,
-					simulate);
-			extractionsApplied = extractionsApplied && extractionMetrics.isFeasible()
-					&& (simulate || extractionMetrics.isApplied());
-
-			if (!extractionsApplied) {
-				LOGGER.warning("ERROR extracting sequence " + sequenceList.get(indexOfExtraction) + ": "
-						+ extractionMetrics.getReason());
-				if (!simulate) {
-					while (!extractionMetricsStack.isEmpty())
-						extractionMetricsStack.pop().getUndoChanges().get(0).perform(null);
-				}
-			} else {
 				extractionMetricsStack.push(extractionMetrics);
 
+				// Apply the change to the running source and rebuild the AST. The same
+				// TextEdit is applied to the tracking document, which precisely shifts
+				// the Positions of the ranges that remain to be processed.
 				if (simulate) {
 					compilationUnit = applySimulatedChange(extractionMetrics, simCtx);
 				} else {
+					applyEditToTrackingDocument(extractionMetrics, trackingDocument);
 					compilationUnit = Utils.createCompilationUnitFromFileInWorkspace(
 							compilationUnit.getJavaElement().getPath().toOSString());
 				}
+
+				indexOfExtraction--;
 			}
-
-			last = current;
-			indexOfExtraction--;
-
-			// Handle Import Updates
-			if (compilationUnit.imports().size() != numberImportedLibraries) {
-				lengthPreviousImportedLibraries = lengthImportedLibraries;
-				lengthImportedLibraries = Utils.lengthImportDeclaration(compilationUnit);
-				deltaInLengthImportedLibraries = lengthImportedLibraries - lengthPreviousImportedLibraries;
-				deltaInNumberImportedLibraries = compilationUnit.imports().size() - numberImportedLibraries;
-
-				for (int index = indexOfExtraction; index >= 0; index--) {
-					ExtractionTextRange r = rangesForExtractions.get(index);
-					r.setStart(r.getStart() + deltaInLengthImportedLibraries + deltaInNumberImportedLibraries);
-					r.setEnd(r.getEnd() + deltaInLengthImportedLibraries + deltaInNumberImportedLibraries);
-				}
-				numberImportedLibraries = compilationUnit.imports().size();
-			} else {
-				deltaInLengthImportedLibraries = 0;
-				deltaInNumberImportedLibraries = 0;
-			}
+		} finally {
+			removeTrackingCategory(trackingDocument, positionCategory);
 		}
 
 		return extractionsApplied;
+	}
+
+	/**
+	 * Returns the document used to track how range offsets move as the extractions
+	 * rewrite the source.
+	 * <p>
+	 * In simulation mode this is the very document that holds the running source
+	 * ({@link SimulationContext#document}); applying each simulated {@link TextEdit}
+	 * to it therefore also moves the tracked positions. In the destructive mode a
+	 * parallel document mirroring the source is created so the same exact offset
+	 * tracking applies even though the AST is reparsed from the workspace file.
+	 * </p>
+	 */
+	private IDocument obtainTrackingDocument(boolean simulate, SimulationContext simCtx) throws CoreException {
+		if (simulate) {
+			return simCtx.document;
+		}
+		ICompilationUnit icu = Utils.getICompilationUnit(compilationUnit);
+		String source = (icu != null) ? icu.getSource() : "";
+		return new Document(source);
+	}
+
+	/**
+	 * Registers every extraction range as a {@link Position} in the tracking
+	 * document under a dedicated category handled by a {@link DefaultPositionUpdater}.
+	 *
+	 * @return the list of positions, aligned by index with {@code ranges}.
+	 */
+	private static List<Position> registerTrackingPositions(IDocument document, String category,
+			List<ExtractionTextRange> ranges) throws IOException {
+		document.addPositionCategory(category);
+		document.addPositionUpdater(new DefaultPositionUpdater(category));
+		List<Position> positions = new ArrayList<>(ranges.size());
+		try {
+			for (ExtractionTextRange range : ranges) {
+				int length = Math.max(0, range.getEnd() - range.getStart());
+				Position position = new Position(range.getStart(), length);
+				document.addPosition(category, position);
+				positions.add(position);
+			}
+		} catch (BadLocationException | BadPositionCategoryException e) {
+			throw new IOException("Failed to register offset-tracking positions for extraction", e);
+		}
+		return positions;
+	}
+
+	/**
+	 * Removes the offset-tracking category from the document. The associated
+	 * {@link DefaultPositionUpdater} is intentionally left registered: it silently
+	 * ignores changes once its category no longer exists, and the document is not
+	 * modified after this point.
+	 */
+	private static void removeTrackingCategory(IDocument document, String category) {
+		try {
+			document.removePositionCategory(category);
+		} catch (BadPositionCategoryException ignore) {
+			// The category was never fully registered; nothing else to clean up.
+		}
+	}
+
+	/**
+	 * Applies the extraction's {@link TextEdit} to the offset-tracking document so
+	 * the positions of the not-yet-processed ranges move with the text. Used by the
+	 * destructive path, where the AST itself is reparsed from the workspace file.
+	 */
+	private static void applyEditToTrackingDocument(CodeExtractionMetrics metrics, IDocument document)
+			throws IOException {
+		if (metrics.getChanges().isEmpty()) {
+			return;
+		}
+		TextEdit edit = Utils.extractTextEdit(metrics.getChanges().get(0));
+		if (edit == null) {
+			return;
+		}
+		try {
+			// Apply a copy: applying a TextEdit mutates its internal state and the
+			// original Change may still be needed by the caller.
+			edit.copy().apply(document);
+		} catch (MalformedTreeException | BadLocationException e) {
+			throw new IOException("Failed to update offset-tracking document: " + e.getMessage(), e);
+		}
 	}
 
 	/**
@@ -541,9 +606,20 @@ public class Solution {
 			throw new IOException("Failed to apply simulated TextEdit: " + e.getMessage(), e);
 		}
 
+		// Safety guard: a simulation must NEVER alter the file on disk. We only ever
+		// mutate the *in-memory* buffer of a working copy (which the caller discards
+		// without committing), never a primary compilation unit. Refusing the latter
+		// keeps the "planning never touches the original file" guarantee even if a
+		// future caller mistakenly passes a non-working-copy.
+		if (!simCtx.baseIcu.isWorkingCopy()) {
+			throw new IOException("Refusing to mutate a primary compilation unit during simulation; "
+					+ "an in-memory working copy is required so the original file stays untouched");
+		}
+
 		try {
 			// Sync the working copy buffer with the updated document content so the
 			// resulting CompilationUnit has a valid typeRoot (Java model element).
+			// This change lives only in memory and is dropped on discardWorkingCopy().
 			simCtx.baseIcu.getBuffer().setContents(simCtx.document.get().toCharArray());
 
 			// Reparse from the ICompilationUnit to preserve typeRoot linkage.
