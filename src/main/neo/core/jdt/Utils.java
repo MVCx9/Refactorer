@@ -261,6 +261,16 @@ public class Utils {
 	    // Safe fallback in case the text selection is completely outside any method
 	    String targetMethodName = (md != null && md.getName() != null) ? md.getName().getIdentifier() : "UnknownMethod";
 
+	    // The exhaustive cache warm-up probes the feasibility of *every* candidate
+	    // sub-range of a method (see RefactoringCacheFiller). Those probes reuse the
+	    // temporal method name and are *expected* to be infeasible very often — for
+	    // instance when a candidate range contains a return statement but not all
+	    // execution flows end in a return, which JDT legitimately rejects. Logging
+	    // each such expected negative at WARNING floods the log, so probes report
+	    // infeasibility at FINE while genuine extraction attempts keep WARNING.
+	    boolean feasibilityProbe = TEMPORAL_NAME_FOR_EXTRACTED_METHOD.equals(extractedMethodName);
+	    Level infeasibilityLogLevel = feasibilityProbe ? Level.FINE : Level.WARNING;
+
 	    long startTime = System.currentTimeMillis();
 	    long runtime = startTime;
 
@@ -366,13 +376,13 @@ public class Utils {
 	            } else {
 	                feasible = false;
 	                resultOfRefactoring = status.getEntryWithHighestSeverity().getMessage();
-	                LOGGER.log(Level.WARNING, "Final conditions failed for method {0} ([{1}, {2}]): {3}", 
+	                LOGGER.log(infeasibilityLogLevel, "Final conditions not met for method {0} ([{1}, {2}]): {3}", 
 	                        new Object[]{targetMethodName, selectionStart, selectionEnd, resultOfRefactoring});
 	            }
 	        } else {
 	            feasible = false;
 	            resultOfRefactoring = status.getEntryWithHighestSeverity().getMessage();
-	            LOGGER.log(Level.WARNING, "Initial conditions failed for method {0} ([{1}, {2}]): {3}", 
+	            LOGGER.log(infeasibilityLogLevel, "Initial conditions not met for method {0} ([{1}, {2}]): {3}", 
 	                    new Object[]{targetMethodName, selectionStart, selectionEnd, resultOfRefactoring});
 	        }
 
