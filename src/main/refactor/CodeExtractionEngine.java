@@ -85,7 +85,10 @@ public final class CodeExtractionEngine {
 			usedILP = false;
 		}
 
-		if (solution == null || solution.getSequenceList() == null || solution.getSequenceList().isEmpty()) {
+		if (solution == null 
+				|| solution.getSequenceList() == null 
+				|| solution.getSequenceList().isEmpty() 
+				|| !solution.isFeasible()) {
 			return Collections.emptyList();
 		}
 
