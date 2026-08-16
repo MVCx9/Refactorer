@@ -208,6 +208,24 @@ public final class Messages {
 			: "Métodos originales con refactor:";
 	}
 	
+	public static String getTableSummaryMethodsWithoutRefactor() {
+		return isEnglish()
+			? "Methods without refactor:"
+			: "Métodos sin refactor:";
+	}
+	
+	public static String getTableSectionMethodsWithoutRefactor() {
+		return isEnglish()
+			? "Without refactor"
+			: "Sin refactor";
+	}
+	
+	public static String getTableValueNoRefactorFound() {
+		return isEnglish()
+			? "No refactoring found"
+			: "Sin refactor encontrado";
+	}
+	
 	// Columnas de tabla
 	public static String getTableColumnNumber() {
 		return isEnglish() ? "No." : "Nº";
@@ -337,6 +355,61 @@ public final class Messages {
 		return isEnglish()
 			? "The workspace does not have methods with cognitive complexity above the threshold (" + threshold + ")."
 			: "El workspace no tiene métodos con complejidad cognitiva superior al umbral (" + threshold + ").";
+	}
+	
+	// ============ DIÁLOGO SIN REFACTORIZACIONES CON MÉTODOS DETECTADOS ============
+	
+	public static String getNoPlanMessageClass(String className, int threshold, int methodCount) {
+		return isEnglish()
+			? "The class '" + className + "' has " + methodCount + " method(s) above the cognitive complexity threshold ("
+				+ threshold + "), but no viable refactoring was found for them."
+			: "La clase '" + className + "' tiene " + methodCount + " método(s) por encima del umbral de complejidad cognitiva ("
+				+ threshold + "), pero no se ha encontrado ninguna refactorización viable para ellos.";
+	}
+	
+	public static String getNoPlanMessageProject(String projectName, int threshold, int methodCount) {
+		return isEnglish()
+			? "The project '" + projectName + "' has " + methodCount + " method(s) above the cognitive complexity threshold ("
+				+ threshold + "), but no viable refactoring was found for them."
+			: "El proyecto '" + projectName + "' tiene " + methodCount + " método(s) por encima del umbral de complejidad cognitiva ("
+				+ threshold + "), pero no se ha encontrado ninguna refactorización viable para ellos.";
+	}
+	
+	public static String getNoPlanMessageWorkspace(int methodCount) {
+		return isEnglish()
+			? "The workspace has " + methodCount + " method(s) above the cognitive complexity threshold of their project, "
+				+ "but no viable refactoring was found for them."
+			: "El workspace tiene " + methodCount + " método(s) por encima del umbral de complejidad cognitiva de su proyecto, "
+				+ "pero no se ha encontrado ninguna refactorización viable para ellos.";
+	}
+	
+	public static String getNoPlanExplanation() {
+		String base = isEnglish()
+			? "The methods listed below were detected above the threshold, but the planning algorithms (ILP and enumerative search) "
+				+ "could not build any sequence of extractions that lowers their cognitive complexity while keeping the code valid."
+			: "Los métodos que se listan a continuación se han detectado por encima del umbral, pero los algoritmos de planificación "
+				+ "(ILP y búsqueda enumerativa) no han podido construir ninguna secuencia de extracciones que reduzca su complejidad "
+				+ "cognitiva manteniendo el código válido.";
+		
+		String reasons = isEnglish()
+			? "\n\nPossible reasons:" +
+				"\n • There is no contiguous block of statements that can be extracted without breaking the data flow." +
+				"\n • The extraction would need to return several values or to pass too many parameters." +
+				"\n • The complexity comes from deeply nested control flow that cannot be isolated into a cohesive method." +
+				"\n • The feasible extractions do not bring the complexity below the threshold."
+			: "\n\nPosibles razones:" +
+				"\n • No existe un bloque contiguo de sentencias que se pueda extraer sin romper el flujo de datos." +
+				"\n • La extracción necesitaría devolver varios valores o pasar demasiados parámetros." +
+				"\n • La complejidad proviene de estructuras de control muy anidadas que no se pueden aislar en un método cohesivo." +
+				"\n • Las extracciones factibles no consiguen bajar la complejidad por debajo del umbral.";
+		
+		return base + reasons;
+	}
+	
+	public static String getTableTitleMethodsWithoutRefactor() {
+		return isEnglish()
+			? "Methods above the threshold without refactorings"
+			: "Métodos que superan el umbral sin refactorizaciones";
 	}
 	
 	// ==================== HISTORIAL ====================

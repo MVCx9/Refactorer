@@ -56,6 +56,32 @@ class ProjectMetricsTest {
     }
 
     @Test
+    void given_projectWithMethodsAboveThresholdWithoutPlan_when_getClassesWithoutRefactors_should_returnTrimmedClasses() {
+        final ProjectMetrics p = ProjectMetricsMother.withoutRefactors("P");
+        final List<ClassMetrics> trimmed = p.getClassesWithoutRefactors();
+        assertEquals(1, trimmed.size());
+        assertEquals("C.java", trimmed.getFirst().getName());
+        assertEquals(1, trimmed.getFirst().getCurrentMethodCount());
+        assertEquals(0, trimmed.getFirst().getRefactoredMethodCount());
+    }
+
+    @Test
+    void given_projectWhereEveryMethodIsPlannedOrBelowThreshold_when_getClassesWithoutRefactors_should_returnEmpty() {
+        assertTrue(ProjectMetricsMother.withRefactors("P").getClassesWithoutRefactors().isEmpty());
+        assertTrue(ProjectMetricsMother.simple("P").getClassesWithoutRefactors().isEmpty());
+    }
+
+    @Test
+    void given_project_when_copyWithClasses_should_keepIdentityAndReplaceClasses() {
+        final ProjectMetrics p = ProjectMetricsMother.withRefactors("P");
+        final ProjectMetrics copy = p.copyWithClasses(List.of());
+        assertEquals(p.getName(), copy.getName());
+        assertEquals(p.getAnalysisDate(), copy.getAnalysisDate());
+        assertEquals(p.getComplexityThreshold(), copy.getComplexityThreshold());
+        assertEquals(0, copy.getClassCount());
+    }
+
+    @Test
     void given_immutableClasses_when_modify_throws_unsupportedOperation() {
         final ProjectMetrics p = ProjectMetricsMother.simple("P");
         assertThrows(UnsupportedOperationException.class, () -> p.getClasses().clear());

@@ -9,9 +9,11 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
@@ -53,6 +55,19 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
     private static final int APPLY_EXTRACT_ID = 1001;
     private static final int BREAK_EXTRACT_ID = 1002;
 
+    /** Row used to visually separate the groups of the refactorings table. */
+    private static final String SEPARATOR_CELL = "────────";
+    /** Placeholder shown in the refactoring columns of a method without a plan. */
+    private static final String EMPTY_CELL = "—";
+    /** Blank space used between the counters of the table summary line. */
+    private static final String SUMMARY_SEPARATOR = "    ";
+    /** Marker present in the name of the methods produced by an extraction. */
+    private static final String EXTRACTED_METHOD_MARKER = "_ext_";
+    /** Key flagging the decorative title row of the group of methods without a plan. */
+    private static final String SECTION_HEADER_DATA_KEY = "sectionHeader";
+    private static final String ALGORITHM_ILP = "ILP";
+    private static final String ALGORITHM_ESH = "ESH";
+
     private final ActionType actionType;
     private final Object metrics;
     private final String leftSource;
@@ -61,6 +76,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
     private Color delColor;
     private Color insColor;
     private Color modColor;
+    private Color noRefactorColor;
     private final Color black = org.eclipse.swt.widgets.Display.getCurrent().getSystemColor(SWT.COLOR_BLACK);
 
     private boolean readOnly = false;
@@ -588,25 +604,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         sepTitle.setText(Messages.getTableTitleRefactoredMethods());
         sepTitle.setFont(bold(sepTitle));
         sepTitle.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-        String summaryText = "";
-        if (actionType == ActionType.WORKSPACE && metrics instanceof WorkspaceMetrics wm) {
-            List<ProjectMetrics> trimmedProjects = wm.getProjectsWithRefactors();
-            int classesAffected = trimmedProjects.stream().mapToInt(p -> p.getClasses().size()).sum();
-            int methodsAffected = trimmedProjects.stream().flatMap(p -> p.getClasses().stream())
-                    .mapToInt(c -> c.getCurrentMethods().size()).sum();
-            summaryText = Messages.getTableSummaryClassesAffected() + " " + classesAffected + "    " + 
-                         Messages.getTableSummaryMethodsAffected() + " " + methodsAffected;
-        }else if (actionType == ActionType.PROJECT && metrics instanceof ProjectMetrics pm) {
-            List<ClassMetrics> trimmed = pm.getMethodsWithRefactors();
-            int classesAffected = trimmed.size();
-            int methodsAffected = trimmed.stream().mapToInt(c -> c.getCurrentMethods().size()).sum();
-            summaryText = Messages.getTableSummaryClassesAffected() + " " + classesAffected + "    " + 
-                         Messages.getTableSummaryMethodsAffected() + " " + methodsAffected;
-        } else if (actionType == ActionType.CLASS && metrics instanceof ClassMetrics cm){
-            List<ClassMetrics> trimmed = cm.getMethodsWithRefactors();
-            int methodsAffected = trimmed.stream().mapToInt(c -> c.getCurrentMethods().size()).sum();
-            summaryText = Messages.getTableSummaryMethodsAffected() + " " + methodsAffected;
-        }
+        String summaryText = buildTableSummary();
         if (!summaryText.isEmpty()) {
             Label summary = new Label(parent, SWT.NONE);
             summary.setText(summaryText);
@@ -683,6 +681,46 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         exportBtn.setLayoutData(btnGD);
         exportBtn.addListener(SWT.Selection, e -> exportTableToCsv(refactorTable));
     }
+
+    /**
+     * Builds the counters shown above the table: how many classes and methods
+     * have a planned refactoring and how many methods exceed the complexity
+     * threshold without any feasible plan.
+     */
+    private String buildTableSummary() {
+        if (actionType == ActionType.WORKSPACE && metrics instanceof WorkspaceMetrics wm) {
+            return summaryOf(classesOf(wm.getProjectsWithRefactors()), classesOf(wm.getProjectsWithoutRefactors()));
+        }
+        if (actionType == ActionType.PROJECT && metrics instanceof ProjectMetrics pm) {
+            return summaryOf(pm.getMethodsWithRefactors(), pm.getClassesWithoutRefactors());
+        }
+        if (actionType == ActionType.CLASS && metrics instanceof ClassMetrics cm) {
+            return counter(Messages.getTableSummaryMethodsAffected(), countMethods(cm.getMethodsWithRefactors()))
+                    + SUMMARY_SEPARATOR
+                    + counter(Messages.getTableSummaryMethodsWithoutRefactor(), cm.getMethodsWithoutRefactors().size());
+        }
+        return "";
+    }
+
+    private String summaryOf(List<ClassMetrics> classesWithRefactors, List<ClassMetrics> classesWithoutRefactors) {
+        return counter(Messages.getTableSummaryClassesAffected(), classesWithRefactors.size())
+                + SUMMARY_SEPARATOR
+                + counter(Messages.getTableSummaryMethodsAffected(), countMethods(classesWithRefactors))
+                + SUMMARY_SEPARATOR
+                + counter(Messages.getTableSummaryMethodsWithoutRefactor(), countMethods(classesWithoutRefactors));
+    }
+
+    private String counter(String label, int value) {
+        return label + " " + value;
+    }
+
+    private List<ClassMetrics> classesOf(List<ProjectMetrics> projects) {
+        return projects.stream().flatMap(p -> p.getClasses().stream()).collect(Collectors.toList());
+    }
+
+    private int countMethods(List<ClassMetrics> classes) {
+        return classes.stream().mapToInt(ClassMetrics::getCurrentMethodCount).sum();
+    }
     
     private void setAllCheckboxes(boolean selected) {
         for (Button checkbox : classCheckboxes.values()) {
@@ -743,6 +781,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         List<ClassMetrics> trimmedList = pm.getMethodsWithRefactors();
         List<ClassMetrics> fullClasses = pm.getClasses();
         String projectName = pm.getName();
+        int colOffset = showCheckboxes ? 1 : 0;
         
         for (ClassMetrics trimmed : trimmedList) {
             ClassMetrics full = findMatchingFullClass(fullClasses, trimmed);
@@ -755,37 +794,15 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             for (MethodMetrics original : trimmed.getCurrentMethods()) {
                 String baseName = original.getName();
                 if (baseName == null) continue;
-                List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
-                        .filter(m -> m.getName() != null && (isSameHostMethod(m, original) || m.getName().startsWith(baseName + "_ext_")))
-                        .sorted((m1,m2)->{
-                            boolean b1 = m1.getName().equals(baseName);
-                            boolean b2 = m2.getName().equals(baseName);
-                            if (b1 && !b2) return -1;
-                            if (!b1 && b2) return 1;
-                            return m1.getName().compareTo(m2.getName());
-                        })
-                        .collect(java.util.stream.Collectors.toList());
+                List<MethodMetrics> refactoredAll = findRefactoredMethodsOf(full, original);
                 if (refactoredAll.isEmpty()) continue;
                 for (int idx=0; idx<refactoredAll.size(); idx++) {
                     MethodMetrics ref = refactoredAll.get(idx);
                     TableItem item = new TableItem(table, SWT.NONE);
-                    String algorithm = ref.isUsedILP() ? "ILP" : "ESH";
-                    
-                    int colOffset = showCheckboxes ? 1 : 0;
                     
                     if (idx == 0) {
                         if (showCheckboxes && isFirstMethodOfClass) {
-                            Button checkbox = new Button(table, SWT.CHECK);
-                            checkbox.setSelection(true);
-                            checkbox.pack();
-                            
-                            TableEditor editor = new TableEditor(table);
-                            editor.minimumWidth = checkbox.getSize().x;
-                            editor.horizontalAlignment = SWT.CENTER;
-                            editor.setEditor(checkbox, item, 0);
-                            
-                            classCheckboxes.put(classKey, checkbox);
-                            classInfoMap.put(classKey, new SelectedClassInfo(projectName, full));
+                            createSelectionCheckbox(table, item, classKey, new SelectedClassInfo(projectName, full));
                         }
                         
                         if (isFirstMethodOfClass) {
@@ -797,7 +814,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                         item.setText(colOffset + 3, Integer.toString(original.getCc()));
                         item.setText(colOffset + 4, ref.getName());
                         item.setText(colOffset + 5, Integer.toString(ref.getCc()));
-                        item.setText(colOffset + 6, algorithm);
+                        item.setText(colOffset + 6, algorithmOf(ref));
                     } else {
                         item.setText(colOffset + 4, ref.getName());
                         item.setText(colOffset + 5, Integer.toString(ref.getCc()));
@@ -805,6 +822,37 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                 }
                 addSeparatorRow(table);
             }
+        }
+        removeLastSeparatorIfPresent(table);
+        appendProjectMethodsWithoutRefactors(table, pm, colOffset, rowNum);
+    }
+
+    /**
+     * Appends, at the end of the table, the methods of the project that exceed
+     * the complexity threshold but have no feasible refactoring plan. These rows
+     * are purely informative: no selection checkbox is created for them, so a
+     * class whose only entries are these methods can never be selected.
+     */
+    private void appendProjectMethodsWithoutRefactors(Table table, ProjectMetrics pm, int colOffset, int[] rowNum) {
+        List<ClassMetrics> classesWithoutRefactors = pm.getClassesWithoutRefactors();
+        if (classesWithoutRefactors.isEmpty()) return;
+        
+        addNoRefactorSectionHeader(table, colOffset + 2);
+        for (ClassMetrics clazz : classesWithoutRefactors) {
+            boolean isFirstMethodOfClass = true;
+            int currentClassRowNum = rowNum[0]++;
+            for (MethodMetrics method : clazz.getCurrentMethods()) {
+                TableItem item = createNoRefactorRow(table);
+                if (isFirstMethodOfClass) {
+                    item.setText(colOffset, Integer.toString(currentClassRowNum));
+                    item.setText(colOffset + 1, clazz.getName());
+                    isFirstMethodOfClass = false;
+                }
+                item.setText(colOffset + 2, method.getName());
+                item.setText(colOffset + 3, Integer.toString(method.getCc()));
+                fillNoRefactorCells(item, colOffset + 4);
+            }
+            addSeparatorRow(table);
         }
         removeLastSeparatorIfPresent(table);
     }
@@ -841,6 +889,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         int[] classUniqueId = {0};
         List<ProjectMetrics> trimmedProjects = wm.getProjectsWithRefactors();
         List<ProjectMetrics> fullProjects = wm.getProjects();
+        int colOffset = showCheckboxes ? 1 : 0;
         
         for (ProjectMetrics trimmedProject : trimmedProjects) {
             ProjectMetrics fullProject = findMatchingFullProject(fullProjects, trimmedProject);
@@ -858,31 +907,16 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                 for (MethodMetrics original : trimmed.getCurrentMethods()) {
                     String baseName = original.getName();
                     if (baseName == null) continue;
-                    List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
-                            .filter(m -> m.getName() != null && (isSameHostMethod(m, original) || m.getName().startsWith(baseName + "_ext_")))
-                            .sorted((m1,m2)->{ boolean b1 = m1.getName().equals(baseName); boolean b2 = m2.getName().equals(baseName); if (b1 && !b2) return -1; if (!b1 && b2) return 1; return m1.getName().compareTo(m2.getName()); })
-                            .collect(java.util.stream.Collectors.toList());
+                    List<MethodMetrics> refactoredAll = findRefactoredMethodsOf(full, original);
                     if (refactoredAll.isEmpty()) continue;
                     for (int idx=0; idx<refactoredAll.size(); idx++) {
                         MethodMetrics ref = refactoredAll.get(idx);
                         TableItem item = new TableItem(table, SWT.NONE);
-                        String algorithm = ref.isUsedILP() ? "ILP" : "ESH";
-                        
-                        int colOffset = showCheckboxes ? 1 : 0;
                         
                         if (idx == 0) {
                             if (showCheckboxes && isFirstMethodOfClass) {
-                                Button checkbox = new Button(table, SWT.CHECK);
-                                checkbox.setSelection(true);
-                                checkbox.pack();
-                                
-                                TableEditor editor = new TableEditor(table);
-                                editor.minimumWidth = checkbox.getSize().x;
-                                editor.horizontalAlignment = SWT.CENTER;
-                                editor.setEditor(checkbox, item, 0);
-                                
-                                classCheckboxes.put(classKey, checkbox);
-                                classInfoMap.put(classKey, new SelectedClassInfo(trimmedProject.getName(), full));
+                                createSelectionCheckbox(table, item, classKey,
+                                        new SelectedClassInfo(trimmedProject.getName(), full));
                             }
                             
                             if (isFirstMethodOfClass) {
@@ -896,7 +930,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                             item.setText(colOffset + 5, Integer.toString(original.getCc()));
                             item.setText(colOffset + 6, ref.getName());
                             item.setText(colOffset + 7, Integer.toString(ref.getCc()));
-                            item.setText(colOffset + 8, algorithm);
+                            item.setText(colOffset + 8, algorithmOf(ref));
                         } else {
                             item.setText(colOffset + 6, ref.getName());
                             item.setText(colOffset + 7, Integer.toString(ref.getCc()));
@@ -904,6 +938,41 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                     }
                     addSeparatorRow(table);
                 }
+            }
+        }
+        removeLastSeparatorIfPresent(table);
+        appendWorkspaceMethodsWithoutRefactors(table, wm, colOffset, rowNum);
+    }
+
+    /**
+     * Appends, at the end of the table, the methods of the workspace that exceed
+     * the complexity threshold but have no feasible refactoring plan. These rows
+     * are purely informative: no selection checkbox is created for them, so a
+     * class whose only entries are these methods can never be selected.
+     */
+    private void appendWorkspaceMethodsWithoutRefactors(Table table, WorkspaceMetrics wm, int colOffset, int[] rowNum) {
+        List<ProjectMetrics> projectsWithoutRefactors = wm.getProjectsWithoutRefactors();
+        if (projectsWithoutRefactors.isEmpty()) return;
+        
+        addNoRefactorSectionHeader(table, colOffset + 4);
+        for (ProjectMetrics project : projectsWithoutRefactors) {
+            for (ClassMetrics clazz : project.getClasses()) {
+                boolean isFirstMethodOfClass = true;
+                int currentClassRowNum = rowNum[0]++;
+                for (MethodMetrics method : clazz.getCurrentMethods()) {
+                    TableItem item = createNoRefactorRow(table);
+                    if (isFirstMethodOfClass) {
+                        item.setText(colOffset, Integer.toString(currentClassRowNum));
+                        item.setText(colOffset + 1, project.getName());
+                        item.setText(colOffset + 2, Integer.toString(project.getComplexityThreshold()));
+                        item.setText(colOffset + 3, clazz.getName());
+                        isFirstMethodOfClass = false;
+                    }
+                    item.setText(colOffset + 4, method.getName());
+                    item.setText(colOffset + 5, Integer.toString(method.getCc()));
+                    fillNoRefactorCells(item, colOffset + 6);
+                }
+                addSeparatorRow(table);
             }
         }
         removeLastSeparatorIfPresent(table);
@@ -931,27 +1000,63 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         return refactored.getName().equals(original.getName());
     }
 
+    /**
+     * Returns the outcome of refactoring {@code original}: its reduced host
+     * method followed by the methods the plan extracts from it, ordered so the
+     * host method is always rendered first.
+     */
+    private List<MethodMetrics> findRefactoredMethodsOf(ClassMetrics full, MethodMetrics original) {
+        String baseName = original.getName();
+        String extractionPrefix = baseName + EXTRACTED_METHOD_MARKER;
+        return full.getRefactoredMethods().stream()
+                .filter(m -> m.getName() != null
+                        && (isSameHostMethod(m, original) || m.getName().startsWith(extractionPrefix)))
+                .sorted(Comparator.comparing((MethodMetrics m) -> !m.getName().equals(baseName))
+                        .thenComparing(MethodMetrics::getName))
+                .collect(Collectors.toList());
+    }
+
+    /** Returns the label of the algorithm that produced the given refactoring. */
+    private String algorithmOf(MethodMetrics refactored) {
+        return refactored.isUsedILP() ? ALGORITHM_ILP : ALGORITHM_ESH;
+    }
+
+    /**
+     * Creates the checkbox that lets the user include the class in a batch apply
+     * or undo. Only classes with a planned refactoring get one.
+     */
+    private void createSelectionCheckbox(Table table, TableItem item, String classKey, SelectedClassInfo classInfo) {
+        Button checkbox = new Button(table, SWT.CHECK);
+        checkbox.setSelection(true);
+        checkbox.pack();
+        
+        TableEditor editor = new TableEditor(table);
+        editor.minimumWidth = checkbox.getSize().x;
+        editor.horizontalAlignment = SWT.CENTER;
+        editor.setEditor(checkbox, item, 0);
+        
+        classCheckboxes.put(classKey, checkbox);
+        classInfoMap.put(classKey, classInfo);
+    }
+
     private void populateClassTable(Table table, ClassMetrics full) {
-        ClassMetrics trimmed = full.getMethodsWithRefactors().getFirst();
-    	int[] rowNum = {1};
+        int[] rowNum = {1};
+        List<ClassMetrics> trimmedList = full.getMethodsWithRefactors();
+        if (!trimmedList.isEmpty()) {
+            populateClassRefactorRows(table, full, trimmedList.getFirst(), rowNum);
+        }
+        appendClassMethodsWithoutRefactors(table, full, rowNum);
+    }
+
+    private void populateClassRefactorRows(Table table, ClassMetrics full, ClassMetrics trimmed, int[] rowNum) {
         for (MethodMetrics original : trimmed.getCurrentMethods()) {
             String baseName = original.getName();
             if (baseName == null) continue;
-            List<MethodMetrics> refactoredAll = full.getRefactoredMethods().stream()
-                    .filter(m -> m.getName() != null && (isSameHostMethod(m, original) || m.getName().startsWith(baseName + "_ext_")))
-                    .sorted((m1,m2)->{
-                        boolean b1 = m1.getName().equals(baseName);
-                        boolean b2 = m2.getName().equals(baseName);
-                        if (b1 && !b2) return -1;
-                        if (!b1 && b2) return 1;
-                        return m1.getName().compareTo(m2.getName());
-                    })
-                    .collect(java.util.stream.Collectors.toList());
+            List<MethodMetrics> refactoredAll = findRefactoredMethodsOf(full, original);
             if (refactoredAll.isEmpty()) continue;
             for (int idx=0; idx<refactoredAll.size(); idx++) {
                 MethodMetrics ref = refactoredAll.get(idx);
                 TableItem item = new TableItem(table, SWT.NONE);
-                String algorithm = ref.isUsedILP() ? "ILP" : "ESH";
                 if (idx == 0) {
                     item.setText(new String[] {
                         Integer.toString(rowNum[0]++),
@@ -959,7 +1064,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
                         Integer.toString(original.getCc()),
                         ref.getName(),
                         Integer.toString(ref.getCc()),
-                        algorithm
+                        algorithmOf(ref)
                     });
                 } else {
                     item.setText(new String[] {
@@ -977,15 +1082,77 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
         removeLastSeparatorIfPresent(table);
     }
 
+    /**
+     * Appends, at the end of the table, the methods of the class that exceed the
+     * complexity threshold but have no feasible refactoring plan. These rows are
+     * purely informative and cannot be acted upon.
+     */
+    private void appendClassMethodsWithoutRefactors(Table table, ClassMetrics full, int[] rowNum) {
+        List<MethodMetrics> methodsWithoutRefactors = full.getMethodsWithoutRefactors();
+        if (methodsWithoutRefactors.isEmpty()) return;
+        
+        addNoRefactorSectionHeader(table, 1);
+        for (MethodMetrics method : methodsWithoutRefactors) {
+            TableItem item = createNoRefactorRow(table);
+            item.setText(0, Integer.toString(rowNum[0]++));
+            item.setText(1, method.getName());
+            item.setText(2, Integer.toString(method.getCc()));
+            fillNoRefactorCells(item, 3);
+        }
+    }
+
+    /**
+     * Opens the group of methods that exceed the threshold without a refactoring
+     * plan with a separator and a highlighted title row.
+     *
+     * @param originalMethodColumn index of the "original method" column, where
+     *                             the title of the group is rendered
+     */
+    private void addNoRefactorSectionHeader(Table table, int originalMethodColumn) {
+        if (table.getItemCount() > 0) {
+            addSeparatorRow(table);
+        }
+        TableItem header = createNoRefactorRow(table);
+        header.setData(SECTION_HEADER_DATA_KEY, Boolean.TRUE);
+        header.setText(originalMethodColumn, Messages.getTableSectionMethodsWithoutRefactor());
+        header.setFont(bold(table));
+    }
+
+    /** Creates a highlighted row for a method that has no refactoring plan. */
+    private TableItem createNoRefactorRow(Table table) {
+        TableItem item = new TableItem(table, SWT.NONE);
+        item.setBackground(noRefactorBackground(table));
+        item.setForeground(black);
+        return item;
+    }
+
+    /**
+     * Fills the refactoring columns of a method without a plan, starting at the
+     * "refactored method" column.
+     */
+    private void fillNoRefactorCells(TableItem item, int refactoredMethodColumn) {
+        item.setText(refactoredMethodColumn, Messages.getTableValueNoRefactorFound());
+        item.setText(refactoredMethodColumn + 1, EMPTY_CELL);
+        item.setText(refactoredMethodColumn + 2, EMPTY_CELL);
+    }
+
+    private Color noRefactorBackground(Control owner) {
+        if (noRefactorColor == null) {
+            noRefactorColor = new Color(owner.getDisplay(), 255, 244, 214);
+            owner.addListener(SWT.Dispose, e -> {
+                if (noRefactorColor != null && !noRefactorColor.isDisposed()) noRefactorColor.dispose();
+            });
+        }
+        return noRefactorColor;
+    }
+
     private void addSeparatorRow(Table table) {
         int cols = table.getColumnCount();
         if (cols == 0) return;
         TableItem sep = new TableItem(table, SWT.NONE);
-        String line = "";
-        // build a horizontal rule style line for last two columns; keep others empty
+        // build a horizontal rule style line for the refactored-CC column; keep others empty
         for (int i=0;i<cols;i++) {
-            if (i == cols-2) line = "────────"; // simple visual separator
-            sep.setText(i, i == cols-2 ? line : "");
+            sep.setText(i, i == cols-2 ? SEPARATOR_CELL : "");
         }
         sep.setForeground(table.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
     }
@@ -999,7 +1166,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             String txt = last.getText(c);
             if (!txt.isBlank()) {
                 // allow only separator pattern
-                if (!(txt.equals("────────"))) { isSep = false; break; }
+                if (!(txt.equals(SEPARATOR_CELL))) { isSep = false; break; }
             }
         }
         if (isSep) last.dispose();
@@ -1028,7 +1195,7 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             }
             bw.write('\n');
             for (TableItem item : table.getItems()) {
-                if (isSeparator(item, colCount)) continue;
+                if (isSeparator(item, colCount) || isSectionHeader(item)) continue;
                 boolean allBlank = true;
                 for (int c=0;c<colCount;c++) {
                     String cell = item.getText(c);
@@ -1077,9 +1244,14 @@ public class AnalysisMetricsDialog extends TitleAreaDialog {
             String t = item.getText(c);
             if (!t.isBlank()) {
                 nonBlank++;
-                if (!t.equals("────────")) return false; // some other text -> not separator
+                if (!t.equals(SEPARATOR_CELL)) return false; // some other text -> not separator
             }
         }
         return nonBlank == 1; // exactly one non-blank cell with the dashes
+    }
+
+    /** Returns {@code true} for the decorative title row of a table group. */
+    private boolean isSectionHeader(TableItem item) {
+        return Boolean.TRUE.equals(item.getData(SECTION_HEADER_DATA_KEY));
     }
 }

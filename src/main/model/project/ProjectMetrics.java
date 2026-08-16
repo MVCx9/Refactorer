@@ -4,14 +4,12 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import main.model.clazz.ClassMetrics;
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
 import main.model.common.LocStats;
-import main.model.method.MethodMetrics;
 
 public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 
@@ -129,23 +127,34 @@ public class ProjectMetrics implements Identifiable, ComplexityStats, LocStats {
 		return complexityThreshold;
 	}
 
+	/**
+	 * Returns a trimmed view of every class with a planned refactoring, holding
+	 * only the original methods that will be refactored and the methods that the
+	 * plan would extract. Classes without a plan are left out.
+	 */
 	public List<ClassMetrics> getMethodsWithRefactors() {
-		return classes.stream().filter(c -> c.getMethodExtractionCount() > 0).map(originalClass -> {
-			List<MethodMetrics> extractedMethods = originalClass.getRefactoredMethods().stream()
-					.filter(MethodMetrics::isExtracted).collect(Collectors.toList());
-			// Identify refactored host methods and match them to their originals by
-			// overload-aware signature, keeping overloaded methods correctly apart.
-			Set<String> refactoredSignatures = originalClass.getRefactoredMethods().stream()
-					.filter(m -> m.getNumberOfExtractions() > 0).map(MethodMetrics::getSignature)
-					.collect(Collectors.toSet());
-			List<MethodMetrics> originalBaseMethods = originalClass.getCurrentMethods().stream()
-					.filter(m -> refactoredSignatures.contains(m.getSignature())).collect(Collectors.toList());
-			return ClassMetrics.builder().name(originalClass.getName()).analysisDate(originalClass.getAnalysisDate())
-					.currentSource(originalClass.getCurrentSource())
-					.refactoredSource(originalClass.getRefactoredSource()).currentMethods(originalBaseMethods)
-					.refactoredMethods(extractedMethods).complexityThreshold(originalClass.getComplexityThreshold())
-					.path(originalClass.getPath()).build();
-		}).collect(Collectors.toList());
+		return classes.stream().map(ClassMetrics::getMethodsWithRefactors).flatMap(List::stream)
+				.collect(Collectors.toList());
+	}
+
+	/**
+	 * Returns a trimmed view of every class holding only the methods whose
+	 * cognitive complexity exceeds the threshold and for which no feasible
+	 * refactoring plan was found. Classes without such methods are left out.
+	 */
+	public List<ClassMetrics> getClassesWithoutRefactors() {
+		return classes.stream()
+				.map(clazz -> clazz.copyWithMethods(clazz.getMethodsWithoutRefactors(), Collections.emptyList()))
+				.filter(clazz -> clazz.getCurrentMethodCount() > 0).collect(Collectors.toList());
+	}
+
+	/**
+	 * Returns a copy of this project keeping its identity and threshold but only
+	 * the given classes. Used to build the trimmed views consumed by the UI.
+	 */
+	public ProjectMetrics copyWithClasses(List<ClassMetrics> classes) {
+		return ProjectMetrics.builder().name(name).analysisDate(analysisDate).classes(classes)
+				.complexityThreshold(complexityThreshold).build();
 	}
 
 	public static class ProjectMetricsBuilder {

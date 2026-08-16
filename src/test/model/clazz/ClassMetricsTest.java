@@ -84,6 +84,52 @@ class ClassMetricsTest {
     }
 
     @Test
+    void given_methodsBelowThreshold_when_getMethodsWithoutRefactors_should_returnEmpty() {
+        final ClassMetrics c = ClassMetricsMother.simple("A.java");
+        assertTrue(c.getMethodsWithoutRefactors().isEmpty());
+    }
+
+    @Test
+    void given_methodAboveThresholdWithoutPlan_when_getMethodsWithoutRefactors_should_returnIt() {
+        final ClassMetrics c = ClassMetricsMother.withoutRefactors("C.java");
+        final List<MethodMetrics> result = c.getMethodsWithoutRefactors();
+        assertEquals(1, result.size());
+        assertEquals("tangled", result.getFirst().getName());
+    }
+
+    @Test
+    void given_plannedMethodAboveThreshold_when_getMethodsWithoutRefactors_should_excludeIt() {
+        final ClassMetrics c = ClassMetricsMother.withRefactors("A.java");
+        assertTrue(c.getMethodsWithoutRefactors().isEmpty());
+    }
+
+    @Test
+    void given_classWithPlannedAndUnplannedMethods_when_queried_should_splitThem() {
+        final ClassMetrics c = ClassMetricsMother.withRefactorsAndUnplannedMethods("A.java");
+        final ClassMetrics trimmed = c.getMethodsWithRefactors().getFirst();
+        assertEquals(1, trimmed.getCurrentMethods().size());
+        assertEquals("foo", trimmed.getCurrentMethods().getFirst().getName());
+        final List<MethodMetrics> withoutRefactors = c.getMethodsWithoutRefactors();
+        assertEquals(1, withoutRefactors.size());
+        assertEquals("tangled", withoutRefactors.getFirst().getName());
+    }
+
+    @Test
+    void given_class_when_copyWithMethods_should_keepIdentityAndReplaceMethods() {
+        final ClassMetrics c = ClassMetricsMother.withRefactors("A.java");
+        final MethodMetrics kept = c.getCurrentMethods().getFirst();
+        final ClassMetrics copy = c.copyWithMethods(List.of(kept), List.of());
+        assertEquals(c.getName(), copy.getName());
+        assertEquals(c.getPath(), copy.getPath());
+        assertEquals(c.getAnalysisDate(), copy.getAnalysisDate());
+        assertEquals(c.getCurrentSource(), copy.getCurrentSource());
+        assertEquals(c.getRefactoredSource(), copy.getRefactoredSource());
+        assertEquals(c.getComplexityThreshold(), copy.getComplexityThreshold());
+        assertEquals(1, copy.getCurrentMethodCount());
+        assertEquals(0, copy.getRefactoredMethodCount());
+    }
+
+    @Test
     void given_classWithPath_when_getPath_should_returnPath() {
         final ClassMetrics c = ClassMetrics.builder().path("/x/y/A.java").build();
         assertEquals("/x/y/A.java", c.getPath());

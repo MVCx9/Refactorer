@@ -34,4 +34,15 @@ public final class WorkspaceMetricsMother {
                         ProjectMetricsMother.simple("P2")))
                 .build();
     }
+
+    /** A workspace where only one project has methods above the threshold without a plan. */
+    public static WorkspaceMetrics withoutRefactors() {
+        return WorkspaceMetrics.builder()
+                .name("WS")
+                .analysisDate(ClassMetricsMother.FIXED_DATE)
+                .projects(List.of(
+                        ProjectMetricsMother.withoutRefactors("P1"),
+                        ProjectMetricsMother.simple("P2")))
+                .build();
+    }
 }

@@ -52,6 +52,20 @@ class WorkspaceMetricsTest {
     }
 
     @Test
+    void given_workspaceWithMethodsAboveThresholdWithoutPlan_when_getProjectsWithoutRefactors_should_filterProjects() {
+        final List<ProjectMetrics> trimmed = WorkspaceMetricsMother.withoutRefactors().getProjectsWithoutRefactors();
+        assertEquals(1, trimmed.size());
+        assertEquals("P1", trimmed.getFirst().getName());
+        assertEquals(1, trimmed.getFirst().getClassCount());
+    }
+
+    @Test
+    void given_workspaceWhereEveryMethodIsPlannedOrBelowThreshold_when_getProjectsWithoutRefactors_should_returnEmpty() {
+        assertTrue(WorkspaceMetricsMother.withRefactors().getProjectsWithoutRefactors().isEmpty());
+        assertTrue(WorkspaceMetricsMother.simple().getProjectsWithoutRefactors().isEmpty());
+    }
+
+    @Test
     void given_equalWorkspaces_when_equals_should_returnTrue() {
         final WorkspaceMetrics a = WorkspaceMetrics.builder()
                 .name("WS").analysisDate(ClassMetricsMother.FIXED_DATE).build();

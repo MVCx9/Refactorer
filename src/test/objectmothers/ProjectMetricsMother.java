@@ -39,6 +39,16 @@ public final class ProjectMetricsMother {
                 .build();
     }
 
+    /** A project whose only class has methods above the threshold without a plan. */
+    public static ProjectMetrics withoutRefactors(final String name) {
+        return ProjectMetrics.builder()
+                .name(name)
+                .analysisDate(ClassMetricsMother.FIXED_DATE)
+                .classes(List.of(ClassMetricsMother.withoutRefactors("C.java")))
+                .complexityThreshold(10)
+                .build();
+    }
+
     public static ProjectMetrics fromClasses(final String name, final List<ClassMetrics> classes) {
         return ProjectMetrics.builder()
                 .name(name)
