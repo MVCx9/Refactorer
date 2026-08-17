@@ -115,6 +115,36 @@ class ClassMetricsTest {
     }
 
     @Test
+    void given_overloadedMethods_when_onlyOnePlanned_should_splitBySignatureNotByName() {
+        // Two overloads share the simple name "foo" but differ in their signature.
+        final MethodMetrics fooInt = MethodMetrics.builder().name("foo").signature("foo(int)").cc(20).loc(10).build();
+        final MethodMetrics fooString = MethodMetrics.builder().name("foo").signature("foo(String)").cc(25).loc(10)
+                .build();
+        // Only foo(int) is planned (reduced host + extractions); foo(String) stays unchanged.
+        final MethodMetrics fooIntHost = MethodMetrics.builder().name("foo").signature("foo(int)").cc(8).loc(10)
+                .numberOfExtractions(2).usedILP(true).build();
+        final MethodMetrics fooStringUnchanged = MethodMetrics.builder().name("foo").signature("foo(String)").cc(25)
+                .loc(10).build();
+        final MethodMetrics ext1 = MethodMetrics.builder().name("foo_ext_1").signature("foo_ext_1()").cc(4).loc(4)
+                .build();
+        final MethodMetrics ext2 = MethodMetrics.builder().name("foo_ext_2").signature("foo_ext_2()").cc(5).loc(4)
+                .build();
+        final ClassMetrics c = ClassMetrics.builder().name("A.java").complexityThreshold(10)
+                .currentMethods(List.of(fooInt, fooString))
+                .refactoredMethods(List.of(fooIntHost, fooStringUnchanged, ext1, ext2)).build();
+
+        // The unplanned overload must be reported, the planned one must not.
+        final List<MethodMetrics> withoutRefactors = c.getMethodsWithoutRefactors();
+        assertEquals(1, withoutRefactors.size());
+        assertEquals("foo(String)", withoutRefactors.getFirst().getSignature());
+
+        // Conversely, only the planned overload appears among the refactored methods.
+        final ClassMetrics trimmed = c.getMethodsWithRefactors().getFirst();
+        assertEquals(1, trimmed.getCurrentMethods().size());
+        assertEquals("foo(int)", trimmed.getCurrentMethods().getFirst().getSignature());
+    }
+
+    @Test
     void given_class_when_copyWithMethods_should_keepIdentityAndReplaceMethods() {
         final ClassMetrics c = ClassMetricsMother.withRefactors("A.java");
         final MethodMetrics kept = c.getCurrentMethods().getFirst();
