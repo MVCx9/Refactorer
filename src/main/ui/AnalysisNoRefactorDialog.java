@@ -1,19 +1,31 @@
 package main.ui;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.core.resources.IProject;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.layout.TableColumnLayout;
 import org.eclipse.jface.viewers.ColumnWeightData;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
@@ -39,8 +51,14 @@ import main.session.ActionType;
 public class AnalysisNoRefactorDialog extends TitleAreaDialog {
 
     private static final int DEFAULT_THRESHOLD = 15;
-    private static final int TABLE_HEIGHT_HINT = 180;
     private static final int SECTION_SPACING = 10;
+    /** Minimum number of data rows kept visible so short lists are not cramped. */
+    private static final int MIN_VISIBLE_ROWS = 10;
+    /** Maximum number of rows shown before the table starts scrolling. */
+    private static final int MAX_VISIBLE_ROWS = 20;
+    private static final int TABLE_ROW_PADDING = 6;
+    private static final int DIALOG_WIDTH = 880;
+    private static final int DIALOG_HEIGHT = 660;
 
     private final ActionType actionType;
     private final Object metrics;
@@ -64,8 +82,16 @@ public class AnalysisNoRefactorDialog extends TitleAreaDialog {
         if (detectedMethods.isEmpty()) {
             newShell.setMinimumSize(560, 300);
         } else {
-            newShell.setMinimumSize(820, 580);
+            newShell.setMinimumSize(760, 520);
         }
+    }
+
+    @Override
+    protected Point getInitialSize() {
+        if (detectedMethods.isEmpty()) {
+            return super.getInitialSize();
+        }
+        return new Point(DIALOG_WIDTH, DIALOG_HEIGHT);
     }
 
     @Override
@@ -197,7 +223,6 @@ public class AnalysisNoRefactorDialog extends TitleAreaDialog {
         TableColumnLayout columnLayout = new TableColumnLayout();
         tableContainer.setLayout(columnLayout);
         GridData tableGd = new GridData(SWT.FILL, SWT.FILL, true, true);
-        tableGd.heightHint = TABLE_HEIGHT_HINT;
         tableContainer.setLayoutData(tableGd);
 
         Table table = new Table(tableContainer, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL);
@@ -205,6 +230,23 @@ public class AnalysisNoRefactorDialog extends TitleAreaDialog {
         table.setLinesVisible(true);
         createColumns(table, columnLayout);
         fillRows(table);
+        tableGd.heightHint = computeTableHeight(table);
+
+        Button exportBtn = new Button(parent, SWT.PUSH);
+        exportBtn.setText(Messages.getButtonExportCSV());
+        exportBtn.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true, false));
+        exportBtn.addListener(SWT.Selection, e -> exportTableToCsv(table));
+    }
+
+    /**
+     * Computes a vertical size hint so the table shows a comfortable number of
+     * rows (between {@link #MIN_VISIBLE_ROWS} and {@link #MAX_VISIBLE_ROWS})
+     * before it starts scrolling, keeping the values readable.
+     */
+    private int computeTableHeight(Table table) {
+        int rows = Math.min(Math.max(detectedMethods.size(), MIN_VISIBLE_ROWS), MAX_VISIBLE_ROWS);
+        int itemHeight = table.getItemHeight();
+        return table.getHeaderHeight() + rows * itemHeight + TABLE_ROW_PADDING;
     }
 
     private void createColumns(Table table, TableColumnLayout layout) {
@@ -279,6 +321,69 @@ public class AnalysisNoRefactorDialog extends TitleAreaDialog {
             }
         }
         return detected;
+    }
+
+    // ---------------- CSV export ----------------
+
+    /** Writes the currently displayed table (header + rows) to a user-chosen CSV file. */
+    private void exportTableToCsv(Table table) {
+        if (table.isDisposed()) return;
+        FileDialog dialog = new FileDialog(table.getShell(), SWT.SAVE);
+        dialog.setText(Messages.getCSVExportDialogTitle());
+        dialog.setFilterExtensions(new String[] {"*.csv"});
+        dialog.setFilterNames(new String[] {Messages.getCSVFilterName()});
+        dialog.setFileName(buildDefaultCsvFileName());
+        String pathStr = dialog.open();
+        if (pathStr == null) return;
+        if (!pathStr.toLowerCase().endsWith(".csv")) {
+            pathStr += ".csv";
+        }
+        Path path = Paths.get(pathStr);
+
+        int colCount = table.getColumnCount();
+        try (BufferedWriter bw = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
+            for (int c = 0; c < colCount; c++) {
+                bw.write(csvEscape(table.getColumn(c).getText()));
+                if (c < colCount - 1) bw.write(',');
+            }
+            bw.write('\n');
+            for (TableItem item : table.getItems()) {
+                for (int c = 0; c < colCount; c++) {
+                    bw.write(csvEscape(item.getText(c)));
+                    if (c < colCount - 1) bw.write(',');
+                }
+                bw.write('\n');
+            }
+        } catch (IOException ex) {
+            MessageDialog.openError(table.getShell(), Messages.getErrorTitle(),
+                                   Messages.getCSVExportError() + " " + ex.getMessage());
+            return;
+        }
+        MessageDialog.openInformation(table.getShell(), Messages.getCSVExportSuccess(),
+                                      Messages.getCSVExportSuccessMessage(path.toString()));
+    }
+
+    private String buildDefaultCsvFileName() {
+        String tipo = analysisTypeToken();
+        String timestamp = DateTimeFormatter.ofPattern("yyyyMMdd_HHmm").format(LocalDateTime.now());
+        return "Refactorer_" + tipo + "_" + timestamp + ".csv";
+    }
+
+    private String analysisTypeToken() {
+        return switch (actionType) {
+            case CLASS -> Messages.getCSVFileNameClass();
+            case PROJECT -> Messages.getCSVFileNameProject();
+            case WORKSPACE -> Messages.getCSVFileNameWorkspace();
+        };
+    }
+
+    private String csvEscape(String cell) {
+        if (cell == null) return "";
+        boolean needsQuotes = cell.contains(",") || cell.contains("\n") || cell.contains("\r")
+                || cell.contains("\"") || cell.startsWith(" ") || cell.endsWith(" ");
+        String v = cell.replace("\"", "\"\"");
+        if (needsQuotes) return '"' + v + '"';
+        return v;
     }
 
     private Font bold(Control control) {
