@@ -84,6 +84,82 @@ class ClassMetricsTest {
     }
 
     @Test
+    void given_methodsBelowThreshold_when_getMethodsWithoutRefactors_should_returnEmpty() {
+        final ClassMetrics c = ClassMetricsMother.simple("A.java");
+        assertTrue(c.getMethodsWithoutRefactors().isEmpty());
+    }
+
+    @Test
+    void given_methodAboveThresholdWithoutPlan_when_getMethodsWithoutRefactors_should_returnIt() {
+        final ClassMetrics c = ClassMetricsMother.withoutRefactors("C.java");
+        final List<MethodMetrics> result = c.getMethodsWithoutRefactors();
+        assertEquals(1, result.size());
+        assertEquals("tangled", result.getFirst().getName());
+    }
+
+    @Test
+    void given_plannedMethodAboveThreshold_when_getMethodsWithoutRefactors_should_excludeIt() {
+        final ClassMetrics c = ClassMetricsMother.withRefactors("A.java");
+        assertTrue(c.getMethodsWithoutRefactors().isEmpty());
+    }
+
+    @Test
+    void given_classWithPlannedAndUnplannedMethods_when_queried_should_splitThem() {
+        final ClassMetrics c = ClassMetricsMother.withRefactorsAndUnplannedMethods("A.java");
+        final ClassMetrics trimmed = c.getMethodsWithRefactors().getFirst();
+        assertEquals(1, trimmed.getCurrentMethods().size());
+        assertEquals("foo", trimmed.getCurrentMethods().getFirst().getName());
+        final List<MethodMetrics> withoutRefactors = c.getMethodsWithoutRefactors();
+        assertEquals(1, withoutRefactors.size());
+        assertEquals("tangled", withoutRefactors.getFirst().getName());
+    }
+
+    @Test
+    void given_overloadedMethods_when_onlyOnePlanned_should_splitBySignatureNotByName() {
+        // Two overloads share the simple name "foo" but differ in their signature.
+        final MethodMetrics fooInt = MethodMetrics.builder().name("foo").signature("foo(int)").cc(20).loc(10).build();
+        final MethodMetrics fooString = MethodMetrics.builder().name("foo").signature("foo(String)").cc(25).loc(10)
+                .build();
+        // Only foo(int) is planned (reduced host + extractions); foo(String) stays unchanged.
+        final MethodMetrics fooIntHost = MethodMetrics.builder().name("foo").signature("foo(int)").cc(8).loc(10)
+                .numberOfExtractions(2).usedILP(true).build();
+        final MethodMetrics fooStringUnchanged = MethodMetrics.builder().name("foo").signature("foo(String)").cc(25)
+                .loc(10).build();
+        final MethodMetrics ext1 = MethodMetrics.builder().name("foo_ext_1").signature("foo_ext_1()").cc(4).loc(4)
+                .build();
+        final MethodMetrics ext2 = MethodMetrics.builder().name("foo_ext_2").signature("foo_ext_2()").cc(5).loc(4)
+                .build();
+        final ClassMetrics c = ClassMetrics.builder().name("A.java").complexityThreshold(10)
+                .currentMethods(List.of(fooInt, fooString))
+                .refactoredMethods(List.of(fooIntHost, fooStringUnchanged, ext1, ext2)).build();
+
+        // The unplanned overload must be reported, the planned one must not.
+        final List<MethodMetrics> withoutRefactors = c.getMethodsWithoutRefactors();
+        assertEquals(1, withoutRefactors.size());
+        assertEquals("foo(String)", withoutRefactors.getFirst().getSignature());
+
+        // Conversely, only the planned overload appears among the refactored methods.
+        final ClassMetrics trimmed = c.getMethodsWithRefactors().getFirst();
+        assertEquals(1, trimmed.getCurrentMethods().size());
+        assertEquals("foo(int)", trimmed.getCurrentMethods().getFirst().getSignature());
+    }
+
+    @Test
+    void given_class_when_copyWithMethods_should_keepIdentityAndReplaceMethods() {
+        final ClassMetrics c = ClassMetricsMother.withRefactors("A.java");
+        final MethodMetrics kept = c.getCurrentMethods().getFirst();
+        final ClassMetrics copy = c.copyWithMethods(List.of(kept), List.of());
+        assertEquals(c.getName(), copy.getName());
+        assertEquals(c.getPath(), copy.getPath());
+        assertEquals(c.getAnalysisDate(), copy.getAnalysisDate());
+        assertEquals(c.getCurrentSource(), copy.getCurrentSource());
+        assertEquals(c.getRefactoredSource(), copy.getRefactoredSource());
+        assertEquals(c.getComplexityThreshold(), copy.getComplexityThreshold());
+        assertEquals(1, copy.getCurrentMethodCount());
+        assertEquals(0, copy.getRefactoredMethodCount());
+    }
+
+    @Test
     void given_classWithPath_when_getPath_should_returnPath() {
         final ClassMetrics c = ClassMetrics.builder().path("/x/y/A.java").build();
         assertEquals("/x/y/A.java", c.getPath());

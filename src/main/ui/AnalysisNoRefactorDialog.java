@@ -1,35 +1,77 @@
 package main.ui;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.eclipse.core.resources.IProject;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
+import org.eclipse.jface.layout.TableColumnLayout;
+import org.eclipse.jface.viewers.ColumnWeightData;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.FontData;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Table;
+import org.eclipse.swt.widgets.TableColumn;
+import org.eclipse.swt.widgets.TableItem;
 
 import main.common.languaje.Messages;
 import main.model.clazz.ClassMetrics;
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
 import main.model.common.LocStats;
+import main.model.method.MethodMetrics;
 import main.model.project.ProjectMetrics;
 import main.model.workspace.WorkspaceMetrics;
 import main.session.ActionType;
 
+/**
+ * Dialog shown when the analysis could not propose any refactoring. When some
+ * methods were detected above the cognitive complexity threshold they are
+ * listed, so the user knows which ones need attention even though no extraction
+ * plan could be built for them.
+ */
 public class AnalysisNoRefactorDialog extends TitleAreaDialog {
+
+    private static final int DEFAULT_THRESHOLD = 15;
+    private static final int SECTION_SPACING = 10;
+    /** Minimum number of data rows kept visible so short lists are not cramped. */
+    private static final int MIN_VISIBLE_ROWS = 10;
+    /** Maximum number of rows shown before the table starts scrolling. */
+    private static final int MAX_VISIBLE_ROWS = 20;
+    private static final int TABLE_ROW_PADDING = 6;
+    private static final int DIALOG_WIDTH = 880;
+    private static final int DIALOG_HEIGHT = 660;
 
     private final ActionType actionType;
     private final Object metrics;
     private final IProject project;
+    /** Methods above the threshold for which no refactoring plan was found. */
+    private final List<DetectedMethod> detectedMethods;
 
     public AnalysisNoRefactorDialog(Shell parentShell, ActionType actionType, Object metrics, IProject project) {
         super(parentShell);
         this.actionType = actionType;
         this.metrics = metrics;
         this.project = project;
+        this.detectedMethods = collectDetectedMethods(metrics);
         setHelpAvailable(false);
     }
 
@@ -37,7 +79,19 @@ public class AnalysisNoRefactorDialog extends TitleAreaDialog {
     protected void configureShell(Shell newShell) {
         super.configureShell(newShell);
         newShell.setText(Messages.getNoRefactorTitle());
-        newShell.setMinimumSize(560, 300);
+        if (detectedMethods.isEmpty()) {
+            newShell.setMinimumSize(560, 300);
+        } else {
+            newShell.setMinimumSize(760, 520);
+        }
+    }
+
+    @Override
+    protected Point getInitialSize() {
+        if (detectedMethods.isEmpty()) {
+            return super.getInitialSize();
+        }
+        return new Point(DIALOG_WIDTH, DIALOG_HEIGHT);
     }
 
     @Override
@@ -57,13 +111,16 @@ public class AnalysisNoRefactorDialog extends TitleAreaDialog {
         if (metrics != null) {
             Composite metricsComp = new Composite(container, SWT.NONE);
             GridLayout gl = new GridLayout(2, false);
-            gl.marginTop = 10;
+            gl.marginTop = SECTION_SPACING;
             gl.horizontalSpacing = 14;
             gl.verticalSpacing = 6;
             metricsComp.setLayout(gl);
             metricsComp.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
 
             addMetrics(metricsComp);
+        }
+        if (!detectedMethods.isEmpty()) {
+            createDetectedMethodsSection(container);
         }
         return area;
     }
@@ -77,10 +134,18 @@ public class AnalysisNoRefactorDialog extends TitleAreaDialog {
         if (actionType == ActionType.CLASS && metrics == null) {
             return Messages.getNoRefactorUnsupportedElement();
         }
-        
+
         String name = metrics instanceof Identifiable ? ((Identifiable) metrics).getName() : "";
         int threshold = getThreshold();
-        
+
+        if (!detectedMethods.isEmpty()) {
+            return switch (actionType) {
+                case CLASS -> Messages.getNoPlanMessageClass(name, threshold, detectedMethods.size());
+                case PROJECT -> Messages.getNoPlanMessageProject(name, threshold, detectedMethods.size());
+                case WORKSPACE -> Messages.getNoPlanMessageWorkspace(detectedMethods.size());
+            };
+        }
+
         return switch (actionType) {
             case CLASS -> Messages.getNoRefactorMessageClass(name, threshold);
             case PROJECT -> Messages.getNoRefactorMessageProject(name, threshold);
@@ -91,18 +156,18 @@ public class AnalysisNoRefactorDialog extends TitleAreaDialog {
     private int getThreshold() {
         if (metrics instanceof ClassMetrics cm) return cm.getComplexityThreshold();
         if (metrics instanceof ProjectMetrics pm) return pm.getComplexityThreshold();
-        return 15;
+        return DEFAULT_THRESHOLD;
     }
 
     private String buildMainExplanation() {
         if (actionType == ActionType.CLASS && metrics == null) {
             return Messages.getNoRefactorUnsupportedExplanation();
         }
-        
-        boolean isClassAction = actionType == ActionType.CLASS;
-        return Messages.getNoRefactorExplanation(isClassAction);
+        if (!detectedMethods.isEmpty()) {
+            return Messages.getNoPlanExplanation();
+        }
+        return Messages.getNoRefactorExplanation(actionType == ActionType.CLASS);
     }
-
 
     private void addMetrics(Composite parent) {
         if (metrics instanceof ClassMetrics cm) {
@@ -138,5 +203,200 @@ public class AnalysisNoRefactorDialog extends TitleAreaDialog {
         l.setText(label + ":");
         Label v = new Label(parent, SWT.NONE);
         v.setText(String.valueOf(value));
+    }
+
+    // ---------------- Methods detected above the threshold ----------------
+
+    /**
+     * Renders the list of methods that exceed the cognitive complexity threshold
+     * and for which the analysis could not propose any extraction.
+     */
+    private void createDetectedMethodsSection(Composite parent) {
+        Label title = new Label(parent, SWT.NONE);
+        title.setText(Messages.getTableTitleMethodsWithoutRefactor());
+        title.setFont(bold(title));
+        GridData titleGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+        titleGd.verticalIndent = SECTION_SPACING;
+        title.setLayoutData(titleGd);
+
+        Composite tableContainer = new Composite(parent, SWT.NONE);
+        TableColumnLayout columnLayout = new TableColumnLayout();
+        tableContainer.setLayout(columnLayout);
+        GridData tableGd = new GridData(SWT.FILL, SWT.FILL, true, true);
+        tableContainer.setLayoutData(tableGd);
+
+        Table table = new Table(tableContainer, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL);
+        table.setHeaderVisible(true);
+        table.setLinesVisible(true);
+        createColumns(table, columnLayout);
+        fillRows(table);
+        tableGd.heightHint = computeTableHeight(table);
+
+        Button exportBtn = new Button(parent, SWT.PUSH);
+        exportBtn.setText(Messages.getButtonExportCSV());
+        exportBtn.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true, false));
+        exportBtn.addListener(SWT.Selection, e -> exportTableToCsv(table));
+    }
+
+    /**
+     * Computes a vertical size hint so the table shows a comfortable number of
+     * rows (between {@link #MIN_VISIBLE_ROWS} and {@link #MAX_VISIBLE_ROWS})
+     * before it starts scrolling, keeping the values readable.
+     */
+    private int computeTableHeight(Table table) {
+        int rows = Math.min(Math.max(detectedMethods.size(), MIN_VISIBLE_ROWS), MAX_VISIBLE_ROWS);
+        int itemHeight = table.getItemHeight();
+        return table.getHeaderHeight() + rows * itemHeight + TABLE_ROW_PADDING;
+    }
+
+    private void createColumns(Table table, TableColumnLayout layout) {
+        createColumn(table, layout, Messages.getTableColumnNumber(), 5, 40);
+        if (actionType == ActionType.WORKSPACE) {
+            createColumn(table, layout, Messages.getTableColumnProject(), 18, 110);
+            createColumn(table, layout, Messages.getTableColumnThreshold(), 8, 70);
+        }
+        if (actionType != ActionType.CLASS) {
+            createColumn(table, layout, Messages.getTableColumnClass(), 22, 120);
+        }
+        createColumn(table, layout, Messages.getTableColumnOriginalMethod(), 30, 140);
+        createColumn(table, layout, Messages.getTableColumnOriginalCC(), 15, 130);
+    }
+
+    private void createColumn(Table table, TableColumnLayout layout, String text, int weight, int minimumWidth) {
+        TableColumn column = new TableColumn(table, SWT.LEFT);
+        column.setText(text);
+        column.setResizable(true);
+        layout.setColumnData(column, new ColumnWeightData(weight, minimumWidth, true));
+    }
+
+    private void fillRows(Table table) {
+        int rowNumber = 1;
+        for (DetectedMethod detected : detectedMethods) {
+            TableItem item = new TableItem(table, SWT.NONE);
+            item.setText(buildRow(rowNumber++, detected));
+        }
+    }
+
+    private String[] buildRow(int rowNumber, DetectedMethod detected) {
+        List<String> cells = new ArrayList<>();
+        cells.add(Integer.toString(rowNumber));
+        if (actionType == ActionType.WORKSPACE) {
+            cells.add(detected.projectName());
+            cells.add(Integer.toString(detected.threshold()));
+        }
+        if (actionType != ActionType.CLASS) {
+            cells.add(detected.className());
+        }
+        cells.add(detected.method().getName());
+        cells.add(Integer.toString(detected.method().getCc()));
+        return cells.toArray(new String[0]);
+    }
+
+    /**
+     * Flattens the analysed element into the methods that exceed the complexity
+     * threshold and for which no refactoring plan was found.
+     */
+    private static List<DetectedMethod> collectDetectedMethods(Object metrics) {
+        if (metrics instanceof ClassMetrics cm) {
+            return methodsOf("", List.of(cm.copyWithMethods(cm.getMethodsWithoutRefactors(), List.of())));
+        }
+        if (metrics instanceof ProjectMetrics pm) {
+            return methodsOf(pm.getName(), pm.getClassesWithoutRefactors());
+        }
+        if (metrics instanceof WorkspaceMetrics wm) {
+            List<DetectedMethod> detected = new ArrayList<>();
+            for (ProjectMetrics trimmedProject : wm.getProjectsWithoutRefactors()) {
+                detected.addAll(methodsOf(trimmedProject.getName(), trimmedProject.getClasses()));
+            }
+            return detected;
+        }
+        return List.of();
+    }
+
+    private static List<DetectedMethod> methodsOf(String projectName, List<ClassMetrics> classes) {
+        List<DetectedMethod> detected = new ArrayList<>();
+        for (ClassMetrics clazz : classes) {
+            for (MethodMetrics method : clazz.getCurrentMethods()) {
+                detected.add(new DetectedMethod(projectName, clazz.getComplexityThreshold(), clazz.getName(), method));
+            }
+        }
+        return detected;
+    }
+
+    // ---------------- CSV export ----------------
+
+    /** Writes the currently displayed table (header + rows) to a user-chosen CSV file. */
+    private void exportTableToCsv(Table table) {
+        if (table.isDisposed()) return;
+        FileDialog dialog = new FileDialog(table.getShell(), SWT.SAVE);
+        dialog.setText(Messages.getCSVExportDialogTitle());
+        dialog.setFilterExtensions(new String[] {"*.csv"});
+        dialog.setFilterNames(new String[] {Messages.getCSVFilterName()});
+        dialog.setFileName(buildDefaultCsvFileName());
+        String pathStr = dialog.open();
+        if (pathStr == null) return;
+        if (!pathStr.toLowerCase().endsWith(".csv")) {
+            pathStr += ".csv";
+        }
+        Path path = Paths.get(pathStr);
+
+        int colCount = table.getColumnCount();
+        try (BufferedWriter bw = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
+            for (int c = 0; c < colCount; c++) {
+                bw.write(csvEscape(table.getColumn(c).getText()));
+                if (c < colCount - 1) bw.write(',');
+            }
+            bw.write('\n');
+            for (TableItem item : table.getItems()) {
+                for (int c = 0; c < colCount; c++) {
+                    bw.write(csvEscape(item.getText(c)));
+                    if (c < colCount - 1) bw.write(',');
+                }
+                bw.write('\n');
+            }
+        } catch (IOException ex) {
+            MessageDialog.openError(table.getShell(), Messages.getErrorTitle(),
+                                   Messages.getCSVExportError() + " " + ex.getMessage());
+            return;
+        }
+        MessageDialog.openInformation(table.getShell(), Messages.getCSVExportSuccess(),
+                                      Messages.getCSVExportSuccessMessage(path.toString()));
+    }
+
+    private String buildDefaultCsvFileName() {
+        String tipo = analysisTypeToken();
+        String timestamp = DateTimeFormatter.ofPattern("yyyyMMdd_HHmm").format(LocalDateTime.now());
+        return "Refactorer_" + tipo + "_" + timestamp + ".csv";
+    }
+
+    private String analysisTypeToken() {
+        return switch (actionType) {
+            case CLASS -> Messages.getCSVFileNameClass();
+            case PROJECT -> Messages.getCSVFileNameProject();
+            case WORKSPACE -> Messages.getCSVFileNameWorkspace();
+        };
+    }
+
+    private String csvEscape(String cell) {
+        if (cell == null) return "";
+        boolean needsQuotes = cell.contains(",") || cell.contains("\n") || cell.contains("\r")
+                || cell.contains("\"") || cell.startsWith(" ") || cell.endsWith(" ");
+        String v = cell.replace("\"", "\"\"");
+        if (needsQuotes) return '"' + v + '"';
+        return v;
+    }
+
+    private Font bold(Control control) {
+        FontData[] fontData = control.getFont().getFontData();
+        for (FontData data : fontData) {
+            data.setStyle(SWT.BOLD);
+        }
+        Font font = new Font(control.getDisplay(), fontData);
+        control.addListener(SWT.Dispose, e -> font.dispose());
+        return font;
+    }
+
+    /** A method detected above the threshold, with the context needed to show it. */
+    private record DetectedMethod(String projectName, int threshold, String className, MethodMetrics method) {
     }
 }

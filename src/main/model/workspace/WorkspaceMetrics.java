@@ -4,8 +4,10 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import main.model.clazz.ClassMetrics;
 import main.model.common.ComplexityStats;
 import main.model.common.Identifiable;
 import main.model.common.LocStats;
@@ -121,22 +123,31 @@ public class WorkspaceMetrics implements Identifiable, ComplexityStats, LocStats
 		return projects.stream().mapToInt(ProjectMetrics::getClassCount).sum();
 	}
 
+	/**
+	 * Returns a trimmed view of every project holding only the classes with a
+	 * planned refactoring. Projects without such classes are left out.
+	 */
 	public List<ProjectMetrics> getProjectsWithRefactors() {
-		return  projects.stream()
-			.map(p -> {
-				List<main.model.clazz.ClassMetrics> trimmedClasses = p.getMethodsWithRefactors();
-				if (trimmedClasses.isEmpty()) {
-					return null; 
-				}
-				return ProjectMetrics.builder()
-						.name(p.getName())
-						.analysisDate(p.getAnalysisDate())
-						.classes(trimmedClasses)
-						.complexityThreshold(p.getComplexityThreshold())
-						.build();
-			})
-			.filter(p -> p != null)
-			.collect(Collectors.toList());
+		return trimProjects(ProjectMetrics::getMethodsWithRefactors);
+	}
+
+	/**
+	 * Returns a trimmed view of every project holding only the classes with
+	 * methods whose cognitive complexity exceeds the threshold and for which no
+	 * feasible refactoring plan was found. Projects without such classes are left
+	 * out.
+	 */
+	public List<ProjectMetrics> getProjectsWithoutRefactors() {
+		return trimProjects(ProjectMetrics::getClassesWithoutRefactors);
+	}
+
+	/**
+	 * Rebuilds every project with the classes selected by {@code classSelector},
+	 * discarding the projects that end up without classes.
+	 */
+	private List<ProjectMetrics> trimProjects(Function<ProjectMetrics, List<ClassMetrics>> classSelector) {
+		return projects.stream().map(project -> project.copyWithClasses(classSelector.apply(project)))
+				.filter(project -> project.getClassCount() > 0).collect(Collectors.toList());
 	}
 
 	private int average(java.util.function.ToIntFunction<ProjectMetrics> mapper) {

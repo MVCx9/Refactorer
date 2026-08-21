@@ -138,29 +138,67 @@ public class ClassMetrics implements Identifiable, ComplexityStats, LocStats {
 		return path;
 	}
 
+	/**
+	 * Returns a singleton list with a trimmed view of this class holding only the
+	 * original methods for which a refactoring plan was found together with the
+	 * methods that plan would extract, or an empty list when the class has no
+	 * planned refactoring at all.
+	 */
 	public List<ClassMetrics> getMethodsWithRefactors() {
 		if (getMethodExtractionCount() <= 0) {
 			return Collections.emptyList();
 		}
 		List<MethodMetrics> extracted = refactoredMethods.stream().filter(MethodMetrics::isExtracted)
 				.collect(Collectors.toList());
-		if (extracted.isEmpty()) {
+		List<MethodMetrics> plannedOriginals = getPlannedOriginalMethods();
+		if (extracted.isEmpty() || plannedOriginals.isEmpty()) {
 			return Collections.emptyList();
 		}
-		// Match each refactored host method back to its original by overload-aware
-		// signature (not by simple name) so overloaded methods stay separated and
-		// non-refactored overloads are never shown as refactored.
-		Set<String> refactoredSignatures = refactoredMethods.stream().filter(m -> m.getNumberOfExtractions() > 0)
-				.map(MethodMetrics::getSignature).collect(Collectors.toSet());
-		List<MethodMetrics> originalBase = currentMethods.stream()
-				.filter(m -> refactoredSignatures.contains(m.getSignature())).collect(Collectors.toList());
-		if (originalBase.isEmpty()) {
-			return Collections.emptyList();
-		}
-		ClassMetrics trimmed = ClassMetrics.builder().name(this.name).analysisDate(this.analysisDate)
-				.currentSource(this.currentSource).refactoredSource(this.refactoredSource).currentMethods(originalBase)
-				.refactoredMethods(extracted).complexityThreshold(this.complexityThreshold).path(this.path).build();
-		return Collections.singletonList(trimmed);
+		return Collections.singletonList(copyWithMethods(plannedOriginals, extracted));
+	}
+
+	/**
+	 * Returns the original methods whose cognitive complexity exceeds the
+	 * configured threshold but for which the analysis could not find any feasible
+	 * refactoring plan. They are reported so the user knows they were detected
+	 * even though no extraction can be proposed for them.
+	 */
+	public List<MethodMetrics> getMethodsWithoutRefactors() {
+		Set<String> plannedSignatures = plannedMethodSignatures();
+		return currentMethods.stream().filter(this::exceedsComplexityThreshold)
+				.filter(m -> !plannedSignatures.contains(m.getSignature())).collect(Collectors.toList());
+	}
+
+	/**
+	 * Returns a copy of this class keeping its identity, sources and threshold but
+	 * only the given methods. Used to build the trimmed views consumed by the UI.
+	 */
+	public ClassMetrics copyWithMethods(List<MethodMetrics> current, List<MethodMetrics> refactored) {
+		return ClassMetrics.builder().name(name).analysisDate(analysisDate).currentSource(currentSource)
+				.refactoredSource(refactoredSource).currentMethods(current).refactoredMethods(refactored)
+				.complexityThreshold(complexityThreshold).path(path).build();
+	}
+
+	/**
+	 * Returns the original methods that produced at least one extraction. Each
+	 * refactored host method is matched back to its original by overload-aware
+	 * signature (not by simple name) so overloaded methods stay separated and
+	 * non-refactored overloads are never reported as refactored.
+	 */
+	private List<MethodMetrics> getPlannedOriginalMethods() {
+		Set<String> plannedSignatures = plannedMethodSignatures();
+		return currentMethods.stream().filter(m -> plannedSignatures.contains(m.getSignature()))
+				.collect(Collectors.toList());
+	}
+
+	/** Signatures of the host methods for which a refactoring plan was found. */
+	private Set<String> plannedMethodSignatures() {
+		return refactoredMethods.stream().filter(m -> m.getNumberOfExtractions() > 0).map(MethodMetrics::getSignature)
+				.collect(Collectors.toSet());
+	}
+
+	private boolean exceedsComplexityThreshold(MethodMetrics method) {
+		return method.getCc() > complexityThreshold;
 	}
 
 	private int averageCurrent(java.util.function.ToIntFunction<MethodMetrics> mapper) {

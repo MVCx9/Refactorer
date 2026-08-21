@@ -85,6 +85,27 @@ class OtherDialogsTest {
     }
 
     @Test
+    void given_classWithMethodsAboveThreshold_when_constructNoRefactorDialog_should_returnInstance() {
+        Assumptions.assumeTrue(shell != null, "SWT Display not available");
+        assertNotNull(new AnalysisNoRefactorDialog(shell, ActionType.CLASS,
+                ClassMetricsMother.withoutRefactors("C.java"), null));
+    }
+
+    @Test
+    void given_projectWithMethodsAboveThreshold_when_constructNoRefactorDialog_should_returnInstance() {
+        Assumptions.assumeTrue(shell != null, "SWT Display not available");
+        assertNotNull(new AnalysisNoRefactorDialog(shell, ActionType.PROJECT,
+                ProjectMetricsMother.withoutRefactors("P"), null));
+    }
+
+    @Test
+    void given_workspaceWithMethodsAboveThreshold_when_constructNoRefactorDialog_should_returnInstance() {
+        Assumptions.assumeTrue(shell != null, "SWT Display not available");
+        assertNotNull(new AnalysisNoRefactorDialog(shell, ActionType.WORKSPACE,
+                WorkspaceMetricsMother.withoutRefactors(), null));
+    }
+
+    @Test
     void given_validShell_when_constructConfigurationDialog_should_returnInstance() {
         Assumptions.assumeTrue(shell != null, "SWT Display not available");
         assertNotNull(new ConfigurationDialog(shell));

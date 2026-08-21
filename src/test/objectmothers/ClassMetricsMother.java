@@ -53,4 +53,45 @@ public final class ClassMetricsMother {
                 .path("/p/src/" + name)
                 .build();
     }
+
+    /**
+     * A class whose only method exceeds the complexity threshold but for which no
+     * feasible extraction plan was found.
+     */
+    public static ClassMetrics withoutRefactors(final String name) {
+        final MethodMetrics tangled = MethodMetricsMother.withCc("tangled", 30);
+        return ClassMetrics.builder()
+                .name(name)
+                .analysisDate(FIXED_DATE)
+                .currentMethods(List.of(tangled))
+                .refactoredMethods(List.of(tangled))
+                .currentSource("class C {\n  void tangled(){}\n}\n")
+                .refactoredSource("class C {\n  void tangled(){}\n}\n")
+                .complexityThreshold(10)
+                .path("/p/src/" + name)
+                .build();
+    }
+
+    /**
+     * A class mixing a method with a planned refactoring and another one above the
+     * threshold for which no plan was found.
+     */
+    public static ClassMetrics withRefactorsAndUnplannedMethods(final String name) {
+        final MethodMetrics original = MethodMetricsMother.withCc("foo", 20);
+        final MethodMetrics tangled = MethodMetricsMother.withCc("tangled", 30);
+        final MethodMetrics base = MethodMetricsMother.reduced("foo", 8, 2);
+        final MethodMetrics ext1 = MethodMetricsMother.extracted("foo", 1, 4);
+        final MethodMetrics ext2 = MethodMetricsMother.extracted("foo", 2, 5);
+        return ClassMetrics.builder()
+                .name(name)
+                .analysisDate(FIXED_DATE)
+                .currentMethods(List.of(original, tangled))
+                .refactoredMethods(List.of(base, tangled, ext1, ext2))
+                .currentSource("class A {\n  void foo(){}\n  void tangled(){}\n}\n")
+                .refactoredSource("class A {\n  void foo(){bar();}\n  void tangled(){}\n"
+                        + "  void foo_ext_1(){}\n  void foo_ext_2(){}\n}\n")
+                .complexityThreshold(10)
+                .path("/p/src/" + name)
+                .build();
+    }
 }
